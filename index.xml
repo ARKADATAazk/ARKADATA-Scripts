@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<index version="1" name="ARKADATA Scripts" commit="58a3e39ba95bd0f35846aa1f39aa4cb2574295e1">
+<index version="1" name="ARKADATA Scripts" commit="1f10b8d7dbf6e4b16a6d955fc8087758a49459be">
   <category name="Example">
     <reapack name="cfillion_Hello world.lua" type="script" desc="Hello world">
       <metadata>
@@ -45,8 +45,8 @@ README.md
 Packaging Documentation
 }}}
  on reapack-index's wiki.\par}
-{\pard \ql \f0 \sa180 \li0 \fi0 The URL to import in ReaPack is {\field{\*\fldinst{HYPERLINK "https://github.com/cfillion/reapack-repository-template/raw/master/index.xml"}}{\fldrslt{\ul
-https://github.com/{\f1 <your username>}/{\f1 <repository name>}/raw/master/index.xml
+{\pard \ql \f0 \sa180 \li0 \fi0 The URL to import in ReaPack is {\field{\*\fldinst{HYPERLINK "https://github.com//ARKADATAazk/ARKADATA-Scripts/raw/master/index.xml"}}{\fldrslt{\ul
+https://github.com//ARKADATAazk/ARKADATA-Scripts/raw/master/index.xml
 }}}
 .\par}
 }
