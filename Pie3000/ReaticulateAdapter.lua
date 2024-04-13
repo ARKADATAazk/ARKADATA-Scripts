@@ -5,7 +5,7 @@
 -- @license GPL v3
 -- @version 1.0
 -- @changelog
--- Initial release.
+--   Initial release.
 -- @about
 --   # ReaticulateAdapter
 --   
