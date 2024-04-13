@@ -1,37 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<index version="1" name="ARKADATA Scripts" commit="cde049b448ddf4505c19f72ba38b641ae8494db0">
-  <category name="Example">
-    <reapack name="cfillion_Hello world.lua" type="script" desc="Hello world">
-      <metadata>
-        <description><![CDATA[{\rtf1\ansi\deff0{\fonttbl{\f0 \fswiss Helvetica;}{\f1 Courier;}}
-{\colortbl;\red255\green0\blue0;\red0\green0\blue255;}
-\widowctrl\hyphauto
-
-{\pard \ql \f0 \sa180 \li0 \fi0 This is an example of a package file. It installs itself as a ReaScript that does nothing but show "Hello World!" in REAPER's scripting console.\par}
-{\pard \ql \f0 \sa180 \li0 \fi0 Packages may also include additional files specified using the @provides tag.\par}
-{\pard \ql \f0 \sa180 \li0 \fi0 This text is the documentation shown when using ReaPack's "About this package" feature. {\field{\*\fldinst{HYPERLINK "https://commonmark.org/"}}{\fldrslt{\ul
-Markdown
-}}}
- {\i formatting} is supported.\par}
-}
-]]></description>
-      </metadata>
-      <version name="1.0" author="cfillion" time="2021-01-04T23:30:32Z">
-        <source main="main">https://github.com/cfillion/reapack-repository-template/raw/58a3e39ba95bd0f35846aa1f39aa4cb2574295e1/Example/cfillion_Hello%20world.lua</source>
-      </version>
-    </reapack>
-  </category>
-  <category name="Pie3000/ReaticulateAdapter - PIE3000 Addon">
-    <reapack name="ReaticulateAdapter.lua" type="script" desc="AZK ReaticulateAdapter - Pie3000 Addon">
-      <version name="1.0" author="ARKADATA" time="2024-04-13T19:22:34Z">
+<index version="1" name="ARKADATA Scripts" commit="ad7fe9a9e0c1ced249fd03eff24a1d90117019bd">
+  <category name="Pie3000">
+    <reapack name="ReaticulateAdapter.lua" type="script" desc="ReaticulateAdapter - Pie3000 Addon">
+      <version name="1.0" author="ARKADATA" time="2024-04-13T19:58:02Z">
         <changelog><![CDATA[Initial release.]]></changelog>
-        <source main="main midi_editor">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/cde049b448ddf4505c19f72ba38b641ae8494db0/Pie3000/ReaticulateAdapter%20-%20PIE3000%20Addon/ReaticulateAdapter.lua</source>
-        <source main="main midi_editor" file="ReaticulateAdapter_Pie3000_Articulations.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/cde049b448ddf4505c19f72ba38b641ae8494db0/Pie3000/ReaticulateAdapter%20-%20PIE3000%20Addon/ReaticulateAdapter_Pie3000_Articulations.lua</source>
-        <source main="main midi_editor" file="ReaticulateAdapter_Pie3000_Banks.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/cde049b448ddf4505c19f72ba38b641ae8494db0/Pie3000/ReaticulateAdapter%20-%20PIE3000%20Addon/ReaticulateAdapter_Pie3000_Banks.lua</source>
-        <source file="functions/ReaticulateAdapter_post_articulation_event.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/cde049b448ddf4505c19f72ba38b641ae8494db0/Pie3000/ReaticulateAdapter%20-%20PIE3000%20Addon/functions/ReaticulateAdapter_post_articulation_event.lua</source>
-        <source file="functions/ReaticulateAdapter_switch_channel.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/cde049b448ddf4505c19f72ba38b641ae8494db0/Pie3000/ReaticulateAdapter%20-%20PIE3000%20Addon/functions/ReaticulateAdapter_switch_channel.lua</source>
-        <source file="AddonPieGenerator.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/cde049b448ddf4505c19f72ba38b641ae8494db0/Pie3000/ReaticulateAdapter%20-%20PIE3000%20Addon/AddonPieGenerator.lua</source>
-        <source file="Utils.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/cde049b448ddf4505c19f72ba38b641ae8494db0/Pie3000/ReaticulateAdapter%20-%20PIE3000%20Addon/Utils.lua</source>
+        <source main="main midi_editor">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/ad7fe9a9e0c1ced249fd03eff24a1d90117019bd/Pie3000/ReaticulateAdapter.lua</source>
+        <source main="main midi_editor" file="ReaticulateAdapter_Pie3000_Articulations.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/ad7fe9a9e0c1ced249fd03eff24a1d90117019bd/Pie3000/ReaticulateAdapter_Pie3000_Articulations.lua</source>
+        <source main="main midi_editor" file="ReaticulateAdapter_Pie3000_Banks.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/ad7fe9a9e0c1ced249fd03eff24a1d90117019bd/Pie3000/ReaticulateAdapter_Pie3000_Banks.lua</source>
+        <source file="functions/ReaticulateAdapter_post_articulation_event.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/ad7fe9a9e0c1ced249fd03eff24a1d90117019bd/Pie3000/functions/ReaticulateAdapter_post_articulation_event.lua</source>
+        <source file="functions/ReaticulateAdapter_switch_channel.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/ad7fe9a9e0c1ced249fd03eff24a1d90117019bd/Pie3000/functions/ReaticulateAdapter_switch_channel.lua</source>
+        <source file="AddonPieGenerator.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/ad7fe9a9e0c1ced249fd03eff24a1d90117019bd/Pie3000/AddonPieGenerator.lua</source>
+        <source file="Utils.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/ad7fe9a9e0c1ced249fd03eff24a1d90117019bd/Pie3000/Utils.lua</source>
+        <source file="lib/json-beautify.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/ad7fe9a9e0c1ced249fd03eff24a1d90117019bd/Pie3000/lib/json-beautify.lua</source>
+        <source file="lib/json-edit.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/ad7fe9a9e0c1ced249fd03eff24a1d90117019bd/Pie3000/lib/json-edit.lua</source>
+        <source file="lib/json.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/ad7fe9a9e0c1ced249fd03eff24a1d90117019bd/Pie3000/lib/json.lua</source>
       </version>
     </reapack>
   </category>
