@@ -1,7 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<index version="1" name="ARKADATA Scripts" commit="ad7fe9a9e0c1ced249fd03eff24a1d90117019bd">
+<index version="1" name="ARKADATA Scripts" commit="1196ccab9eab0174da95389f09ef4db520296764">
   <category name="Pie3000">
     <reapack name="ReaticulateAdapter.lua" type="script" desc="ReaticulateAdapter - Pie3000 Addon">
+      <metadata>
+        <description><![CDATA[{\rtf1\ansi\deff0{\fonttbl{\f0 \fswiss Helvetica;}{\f1 Courier;}}
+{\colortbl;\red255\green0\blue0;\red0\green0\blue255;}
+\widowctrl\hyphauto
+
+{\pard \ql \f0 \sa180 \li0 \fi0 \b \fs36 ReaticulateAdapter\par}
+{\pard \ql \f0 \sa180 \li0 \fi0 Script that connects "Reaticulate" to "Pie Menu 3000", allowing for dynamic generation of an articulations pie menu depending on active bank. Also generates a channel/available banks menu, it'll default to this one if there is no active bank. Can also be bind to have quick access to other MIDI Channels and their respective banks.\par}
+{\pard \ql \f0 \sa180 \li0 \fi0 \b \fs28 Prerequisites\par}
+{\pard \ql \f0 \sa180 \li0 \fi0 {\i Reaticulate} and {\i Pie Menu 3000}\par}
+}
+]]></description>
+        <link rel="website">https://www.arkadata.com</link>
+        <link rel="donation">https://www.paypal.com/donate/?hosted_button_id=2FP22TUPGFPSJ</link>
+      </metadata>
       <version name="1.0" author="ARKADATA" time="2024-04-13T19:58:02Z">
         <changelog><![CDATA[Initial release.]]></changelog>
         <source main="main midi_editor" file="ReaticulateAdapter_Pie3000_Articulations.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/ad7fe9a9e0c1ced249fd03eff24a1d90117019bd/Pie3000/ReaticulateAdapter_Pie3000_Articulations.lua</source>
