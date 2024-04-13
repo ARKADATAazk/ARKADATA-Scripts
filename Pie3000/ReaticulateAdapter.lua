@@ -4,14 +4,15 @@
 -- @website https://www.arkadata.com
 -- @license GPL v3
 -- @version 1.0
--- @about
--- #ReaticulateAdapter
---
--- Script that connects "Reaticulate" to "Pie Menu 3000", allowing for dynamic generation of an articulations pie menu depending on active bank.
--- Also generates a channel/available banks menu, it'll default to this one if there is no active bank. Can also be bind to have quick access to other MIDI Channels and their respective banks.
---
 -- @changelog
---  Initial release.
+-- Initial release.
+-- @about
+--   # ReaticulateAdapter
+--   
+--   Script that connects "Reaticulate" to "Pie Menu 3000", allowing for dynamic generation of an articulations pie menu depending on active bank.
+--   Also generates a channel/available banks menu, it'll default to this one if there is no active bank. Can also be bind to have quick access to other MIDI Channels and their respective banks.
+--   ### Prerequisites
+--   *Reaticulate* and *Pie Menu 3000*
 -- @provides
 --   ReaticulateAdapter.lua
 --   [main=main,midi_editor] ReaticulateAdapter_Pie3000_Articulations.lua
