@@ -5,7 +5,7 @@
 -- @changelog
 --  Initial release.
 -- @provides
---   [main=main,midi_editor] .
+--   .
 --   [main=main,midi_editor] ReaticulateAdapter_Pie3000_Articulations.lua
 --   [main=main,midi_editor] ReaticulateAdapter_Pie3000_Banks.lua
 --   functions/*.lua
@@ -89,6 +89,7 @@ function handleArticulations(data)
             argument = table.concat({ MSB_LSB[1], MSB_LSB[2], parts[1],activeChannel }, ","),
             col = getColorForArticulation(data.articulationslook[i]),
             toggle_state = false,
+            --icon = "/Scripts/ARKADATA Scripts/Pie3000/articulations icons/pizz.png",
         })
     end
     return pie
