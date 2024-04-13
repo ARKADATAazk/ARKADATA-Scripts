@@ -1,5 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
-<index version="1" name="ARKADATA Scripts" commit="222944b5f09600e899ae19be8603c479823d43fd">
+<index version="1" name="ARKADATA Scripts" commit="d2457ecd0e835ec503d648f943d9998982c0bc13">
+  <category name="Pie3000">
+    <reapack name="ReaticulateAdapter.lua" type="script" desc="ReaticulateAdapter - Pie3000 Addon">
+      <metadata>
+        <description><![CDATA[{\rtf1\ansi\deff0{\fonttbl{\f0 \fswiss Helvetica;}{\f1 Courier;}}
+{\colortbl;\red255\green0\blue0;\red0\green0\blue255;}
+\widowctrl\hyphauto
+
+{\pard \ql \f0 \sa180 \li0 \fi0 \b \fs36 ReaticulateAdapter\par}
+{\pard \ql \f0 \sa180 \li0 \fi0 Script that connects "Reaticulate" to "Pie Menu 3000", allowing for dynamic generation of an articulations pie menu depending on active bank.\line Also generates a channel/available banks menu, it'll default to this one if there is no active bank. Can also be bind to have quick access to other MIDI Channels and their respective banks.\par}
+{\pard \ql \f0 \sa180 \li0 \fi0 \b \fs28 Prerequisites\par}
+{\pard \ql \f0 \sa180 \li0 \fi0 {\b Reaticulate} and {\b Pie Menu 3000}\par}
+}
+]]></description>
+        <link rel="website">https://www.arkadata.com</link>
+        <link rel="donation">https://www.paypal.com/donate/?hosted_button_id=2FP22TUPGFPSJ</link>
+      </metadata>
+      <version name="1.0" author="ARKADATA" time="2024-04-13T23:31:58Z">
+        <changelog><![CDATA[Initial release.]]></changelog>
+        <source main="main">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/d2457ecd0e835ec503d648f943d9998982c0bc13/Pie3000/ReaticulateAdapter.lua</source>
+        <source main="main midi_editor" file="ReaticulateAdapter_Pie3000_Addon_Articulations.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/d2457ecd0e835ec503d648f943d9998982c0bc13/Pie3000/ReaticulateAdapter_Pie3000_Addon_Articulations.lua</source>
+        <source main="main midi_editor" file="ReaticulateAdapter_Pie3000_Addon_BanksXChannels.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/d2457ecd0e835ec503d648f943d9998982c0bc13/Pie3000/ReaticulateAdapter_Pie3000_Addon_BanksXChannels.lua</source>
+        <source file="functions/ReaticulateAdapter_post_articulation_event.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/d2457ecd0e835ec503d648f943d9998982c0bc13/Pie3000/functions/ReaticulateAdapter_post_articulation_event.lua</source>
+        <source file="functions/ReaticulateAdapter_switch_channel.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/d2457ecd0e835ec503d648f943d9998982c0bc13/Pie3000/functions/ReaticulateAdapter_switch_channel.lua</source>
+        <source file="AddonPieGenerator.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/d2457ecd0e835ec503d648f943d9998982c0bc13/Pie3000/AddonPieGenerator.lua</source>
+        <source file="Utils.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/d2457ecd0e835ec503d648f943d9998982c0bc13/Pie3000/Utils.lua</source>
+        <source file="lib/json-beautify.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/d2457ecd0e835ec503d648f943d9998982c0bc13/Pie3000/lib/json-beautify.lua</source>
+        <source file="lib/json-edit.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/d2457ecd0e835ec503d648f943d9998982c0bc13/Pie3000/lib/json-edit.lua</source>
+        <source file="lib/json.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/d2457ecd0e835ec503d648f943d9998982c0bc13/Pie3000/lib/json.lua</source>
+      </version>
+    </reapack>
+  </category>
   <metadata>
     <description><![CDATA[{\rtf1\ansi\deff0{\fonttbl{\f0 \fswiss Helvetica;}{\f1 Courier;}}
 {\colortbl;\red255\green0\blue0;\red0\green0\blue255;}
