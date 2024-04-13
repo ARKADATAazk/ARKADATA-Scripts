@@ -1,7 +1,15 @@
 -- @description ReaticulateAdapter - Pie3000 Addon
 -- @author ARKADATA
+-- @donation https://www.paypal.com/donate/?hosted_button_id=2FP22TUPGFPSJ
+-- @website https://www.arkadata.com
 -- @license GPL v3
 -- @version 1.0
+-- @about
+-- #ReaticulateAdapter
+--
+-- Script that connects "Reaticulate" to "Pie Menu 3000", allowing for dynamic generation of an articulations pie menu depending on active bank.
+-- Also generates a channel/available banks menu, it'll default to this one if there is no active bank. Can also be bind to have quick access to other MIDI Channels and their respective banks.
+--
 -- @changelog
 --  Initial release.
 -- @provides
