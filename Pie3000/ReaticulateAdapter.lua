@@ -9,12 +9,12 @@
 -- @about
 --   # ReaticulateAdapter
 --   
---   Script that connects "Reaticulate" to "Pie Menu 3000", allowing for dynamic generation of an articulations pie menu depending on active bank.
+--   Script that connects "Reaticulate" to "Pie Menu 3000", allowing for dynamic generation of an articulations pie menu depending on active bank.  
 --   Also generates a channel/available banks menu, it'll default to this one if there is no active bank. Can also be bind to have quick access to other MIDI Channels and their respective banks.
 --   ### Prerequisites
---   *Reaticulate* and *Pie Menu 3000*
+--   **Reaticulate** and **Pie Menu 3000**
 -- @provides
---   ReaticulateAdapter.lua
+--   [nomain] .
 --   [main=main,midi_editor] ReaticulateAdapter_Pie3000_Articulations.lua
 --   [main=main,midi_editor] ReaticulateAdapter_Pie3000_Banks.lua
 --   functions/*.lua
