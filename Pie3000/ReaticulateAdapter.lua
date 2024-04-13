@@ -14,9 +14,9 @@
 --   ### Prerequisites
 --   **Reaticulate** and **Pie Menu 3000**
 -- @provides
---   [nomain] .
---   [main=main,midi_editor] ReaticulateAdapter_Pie3000_Articulations.lua
---   [main=main,midi_editor] ReaticulateAdapter_Pie3000_Banks.lua
+--   ReaticulateAdapter.lua
+--   [main=main,midi_editor] ReaticulateAdapter_Pie3000_Addon_Articulations.lua
+--   [main=main,midi_editor] ReaticulateAdapter_Pie3000_Addon_BanksXChannels.lua
 --   functions/*.lua
 --   AddonPieGenerator.lua
 --   Utils.lua
