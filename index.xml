@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<index version="1" name="ARKADATA Scripts" commit="1196ccab9eab0174da95389f09ef4db520296764">
+<index version="1" name="ARKADATA Scripts" commit="e25b59022147b83cf89c7863ddef4ff0c1e72292">
   <category name="Pie3000">
     <reapack name="ReaticulateAdapter.lua" type="script" desc="ReaticulateAdapter - Pie3000 Addon">
       <metadata>
@@ -8,9 +8,9 @@
 \widowctrl\hyphauto
 
 {\pard \ql \f0 \sa180 \li0 \fi0 \b \fs36 ReaticulateAdapter\par}
-{\pard \ql \f0 \sa180 \li0 \fi0 Script that connects "Reaticulate" to "Pie Menu 3000", allowing for dynamic generation of an articulations pie menu depending on active bank. Also generates a channel/available banks menu, it'll default to this one if there is no active bank. Can also be bind to have quick access to other MIDI Channels and their respective banks.\par}
+{\pard \ql \f0 \sa180 \li0 \fi0 Script that connects "Reaticulate" to "Pie Menu 3000", allowing for dynamic generation of an articulations pie menu depending on active bank.\line Also generates a channel/available banks menu, it'll default to this one if there is no active bank. Can also be bind to have quick access to other MIDI Channels and their respective banks.\par}
 {\pard \ql \f0 \sa180 \li0 \fi0 \b \fs28 Prerequisites\par}
-{\pard \ql \f0 \sa180 \li0 \fi0 {\i Reaticulate} and {\i Pie Menu 3000}\par}
+{\pard \ql \f0 \sa180 \li0 \fi0 {\b Reaticulate} and {\b Pie Menu 3000}\par}
 }
 ]]></description>
         <link rel="website">https://www.arkadata.com</link>
