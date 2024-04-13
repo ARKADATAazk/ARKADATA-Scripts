@@ -5,7 +5,7 @@
 -- @changelog
 --  Initial release.
 -- @provides
---   .
+--   ReaticulateAdapter.lua
 --   [main=main,midi_editor] ReaticulateAdapter_Pie3000_Articulations.lua
 --   [main=main,midi_editor] ReaticulateAdapter_Pie3000_Banks.lua
 --   functions/*.lua
