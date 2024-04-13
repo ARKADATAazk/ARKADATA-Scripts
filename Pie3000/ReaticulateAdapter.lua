@@ -1,4 +1,4 @@
--- @description AZK ReaticulateAdapter - Pie3000 Addon
+-- @description ReaticulateAdapter - Pie3000 Addon
 -- @author ARKADATA
 -- @license GPL v3
 -- @version 1.0
@@ -11,6 +11,7 @@
 --   functions/*.lua
 --   AddonPieGenerator.lua
 --   Utils.lua
+--   lib/*.lua
 
 
 
