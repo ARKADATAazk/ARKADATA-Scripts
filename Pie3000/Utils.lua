@@ -1,3 +1,6 @@
+--@noindex
+--NoIndex: true
+
 local articulations_color = {
     default_colors = {
         ['default'] = '#666666',
