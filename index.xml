@@ -4,7 +4,6 @@
     <reapack name="ReaticulateAdapter.lua" type="script" desc="ReaticulateAdapter - Pie3000 Addon">
       <version name="1.0" author="ARKADATA" time="2024-04-13T19:58:02Z">
         <changelog><![CDATA[Initial release.]]></changelog>
-        <source main="main midi_editor">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/ad7fe9a9e0c1ced249fd03eff24a1d90117019bd/Pie3000/ReaticulateAdapter.lua</source>
         <source main="main midi_editor" file="ReaticulateAdapter_Pie3000_Articulations.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/ad7fe9a9e0c1ced249fd03eff24a1d90117019bd/Pie3000/ReaticulateAdapter_Pie3000_Articulations.lua</source>
         <source main="main midi_editor" file="ReaticulateAdapter_Pie3000_Banks.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/ad7fe9a9e0c1ced249fd03eff24a1d90117019bd/Pie3000/ReaticulateAdapter_Pie3000_Banks.lua</source>
         <source file="functions/ReaticulateAdapter_post_articulation_event.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/ad7fe9a9e0c1ced249fd03eff24a1d90117019bd/Pie3000/functions/ReaticulateAdapter_post_articulation_event.lua</source>
