@@ -3,9 +3,9 @@
 -- @donation https://www.paypal.com/donate/?hosted_button_id=2FP22TUPGFPSJ
 -- @website https://www.arkadata.com
 -- @license GPL v3
--- @version 1.0
+-- @version 1.01
 -- @changelog
---   Initial release.
+--   Added file dependency check for Reaticulate and Pie Menu 3000
 -- @about
 --   # ReaticulateAdapter
 --   
