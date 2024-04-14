@@ -3,9 +3,10 @@
 -- @donation https://www.paypal.com/donate/?hosted_button_id=2FP22TUPGFPSJ
 -- @website https://www.arkadata.com
 -- @license GPL v3
--- @version 1.01
+-- @version 1.1
 -- @changelog
---   Added file dependency check for Reaticulate and Pie Menu 3000
+--   Added undo points when inserting articulations ! (oops)
+--   Fixed an issue with adding articulation Events to looped content (it'd break the loop, Reaticulate seems to have that issue when inserting Events as well, will get in touch with Tack to see if there is a specific reason for it or if he wants the fix).
 -- @about
 --   # ReaticulateAdapter
 --   
