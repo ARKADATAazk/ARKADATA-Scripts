@@ -1,6 +1,10 @@
 --@noindex
 --NoIndex: true
 
+local r = reaper
+local r = reaper
+local pie_path = r.GetResourcePath() .. "/Scripts/Sexan_Scripts/Pie3000/"
+
 local articulations_color = {
     default_colors = {
         ['default'] = '#666666',
@@ -39,6 +43,54 @@ local channels_color = {
         ['17'] = '#808080'
     }
 }
+
+-- THIRD PARTY INFO/CHECK
+local function ThirdPartyRepos()
+    local reapack_process
+    local repos = {
+        { name = "Sexan_Scripts",    url = 'https://github.com/GoranKovac/ReaScripts/raw/master/index.xml' },
+        { name = "Reaticulate",      url = "https://reaticulate.com/index.xml" },
+    }
+
+    for i = 1, #repos do
+        local retinfo, url, enabled, autoInstall = r.ReaPack_GetRepositoryInfo(repos[i].name)
+        if not retinfo then
+            retval, error = r.ReaPack_AddSetRepository(repos[i].name, repos[i].url, true, 0)
+            reapack_process = true
+        end
+    end
+
+    -- ADD NEEDED REPOSITORIES
+    if reapack_process then
+        r.ReaPack_ProcessQueue(true)
+        reapack_process = nil
+    end
+end
+
+local function MissingDeps()
+    ThirdPartyRepos()
+    local pie3000_path = pie_path .. "Sexan_Pie3000.lua"
+    local reaticulate_path =  r.GetResourcePath() ..  "/Scripts/Reaticulate/reaticulate.lua"
+    
+    local deps = {}
+   
+    if not r.file_exists(pie3000_path) then
+        deps[#deps + 1] = '"Sexan PieMenu 3000"'
+    end 
+    
+    if not r.file_exists(reaticulate_path) then
+        deps[#deps + 1] = '"Reaticulate: an articulation management system for REAPER"'
+    end 
+
+    if #deps ~= 0 then
+        r.ShowMessageBox("Need Additional Packages.\nPlease Install it in next window", "MISSING DEPENDENCIES", 0)
+        r.ReaPack_BrowsePackages(table.concat(deps, " OR "))
+        return "ERROR"
+    end
+end
+
+if MissingDeps() then return end -- ERROR HAPPENED
+-- THIRD PARTY INFO/CHECK
 
 function hexToDec(hex)
     -- Ensure hex is without the hash symbol and has "FF" at the end
@@ -140,6 +192,27 @@ function tableToString(tbl, indent)
     end
     toprint = toprint .. string.rep(" ", indent - 2) .. "}"
     return toprint
+end
+
+function printTableToConsole(tableData, Method)
+    if not tableData or type(tableData) ~= "table" then
+        reaper.ShowConsoleMsg("Invalid data: not a table\n")
+        return
+    end
+    if Method == "Banks" then
+        reaper.ShowConsoleMsg("Displaying table data:\n")
+        for i, bank in ipairs(tableData) do
+            local message = string.format("Entry %d: Name = %s, Channel = %s\n", i, tostring(bank.name),
+                tostring(bank.channel))
+            reaper.ShowConsoleMsg(message)
+        end
+    elseif Method == "Articulations" then
+        reaper.ShowConsoleMsg("Displaying articulations data:\n")
+        for i, articulation in ipairs(tableData.articulations) do
+            local message = string.format("Entry %d: Name = %s\n", i, tostring(articulation))
+            reaper.ShowConsoleMsg(message)
+        end
+    end
 end
 
 function isEmptyTable(t)

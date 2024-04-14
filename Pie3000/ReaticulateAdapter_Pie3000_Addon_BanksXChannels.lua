@@ -6,14 +6,11 @@ local pie_path = r.GetResourcePath() .. "/Scripts/Sexan_Scripts/Pie3000/"
 local getinfo = debug.getinfo(1, 'S');
 local script_path = getinfo.source:match [[^@?(.*[\/])[^\/]-$]];
 
-package.path = pie_path .. "?.lua;"
-require('PieUtils') -- Assuming this module is correctly placed and accessible
+package.path = pie_path .. "?.lua;" .. script_path .. "?.lua;" .. package.path
 
-package.path = script_path .. "?.lua;"
+require('PieUtils')
+require('ReaticulateAdapter')
 
-require('ReaticulateAdapter') -- Assuming this module is correctly placed and accessible
-
-package.path = pie_path .. "?.lua;"
 
 local CONTEXTS = {
     [1] = "arrange",

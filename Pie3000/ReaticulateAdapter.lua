@@ -26,10 +26,11 @@
 
 local scriptPath = debug.getinfo(1, 'S').source:match [[^@?(.*[\/])[^\/]-$]]
 package.path = package.path ..
-    ";" .. scriptPath .. "lib/?.lua" .. ";" .. scriptPath .. "genericmodules/?.lua" .. ";" .. scriptPath .. "?.lua"
+    ";" .. scriptPath .. "lib/?.lua" .. ";"  .. scriptPath .. "?.lua"
 
 local r = reaper
 
+require "Utils"
 local json = require('json')
 local jsonBeautify = require('json-beautify')
 local addonPieGenerator = require('AddonPieGenerator')
@@ -39,7 +40,7 @@ local pieGUID = "ReaticulateAdapter"
 local activeBank = ""
 local activeChannel = 1
 
-local debuglog, extendedDebugLog = true, false
+local debuglog, extendedDebugLog = false, false
 local _, extstate = reaper.GetProjExtState(0, "ReaticulateAdapter", "Channel")
 local extstatechannel = tonumber(extstate)
 
@@ -48,6 +49,10 @@ local reabanks = {
     r.GetResourcePath() .. "/Data/Reaticulate.reabank",
     r.GetResourcePath() .. "/Scripts/Reaticulate/Reaticulate-factory.reabank"
 }
+
+
+
+
 
 
 function ReaticulateAdapter(MenuType)
@@ -72,6 +77,10 @@ function ReaticulateAdapter(MenuType)
         return handleNoReaticulate()
     end
 end
+
+
+
+
 
 
 
@@ -107,7 +116,6 @@ end
 function handleBanks(data)
     -- Default pie title; check if data actually has a 'bank' property if needed, or set a default title
     local pie = addonPieGenerator.createPie("Switch to Channel/Bank", pieGUID, data)
-    reaper.ShowConsoleMsg("Extstate Test :" .. extstate)
     for i, channelInfo in ipairs(data) do
         local toggleState = extstatechannel == channelInfo.channel
         local bankName = channelInfo.bank ~= "" and channelInfo.bank or ""
@@ -280,40 +288,11 @@ function GetActiveMIDIChannelInMIDIEditor()
     return activeChannel
 end
 
-function removeChannelEntry(data, channel)
-    if not data then return {} end -- Return an empty table if data is nil
-
-    for i = 1, #data do
-        if data[i].channel == channel then
-            table.remove(data, i) -- Remove the matching item
-            break -- Stop after removing the first match
-        end
-    end
-
-    return data -- Return the modified original table
-end
 
 
 
-function printTableToConsole(tableData, Method)
-    if not tableData or type(tableData) ~= "table" then
-        reaper.ShowConsoleMsg("Invalid data: not a table\n")
-        return
-    end
-    if Method == "Banks" then
-        reaper.ShowConsoleMsg("Displaying table data:\n")
-        for i, bank in ipairs(tableData) do
-            local message = string.format("Entry %d: Name = %s, Channel = %s\n", i, tostring(bank.name),
-                tostring(bank.channel))
-            reaper.ShowConsoleMsg(message)
-        end
-    elseif Method == "Articulations" then
-        reaper.ShowConsoleMsg("Displaying articulations data:\n")
-        for i, articulation in ipairs(tableData.articulations) do
-            local message = string.format("Entry %d: Name = %s\n", i, tostring(articulation))
-            reaper.ShowConsoleMsg(message)
-        end
-    end
-end
+
+
+
 
 --#endregion----------------------------------------------------------------------------
