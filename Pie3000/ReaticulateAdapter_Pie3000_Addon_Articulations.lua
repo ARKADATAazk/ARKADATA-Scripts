@@ -56,8 +56,8 @@ local CONTEXTS = {
 }
 
 
-
-STANDALONE_PIE = ReaticulateAdapter("Main")
+--r.ShowConsoleMsg(tableToString(ReaticulateAdapter("Main")))
+STANDALONE_PIE = ReaticulateAdapter("Main")--r.ShowConsoleMsg(tableToString(ReaticulateAdapter("Main")))
 --CONTEXT_LIMIT = CONTEXTS[37]
 
 

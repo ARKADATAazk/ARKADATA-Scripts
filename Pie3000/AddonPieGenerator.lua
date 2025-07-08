@@ -11,19 +11,18 @@ require "Utils"
 
 function addonPieGenerator.createPieActions(entries, tbl)
     for i, entryData in ipairs(entries) do
-        local func = entryData.func or ""
-        local name = entryData.name or "IssueWithentryData.name"
-        local argument = entryData.argument or ""
-        local col = entryData.col  or 255
-        local toggle_state = entry.toggle_state or false
-        table.insert(tbl, {
-            func = func,
-            name = name,
-            argument = argument,
-            col = col,
-            toggle_state = toggle_state,
+        local entry = {
+            name = entryData.name or "IssueWithEntryData.name",
+            argument = entryData.argument or "",
+            cmd_name = entryData.cmd_name or "",
+            col = entryData.col or 255,
+            toggle_state = entryData.toggle_state or false
         }
-        )
+        -- Add func to the entry only if it is non-empty
+        if entryData.func and entryData.func ~= "" then
+            entry.func = entryData.func
+        end
+        table.insert(tbl, entry)
     end
 end
 
