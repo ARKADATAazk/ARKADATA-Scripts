@@ -3,9 +3,9 @@
 -- @donation https://www.paypal.com/donate/?hosted_button_id=2FP22TUPGFPSJ
 -- @website https://www.arkadata.com
 -- @license GPL v3
--- @version 1.2
+-- @version 1.2.1
 -- @changelog
---   Fixed an issue with ReaticulateAdapter not working properly with banks that have wildcards in their names (e.g. "Bank * *"), now it will fetch the actual MSB/LSB from the temp file.
+--   Cleared leftover debug logging.
 -- @about
 --   # ReaticulateAdapter
 --   
@@ -39,6 +39,9 @@ local pieGUID = "ReaticulateAdapter"
 
 local activeBank = ""
 local activeChannel = 1
+
+-- Global debug control
+local DEBUG_ENABLED = false
 
 local debuglog, extendedDebugLog = false, false
 local _, extstate = reaper.GetProjExtState(0, "ReaticulateAdapter", "Channel")
@@ -217,11 +220,15 @@ end
 local function getCurrentReabank()
     -- Get the currently active reabank from REAPER's ini (this is usually a temp file)
     local iniFile = reaper.get_ini_file()
-    reaper.ShowConsoleMsg("DEBUG: Looking for ini file at: " .. tostring(iniFile) .. "\n")
+    if DEBUG_ENABLED then
+        reaper.ShowConsoleMsg("DEBUG: Looking for ini file at: " .. tostring(iniFile) .. "\n")
+    end
     
     local file = io.open(iniFile, "r")
     if not file then 
-        reaper.ShowConsoleMsg("ERROR: Could not open ini file: " .. tostring(iniFile) .. "\n")
+        if DEBUG_ENABLED then
+            reaper.ShowConsoleMsg("ERROR: Could not open ini file: " .. tostring(iniFile) .. "\n")
+        end
         return nil 
     end
     
@@ -229,29 +236,39 @@ local function getCurrentReabank()
     file:close()
     
     if not content or content == "" then
-        reaper.ShowConsoleMsg("ERROR: Ini file is empty or could not be read\n")
+        if DEBUG_ENABLED then
+            reaper.ShowConsoleMsg("ERROR: Ini file is empty or could not be read\n")
+        end
         return nil
     end
     
     local reabank = content:match("mididefbankprog=([^\r\n]*)")
     if reabank then
-        reaper.ShowConsoleMsg("DEBUG: Found reabank setting: " .. reabank .. "\n")
+        if DEBUG_ENABLED then
+            reaper.ShowConsoleMsg("DEBUG: Found reabank setting: " .. reabank .. "\n")
+        end
         -- Check if file actually exists
         if reaper.file_exists(reabank) then
-            reaper.ShowConsoleMsg("DEBUG: Reabank file exists and is accessible\n")
+            if DEBUG_ENABLED then
+                reaper.ShowConsoleMsg("DEBUG: Reabank file exists and is accessible\n")
+            end
         else
-            reaper.ShowConsoleMsg("ERROR: Reabank file does not exist: " .. reabank .. "\n")
+            if DEBUG_ENABLED then
+                reaper.ShowConsoleMsg("ERROR: Reabank file does not exist: " .. reabank .. "\n")
+            end
             return nil
         end
     else
-        reaper.ShowConsoleMsg("ERROR: No mididefbankprog setting found in ini file\n")
-        -- Show first few lines of ini to help debug
-        local lines = {}
-        for line in content:gmatch("[^\r\n]+") do
-            lines[#lines+1] = line
-            if #lines >= 10 then break end
+        if DEBUG_ENABLED then
+            reaper.ShowConsoleMsg("ERROR: No mididefbankprog setting found in ini file\n")
+            -- Show first few lines of ini to help debug
+            local lines = {}
+            for line in content:gmatch("[^\r\n]+") do
+                lines[#lines+1] = line
+                if #lines >= 10 then break end
+            end
+            reaper.ShowConsoleMsg("DEBUG: First 10 lines of ini file:\n" .. table.concat(lines, "\n") .. "\n")
         end
-        reaper.ShowConsoleMsg("DEBUG: First 10 lines of ini file:\n" .. table.concat(lines, "\n") .. "\n")
     end
     
     return reabank
@@ -271,12 +288,16 @@ local function getMainReabankPath()
     
     for _, path in ipairs(possible_paths) do
         if reaper.file_exists(path) then
-            reaper.ShowConsoleMsg("DEBUG: Found main reabank file at: " .. path .. "\n")
+            if DEBUG_ENABLED then
+                reaper.ShowConsoleMsg("DEBUG: Found main reabank file at: " .. path .. "\n")
+            end
             return path
         end
     end
     
-    reaper.ShowConsoleMsg("WARNING: Main reabank file not found in any expected location\n")
+    if DEBUG_ENABLED then
+        reaper.ShowConsoleMsg("WARNING: Main reabank file not found in any expected location\n")
+    end
     return nil
 end
 
@@ -294,46 +315,60 @@ local function getFactoryReabankPath()
     
     for _, path in ipairs(possible_paths) do
         if reaper.file_exists(path) then
-            reaper.ShowConsoleMsg("DEBUG: Found factory reabank file at: " .. path .. "\n")
+            if DEBUG_ENABLED then
+                reaper.ShowConsoleMsg("DEBUG: Found factory reabank file at: " .. path .. "\n")
+            end
             return path
         end
     end
     
-    reaper.ShowConsoleMsg("DEBUG: Factory reabank file not found\n")
+    if DEBUG_ENABLED then
+        reaper.ShowConsoleMsg("DEBUG: Factory reabank file not found\n")
+    end
     return nil
 end
 
 function LoopThroughReabanksFiles(MatchingBank)
-    reaper.ShowConsoleMsg("DEBUG: Starting LoopThroughReabanksFiles with bank name: " .. tostring(MatchingBank.name) .. "\n")
+    if DEBUG_ENABLED then
+        reaper.ShowConsoleMsg("DEBUG: Starting LoopThroughReabanksFiles with bank name: " .. tostring(MatchingBank.name) .. "\n")
+    end
     
     -- First, try to get metadata from the main reabank file
     local mainReabank = getMainReabankPath()
     local reabankData = nil
     
     if mainReabank then
-        reaper.ShowConsoleMsg("DEBUG: Trying main reabank file first for full metadata\n")
+        if DEBUG_ENABLED then
+            reaper.ShowConsoleMsg("DEBUG: Trying main reabank file first for full metadata\n")
+        end
         local mainContent = readFileContent(mainReabank)
         if mainContent then
             -- Try to find the bank with full metadata in main file
             reabankData = FindReabankDataByName(mainContent, MatchingBank.name)
             if reabankData then
-                reaper.ShowConsoleMsg("SUCCESS: Found bank with full metadata in main reabank\n")
-                reaper.ShowConsoleMsg("DEBUG: Found " .. #reabankData.articulations .. " articulations and " .. #reabankData.articulationslook .. " color definitions\n")
+                if DEBUG_ENABLED then
+                    reaper.ShowConsoleMsg("SUCCESS: Found bank with full metadata in main reabank\n")
+                    reaper.ShowConsoleMsg("DEBUG: Found " .. #reabankData.articulations .. " articulations and " .. #reabankData.articulationslook .. " color definitions\n")
+                end
             end
         end
     end
     
     -- If not found in main file, try the factory reabank
     if not reabankData then
-        reaper.ShowConsoleMsg("DEBUG: Bank not found in main reabank, trying factory reabank\n")
+        if DEBUG_ENABLED then
+            reaper.ShowConsoleMsg("DEBUG: Bank not found in main reabank, trying factory reabank\n")
+        end
         local factoryReabank = getFactoryReabankPath()
         if factoryReabank then
             local factoryContent = readFileContent(factoryReabank)
             if factoryContent then
                 reabankData = FindReabankDataByName(factoryContent, MatchingBank.name)
                 if reabankData then
-                    reaper.ShowConsoleMsg("SUCCESS: Found bank with full metadata in factory reabank\n")
-                    reaper.ShowConsoleMsg("DEBUG: Found " .. #reabankData.articulations .. " articulations and " .. #reabankData.articulationslook .. " color definitions\n")
+                    if DEBUG_ENABLED then
+                        reaper.ShowConsoleMsg("SUCCESS: Found bank with full metadata in factory reabank\n")
+                        reaper.ShowConsoleMsg("DEBUG: Found " .. #reabankData.articulations .. " articulations and " .. #reabankData.articulationslook .. " color definitions\n")
+                    end
                 end
             end
         end
@@ -341,22 +376,28 @@ function LoopThroughReabanksFiles(MatchingBank)
     
     -- If not found in main or factory, fall back to temp reabank (no metadata)
     if not reabankData then
-        reaper.ShowConsoleMsg("DEBUG: Bank not found in main or factory reabanks, trying temp file\n")
+        if DEBUG_ENABLED then
+            reaper.ShowConsoleMsg("DEBUG: Bank not found in main or factory reabanks, trying temp file\n")
+        end
         local currentReabank = getCurrentReabank()
         if currentReabank then
             local tempContent = readFileContent(currentReabank)
             if tempContent then
                 reabankData = FindReabankDataByName(tempContent, MatchingBank.name)
                 if reabankData then
-                    reaper.ShowConsoleMsg("WARNING: Found bank in temp file but without metadata (colors won't work)\n")
-                    reaper.ShowConsoleMsg("DEBUG: Found " .. #reabankData.articulations .. " articulations\n")
+                    if DEBUG_ENABLED then
+                        reaper.ShowConsoleMsg("WARNING: Found bank in temp file but without metadata (colors won't work)\n")
+                        reaper.ShowConsoleMsg("DEBUG: Found " .. #reabankData.articulations .. " articulations\n")
+                    end
                 end
             end
         end
     else
         -- If we found the bank in main/factory file with wildcards, we need to get actual MSB/LSB from temp file
         if reabankData.bank:find("%*") then
-            reaper.ShowConsoleMsg("DEBUG: Bank has wildcards, checking temp file for actual MSB/LSB values\n")
+            if DEBUG_ENABLED then
+                reaper.ShowConsoleMsg("DEBUG: Bank has wildcards, checking temp file for actual MSB/LSB values\n")
+            end
             local currentReabank = getCurrentReabank()
             if currentReabank then
                 local tempContent = readFileContent(currentReabank)
@@ -365,7 +406,9 @@ function LoopThroughReabanksFiles(MatchingBank)
                     for line in tempContent:gmatch("[^\r\n]+") do
                         local msb, lsb, tempBankName = line:match("^Bank (%d+) (%d+) (.*)$")
                         if tempBankName and tempBankName == MatchingBank.name then
-                            reaper.ShowConsoleMsg("DEBUG: Found actual MSB/LSB in temp file: " .. msb .. "/" .. lsb .. "\n")
+                            if DEBUG_ENABLED then
+                                reaper.ShowConsoleMsg("DEBUG: Found actual MSB/LSB in temp file: " .. msb .. "/" .. lsb .. "\n")
+                            end
                             reabankData.bank = msb .. " " .. lsb
                             break
                         end
@@ -376,7 +419,9 @@ function LoopThroughReabanksFiles(MatchingBank)
     end
     
     if not reabankData then
-        reaper.ShowConsoleMsg("ERROR: Bank '" .. tostring(MatchingBank.name) .. "' not found in any reabank file\n")
+        if DEBUG_ENABLED then
+            reaper.ShowConsoleMsg("ERROR: Bank '" .. tostring(MatchingBank.name) .. "' not found in any reabank file\n")
+        end
         return nil
     end
     
@@ -385,11 +430,15 @@ function LoopThroughReabanksFiles(MatchingBank)
 end
 
 function FindReabankDataByName(combinedContent, bankName)
-    reaper.ShowConsoleMsg("DEBUG: Searching for bank name: '" .. tostring(bankName) .. "'\n")
+    if DEBUG_ENABLED then
+        reaper.ShowConsoleMsg("DEBUG: Searching for bank name: '" .. tostring(bankName) .. "'\n")
+    end
     
     local reabankData = { id = "", bank = "", articulations = {}, articulationslook = {} }
     if not bankName or bankName == "" then
-        reaper.ShowConsoleMsg("ERROR: Bank name not provided or empty\n")
+        if DEBUG_ENABLED then
+            reaper.ShowConsoleMsg("ERROR: Bank name not provided or empty\n")
+        end
         return nil, "Bank name not provided."
     end
 
@@ -411,11 +460,15 @@ function FindReabankDataByName(combinedContent, bankName)
             local msb, lsb, currentBankName = trimmedLine:match("^Bank ([%d%*]+) ([%d%*]+) (.*)")
             
             if currentBankName then
-                reaper.ShowConsoleMsg("DEBUG: Found bank #" .. bankCount .. " at line " .. lineCount .. ": '" .. currentBankName .. "'\n")
+                if DEBUG_ENABLED then
+                    reaper.ShowConsoleMsg("DEBUG: Found bank #" .. bankCount .. " at line " .. lineCount .. ": '" .. currentBankName .. "'\n")
+                end
                 
                 -- If we were already capturing a different bank, stop
                 if found and currentBankName ~= bankName then 
-                    reaper.ShowConsoleMsg("DEBUG: Found different bank, stopping capture\n")
+                    if DEBUG_ENABLED then
+                        reaper.ShowConsoleMsg("DEBUG: Found different bank, stopping capture\n")
+                    end
                     break
                 end
                 
@@ -425,7 +478,9 @@ function FindReabankDataByName(combinedContent, bankName)
                     reabankData.bank = msb .. " " .. lsb
                     currentArticulationIndex = 0
                     pendingMetadata = {}
-                    reaper.ShowConsoleMsg("SUCCESS: Found matching bank: '" .. bankName .. "' with MSB/LSB: " .. msb .. "/" .. lsb .. "\n")
+                    if DEBUG_ENABLED then
+                        reaper.ShowConsoleMsg("SUCCESS: Found matching bank: '" .. bankName .. "' with MSB/LSB: " .. msb .. "/" .. lsb .. "\n")
+                    end
                 else
                     capturing = false
                 end
@@ -437,7 +492,9 @@ function FindReabankDataByName(combinedContent, bankName)
                 if trimmedLine:find("^//! id=") and currentArticulationIndex == 0 then
                     -- Bank UUID
                     reabankData.id = trimmedLine:match("//! id=([%w-]+)")
-                    reaper.ShowConsoleMsg("DEBUG: Found bank UUID: " .. tostring(reabankData.id) .. "\n")
+                    if DEBUG_ENABLED then
+                        reaper.ShowConsoleMsg("DEBUG: Found bank UUID: " .. tostring(reabankData.id) .. "\n")
+                    end
                 else
                     -- Articulation metadata - parse all attributes
                     local metadata = {}
@@ -464,7 +521,9 @@ function FindReabankDataByName(combinedContent, bankName)
                     
                     -- Store for next articulation
                     pendingMetadata = metadata
-                    reaper.ShowConsoleMsg("DEBUG: Stored metadata: " .. trimmedLine .. "\n")
+                    if DEBUG_ENABLED then
+                        reaper.ShowConsoleMsg("DEBUG: Stored metadata: " .. trimmedLine .. "\n")
+                    end
                 end
             
             -- Capture articulation definition
@@ -485,13 +544,17 @@ function FindReabankDataByName(combinedContent, bankName)
                     -- You could also store icon, group, output here if needed
                     table.insert(reabankData.articulationslook, metadataStr)
                     
-                    reaper.ShowConsoleMsg("DEBUG: Added articulation #" .. currentArticulationIndex .. ": " .. entry .. " with metadata: " .. metadataStr .. "\n")
+                    if DEBUG_ENABLED then
+                        reaper.ShowConsoleMsg("DEBUG: Added articulation #" .. currentArticulationIndex .. ": " .. entry .. " with metadata: " .. metadataStr .. "\n")
+                    end
                     pendingMetadata = {}  -- Clear for next articulation
                 end
             
             -- Stop if we hit a new group or bank
             elseif trimmedLine:find("^//! g=") and currentArticulationIndex > 0 then
-                reaper.ShowConsoleMsg("DEBUG: Found new group, stopping capture\n")
+                if DEBUG_ENABLED then
+                    reaper.ShowConsoleMsg("DEBUG: Found new group, stopping capture\n")
+                end
                 break
             elseif trimmedLine == "" and currentArticulationIndex > 0 then
                 -- Empty line might indicate end of bank in some formats
@@ -512,32 +575,38 @@ function FindReabankDataByName(combinedContent, bankName)
                     end
                 end
                 if not foundNext then
-                    reaper.ShowConsoleMsg("DEBUG: Empty line and no more articulations found, stopping capture\n")
+                    if DEBUG_ENABLED then
+                        reaper.ShowConsoleMsg("DEBUG: Empty line and no more articulations found, stopping capture\n")
+                    end
                     break
                 end
             end
         end
     end
 
-    reaper.ShowConsoleMsg("DEBUG: Processed " .. lineCount .. " lines, found " .. bankCount .. " banks total\n")
+    if DEBUG_ENABLED then
+        reaper.ShowConsoleMsg("DEBUG: Processed " .. lineCount .. " lines, found " .. bankCount .. " banks total\n")
+    end
 
     if not found then
-        reaper.ShowConsoleMsg("ERROR: Bank name '" .. bankName .. "' not found\n")
-        reaper.ShowConsoleMsg("DEBUG: Available banks in file:\n")
-        -- Show all available banks for debugging
-        local availableBanks = {}
-        for line in combinedContent:gmatch("[^\r\n]+") do
-            local trimmedLine = line:gsub("^%s*(.-)%s*$", "%1")
-            if trimmedLine:find("^Bank ") then
-                -- Handle both "Bank * *" and "Bank 12 0" formats
-                local msb, lsb, foundBankName = trimmedLine:match("^Bank ([%d%*]+) ([%d%*]+) (.*)")
-                if foundBankName then
-                    availableBanks[#availableBanks+1] = foundBankName
+        if DEBUG_ENABLED then
+            reaper.ShowConsoleMsg("ERROR: Bank name '" .. bankName .. "' not found\n")
+            reaper.ShowConsoleMsg("DEBUG: Available banks in file:\n")
+            -- Show all available banks for debugging
+            local availableBanks = {}
+            for line in combinedContent:gmatch("[^\r\n]+") do
+                local trimmedLine = line:gsub("^%s*(.-)%s*$", "%1")
+                if trimmedLine:find("^Bank ") then
+                    -- Handle both "Bank * *" and "Bank 12 0" formats
+                    local msb, lsb, foundBankName = trimmedLine:match("^Bank ([%d%*]+) ([%d%*]+) (.*)")
+                    if foundBankName then
+                        availableBanks[#availableBanks+1] = foundBankName
+                    end
                 end
             end
-        end
-        for i, availableBank in ipairs(availableBanks) do
-            reaper.ShowConsoleMsg("  Bank " .. i .. ": '" .. availableBank .. "'\n")
+            for i, availableBank in ipairs(availableBanks) do
+                reaper.ShowConsoleMsg("  Bank " .. i .. ": '" .. availableBank .. "'\n")
+            end
         end
         return nil, "Bank name not found."
     end
@@ -545,30 +614,42 @@ function FindReabankDataByName(combinedContent, bankName)
     -- Ensure we have metadata for all articulations
     while #reabankData.articulationslook < #reabankData.articulations do
         table.insert(reabankData.articulationslook, "c=long")  -- Default color
-        reaper.ShowConsoleMsg("DEBUG: Added default color for articulation #" .. #reabankData.articulationslook .. "\n")
+        if DEBUG_ENABLED then
+            reaper.ShowConsoleMsg("DEBUG: Added default color for articulation #" .. #reabankData.articulationslook .. "\n")
+        end
     end
     
-    reaper.ShowConsoleMsg("SUCCESS: Returning bank data with " .. #reabankData.articulations .. " articulations and " .. #reabankData.articulationslook .. " color definitions\n")
+    if DEBUG_ENABLED then
+        reaper.ShowConsoleMsg("SUCCESS: Returning bank data with " .. #reabankData.articulations .. " articulations and " .. #reabankData.articulationslook .. " color definitions\n")
+    end
     return reabankData
 end
 
 -- Enhanced readFileContent function with better error handling
 function readFileContent(fileName)
-    reaper.ShowConsoleMsg("DEBUG: Attempting to read file: " .. tostring(fileName) .. "\n")
+    if DEBUG_ENABLED then
+        reaper.ShowConsoleMsg("DEBUG: Attempting to read file: " .. tostring(fileName) .. "\n")
+    end
     
     if not fileName or fileName == "" then
-        reaper.ShowConsoleMsg("ERROR: No filename provided to readFileContent\n")
+        if DEBUG_ENABLED then
+            reaper.ShowConsoleMsg("ERROR: No filename provided to readFileContent\n")
+        end
         return nil
     end
     
     if not reaper.file_exists(fileName) then
-        reaper.ShowConsoleMsg("ERROR: File does not exist: " .. fileName .. "\n")
+        if DEBUG_ENABLED then
+            reaper.ShowConsoleMsg("ERROR: File does not exist: " .. fileName .. "\n")
+        end
         return nil
     end
     
     local file = io.open(fileName, "r")
     if not file then
-        reaper.ShowConsoleMsg("ERROR: Could not open file for reading: " .. fileName .. "\n")
+        if DEBUG_ENABLED then
+            reaper.ShowConsoleMsg("ERROR: Could not open file for reading: " .. fileName .. "\n")
+        end
         return nil
     end
     
@@ -576,11 +657,15 @@ function readFileContent(fileName)
     file:close()
     
     if not content then
-        reaper.ShowConsoleMsg("ERROR: File content is nil: " .. fileName .. "\n")
+        if DEBUG_ENABLED then
+            reaper.ShowConsoleMsg("ERROR: File content is nil: " .. fileName .. "\n")
+        end
         return nil
     end
     
-    reaper.ShowConsoleMsg("DEBUG: Successfully read file, content length: " .. #content .. " characters\n")
+    if DEBUG_ENABLED then
+        reaper.ShowConsoleMsg("DEBUG: Successfully read file, content length: " .. #content .. " characters\n")
+    end
     return content
 end
 
