@@ -1,0 +1,12 @@
+@description reARK_X (ARKADATA theme)
+@version 1.0.0
+@author ARKADATA
+@changelog Initial release
+@links
+  Website https://arkadata.com
+  Repo https://github.com/ARKADATAazk/ARKADATA-Scripts
+@screenshot https://arkadata.com/wp-content/themes/yootheme/cache/reARK_Reaper_Theme_Splash_1-efe121b7.png
+
+@metapackage
+@provides
+  [theme] reARK_X.ReaperThemeZip
