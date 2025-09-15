@@ -1,5 +1,5 @@
 @description reARK_X (ARKADATA theme)
-@version 1.0.1
+@version 1.0.2
 @author ARKADATA
 @changelog Initial release
 @links
@@ -10,4 +10,4 @@
 
 @metapackage
 @provides
-  [theme] Themes/reARK_X.ReaperThemeZip
+  [theme] reARK_X.ReaperThemeZip > reARK_X.ReaperThemeZip
