@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<index version="1" name="ARKADATA Scripts" commit="3fa66418a0ed6ed5406a7b36c6786c18399d1433">
+<index version="1" name="ARKADATA Scripts" commit="1b900503b46d25143a26d01e55b6214663fe69b0">
   <category name="Pie3000">
     <reapack name="ReaticulateAdapter.lua" type="script" desc="ReaticulateAdapter - Pie3000 Addon">
       <metadata>
@@ -89,15 +89,19 @@ Hovering anywhere on a note (start, middle, end) correctly detects it as closest
     </reapack>
   </category>
   <category name="Themes">
-    <reapack name="reARK_X.theme" type="theme" desc="reARK_X (ARKADATA theme)">
+    <reapack name="reARK_X.theme" type="theme" desc="reARK X Theme">
       <metadata>
         <link rel="website" href="https://arkadata.com">Website</link>
         <link rel="website" href="https://github.com/ARKADATAazk/ARKADATA-Scripts">Repo</link>
-        <link rel="screenshot">https://arkadata.com/wp-content/themes/yootheme/cache/reARK_Reaper_Theme_Splash_1-efe121b7.png</link>
+        <link rel="screenshot">https://i.imgur.com/jMXtpvm.png</link>
       </metadata>
       <version name="1.0.1" author="ARKADATA" time="2025-09-15T13:59:19Z">
         <changelog><![CDATA[Fix provides path + remove blank line]]></changelog>
         <source type="theme" file="reARK_X.ReaperThemeZip">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/3fa66418a0ed6ed5406a7b36c6786c18399d1433/Themes/reARK_X.ReaperThemeZip</source>
+      </version>
+      <version name="1.0.2" author="ARKADATA" time="2025-09-16T14:02:45Z">
+        <changelog><![CDATA[Pre-Release]]></changelog>
+        <source type="theme" file="reARK_X.ReaperThemeZip">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/1b900503b46d25143a26d01e55b6214663fe69b0/Themes/reARK_X.ReaperThemeZip</source>
       </version>
     </reapack>
   </category>
