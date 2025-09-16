@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<index version="1" name="ARKADATA Scripts" commit="63e6d99d6cc6c8d4f5c27994236ca9997f37a881">
+<index version="1" name="ARKADATA Scripts" commit="3fa66418a0ed6ed5406a7b36c6786c18399d1433">
   <category name="Pie3000">
     <reapack name="ReaticulateAdapter.lua" type="script" desc="ReaticulateAdapter - Pie3000 Addon">
       <metadata>
@@ -85,6 +85,19 @@ Hovering anywhere on a note (start, middle, end) correctly detects it as closest
         <source file="lib/json-beautify.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/63e6d99d6cc6c8d4f5c27994236ca9997f37a881/Pie3000/lib/json-beautify.lua</source>
         <source file="lib/json-edit.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/63e6d99d6cc6c8d4f5c27994236ca9997f37a881/Pie3000/lib/json-edit.lua</source>
         <source file="lib/json.lua">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/63e6d99d6cc6c8d4f5c27994236ca9997f37a881/Pie3000/lib/json.lua</source>
+      </version>
+    </reapack>
+  </category>
+  <category name="Themes">
+    <reapack name="reARK_X.theme" type="theme" desc="reARK_X (ARKADATA theme)">
+      <metadata>
+        <link rel="website" href="https://arkadata.com">Website</link>
+        <link rel="website" href="https://github.com/ARKADATAazk/ARKADATA-Scripts">Repo</link>
+        <link rel="screenshot">https://arkadata.com/wp-content/themes/yootheme/cache/reARK_Reaper_Theme_Splash_1-efe121b7.png</link>
+      </metadata>
+      <version name="1.0.1" author="ARKADATA" time="2025-09-15T13:59:19Z">
+        <changelog><![CDATA[Fix provides path + remove blank line]]></changelog>
+        <source type="theme" file="reARK_X.ReaperThemeZip">https://github.com/ARKADATAazk/ARKADATA-Scripts/raw/3fa66418a0ed6ed5406a7b36c6786c18399d1433/Themes/reARK_X.ReaperThemeZip</source>
       </version>
     </reapack>
   </category>
