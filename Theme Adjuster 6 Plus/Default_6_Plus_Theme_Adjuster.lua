@@ -1,4 +1,4 @@
--- @description Theme Adjuster 6 Plus
+-- @description Default 6+ Theme Adjuster
 -- @version 0.1.0
 -- @author WHITETIE / ARKADATA
 -- @license LGPL v2 or later
@@ -8,13 +8,10 @@
 --   Ressources/**/*
 
 
-
-
-
 -- Copyright (C) 2015 and onward Cockos Inc
 -- LICENSE: LGPL v2 or later - http://www.gnu.org/licenses/lgpl.html
 
-sTitle = 'Default 6x7 Theme Adjuster'
+sTitle = 'Default 6+ Theme Adjuster'
 scriptVersion = 240503
 reaper.ClearConsole()
 
