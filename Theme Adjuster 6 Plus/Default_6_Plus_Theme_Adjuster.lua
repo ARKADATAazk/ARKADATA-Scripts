@@ -1,12 +1,11 @@
--- @description Theme Adjuster 6x7
--- @version 0.1
+-- @description Theme Adjuster 6 Plus
+-- @version 0.1.0
 -- @author WHITETIE / ARKADATA
 -- @license LGPL v2 or later
--- @changelog Initial
--- @about WIP mesh between Adjuster 6.0 and 7.0
+-- @about Mesh of v6 with a few v7 bits. Focused on v6 behavior.
 -- @provides
---   [main] . > Scripts/Cockos/Theme Adjuster 6x7/Default_6x7_Theme_Adjuster.lua
---   Default_6x7_theme_adjuster_images/**/* > Scripts/Cockos/Theme Adjuster 6x7/Default_6x7_theme_adjuster_images/
+--   [main] .
+--   Ressources/**/*
 
 
 
@@ -354,7 +353,7 @@ function loadImage(idx, name)
 
   local i = idx 
   if i then
-    local str = script_path.."/Default_6x7_theme_adjuster_images/"..name..".png"
+    local str = script_path.."/Ressources/"..name..".png"
     if OS:find("Win") ~= nil then str = str:gsub("/","\\") end
     if gfx.loadimg(i, str) == -1 then 
       --reaper.ShowConsoleMsg(str.." not found\n")
