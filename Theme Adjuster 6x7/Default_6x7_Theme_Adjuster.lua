@@ -6,7 +6,8 @@
 -- @about WIP mesh between Adjuster 6.0 and 7.0
 -- @provides
 --   [main] . > Scripts/Cockos/Theme Adjuster 6x7/Default_6x7_Theme_Adjuster.lua
---   Default_6x7_theme_adjuster_images/**/* > Scripts/Cockos/Theme Adjuster 6x7/Default_6x7_theme_adjuster_images/
+--   Default_6x7_theme_adjuster_images/**/* \
+
 
 
 -- Copyright (C) 2015 and onward Cockos Inc
