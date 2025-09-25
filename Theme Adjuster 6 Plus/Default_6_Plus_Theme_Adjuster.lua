@@ -1,6 +1,6 @@
 -- @description Default 6+ Theme Adjuster
 -- @version 0.1.0
--- @author WHITETIE / ARKADATA
+-- @author ARKADATA (modded from WhiteTie)
 -- @license LGPL v2 or later
 -- @about Mesh of v6 with a few v7 bits. Focused on v6 behavior.
 -- @provides
