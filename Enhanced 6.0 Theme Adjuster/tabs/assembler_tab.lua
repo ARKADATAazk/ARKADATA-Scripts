@@ -1,5 +1,6 @@
 -- tabs/assembler_tab.lua
--- Assembler tab with gfx_image_cache + reaper_img_handler for 9-slice 3-state rendering
+-- Subtabs in a child + sticky bottom footer with centered "Assemble" button.
+-- No custom styles applied; child scrollbars disabled (ImGui 0.9/0.10 compatible).
 
 local lifecycle_ok, lifecycle = pcall(require, 'lifecycle')
 if not lifecycle_ok then
@@ -7,9 +8,9 @@ if not lifecycle_ok then
   return { create = function() return { draw=function() end } end }
 end
 
-local gfx_cache_ok, GfxImageCache = pcall(require, 'gfx_image_cache')
-if not gfx_cache_ok then
-  reaper.ShowMessageBox('core/gfx_image_cache.lua not found.', 'Assembler', 0)
+local ic_ok, ImageCache = pcall(require, 'image_cache')
+if not ic_ok then
+  reaper.ShowMessageBox('core/image_cache.lua not found.', 'Assembler', 0)
   return { create = function() return { draw=function() end } end }
 end
 
@@ -19,256 +20,169 @@ if not asm_ok then
   return { create = function() return { draw=function() end } end }
 end
 
-local rih_ok, RIH = pcall(require, 'reaper_img_handler')
-if not rih_ok then
-  reaper.ShowMessageBox('reaper_img_handler.lua not found.', 'Assembler', 0)
+local theme_ok, theme = pcall(require, 'theme')
+if not theme_ok then
+  reaper.ShowMessageBox('core/theme.lua not found.', 'Assembler', 0)
   return { create = function() return { draw=function() end } end }
 end
 
-local SEP = package.config:sub(1,1)
-local function join(a,b) return (a:sub(-1)==SEP) and (a..b) or (a..SEP..b) end
-local function flag(f) return (type(f)=="function") and f() or 0 end
-
-local function sorted_keys(t)
-  local k = {}
-  for key in pairs(t or {}) do k[#k+1] = key end
-  table.sort(k, function(a,b) return tostring(a):lower() < tostring(b):lower() end)
-  return k
+local core_mod_ok, core_mod = pcall(require, 'tabs.assembler.core')
+if not core_mod_ok then
+  reaper.ShowMessageBox('tabs/assembler/core.lua not found.', 'Assembler', 0)
+  return { create = function() return { draw=function() end } end }
 end
 
-local function tooltip(ctx, text)
-  if reaper.ImGui_IsItemHovered(ctx) then
-    reaper.ImGui_SetTooltip(ctx, text or "")
+local ui_packages_ok, ui_packages = pcall(require, 'tabs.assembler.ui_packages')
+if not ui_packages_ok then
+  reaper.ShowMessageBox('tabs/assembler/ui_packages.lua not found.', 'Assembler', 0)
+  return { create = function() return { draw=function() end } end }
+end
+
+local ui_assets_ok, ui_assets = pcall(require, 'tabs.assembler.ui_assets')
+if not ui_assets_ok then
+  reaper.ShowMessageBox('tabs/assembler/ui_assets.lua not found.', 'Assembler', 0)
+  return { create = function() return { draw=function() end } end }
+end
+
+-- ---------- ImGui 0.9/0.10 compatibility ----------
+local HAS_CHILD_FLAGS = (reaper.ImGui_ChildFlags_None ~= nil)
+
+local function BeginChildCompat(ctx, id, w, h, want_border, window_flags)
+  if HAS_CHILD_FLAGS then
+    local child_flags = want_border and (reaper.ImGui_ChildFlags_Border()) or 0
+    return reaper.ImGui_BeginChild(ctx, id, w, h, child_flags, window_flags or 0)
+  else
+    return reaper.ImGui_BeginChild(ctx, id, w, h, want_border and true or false, window_flags or 0)
   end
 end
+-- --------------------------------------------------
+
+local function clog(fmt, ...) reaper.ShowConsoleMsg(("[Assembler] "..fmt.."\n"):format(...)) end
+
+-- Footer spacing (vertical padding around the button)
+local FOOTER_PAD_V = 6   -- was 8; trimmed a bit
 
 local M = {}
 
-function M.create(theme, settings)
+function M.create(theme_mod, settings)
   local L = lifecycle.new()
+  local cache = L:register(ImageCache.new({ budget = 128 }))
 
-  local selections   = assembler.load_selections() or {}
-  local variants     = {}
-  local elements     = {}
+  local core = core_mod.new({
+    lifecycle   = L,
+    image_cache = cache,
+    assembler   = assembler,
+    theme       = theme,
+    settings    = settings,
+  })
 
-  local card_size           = (settings and settings:get('card_size', 112)) or 112
-  local grid_size           = (settings and settings:get('grid_size', 96))  or 96
-  local show_original_sizes = (settings and settings:get('show_original_sizes', false)) or false
+  local current_tab, last_tab = 'PACKAGES', 'PACKAGES'
+  local tab_transition_alpha, tab_transition_target = 1.0, 1.0
 
-  local cache = L:register( GfxImageCache.new({ budget = 96 }) )
-  RIH.attach_cache(cache)
-
-  local function get_roots()
-    local roots = {}
-    local dir = theme.prepare_images(false)
-    if dir then roots[#roots+1] = join(dir, 'Assembler') end
-    return roots
-  end
-
-  local function refresh_variants()
-    variants = assembler.scan_variants(get_roots()) or {}
-    elements = sorted_keys(variants)
-    RIH.clear()
-    if cache and cache.clear then cache:clear() end
-    collectgarbage('collect')
-  end
-
-  refresh_variants()
-
-  local function element_thumbnail_path(el)
-    if selections[el] and selections[el].path then return selections[el].path end
-    local list = variants[el]
-    if not list or not list[1] then return nil end
-    return list[1].path
-  end
-
-  local function draw_card_image(ctx, path, size, state)
-    if not path or path=="" then
-      reaper.ImGui_Dummy(ctx, size or 16, size or 16)
-      return
+  local function on_tab_switched()
+    if core.cache and core.cache.clear then
+      core.cache:clear()
+      if core.cache.begin_frame then core.cache:begin_frame() end
     end
-    RIH.img(ctx, path, size or card_size, state or 0)
+    if ui_assets.on_leave then pcall(ui_assets.on_leave, core) end
+    if ui_packages.on_leave then pcall(ui_packages.on_leave, core) end
+    clog("tab switch -> reset image cache + notified UIs")
+    tab_transition_alpha, tab_transition_target = 0.0, 1.0
   end
 
-  local function draw_native_image(ctx, path, state)
-    if not path or path=="" then
-      reaper.ImGui_Dummy(ctx, 16, 16)
-      return
-    end
-    RIH.img_native(ctx, path, state or 0)
-  end
+  L:on_show(function()
+    core.try("on_show", function()
+      core.assets:rescan()
+      core.pkg:scan()
+    end)
+  end)
 
-  local function open_popup(ctx, el)
-    reaper.ImGui_OpenPopup(ctx, 'Gallery##asm_' .. el)
-  end
-
-  local function draw_element_card(ctx, el)
-    local list   = variants[el] or {}
-    local chosen = element_thumbnail_path(el)
-
-    if show_original_sizes and chosen and chosen ~= "" then
-      draw_native_image(ctx, chosen, 0)
-    else
-      draw_card_image(ctx, chosen, card_size, 0)
-    end
-
-    local tip = "default (no override)"
-    if selections[el] and selections[el].path then
-      tip = selections[el].path:match("[^\\/]+$") or selections[el].path
-    elseif chosen then
-      tip = chosen:match("[^\\/]+$") or chosen
-    end
-    tooltip(ctx, tip)
-
-    if reaper.ImGui_IsItemClicked(ctx) then
-      open_popup(ctx, el)
-    end
-
-    if reaper.ImGui_BeginPopup(ctx, 'Gallery##asm_' .. el) then
-      reaper.ImGui_Text(ctx, 'Choose variant for: ' .. el)
-      reaper.ImGui_SameLine(ctx)
-      reaper.ImGui_SetNextItemWidth(ctx, 140)
-      local changed, new_sz = reaper.ImGui_SliderInt(ctx, 'Cell', grid_size, 64, 192)
-      if changed then
-        grid_size = new_sz
-        if settings then settings:set('grid_size', grid_size) end
-        RIH.clear()
-      end
-      reaper.ImGui_Separator(ctx)
-
-      local avail = select(1, reaper.ImGui_GetContentRegionAvail(ctx)) or 0
-      local cols  = math.max(1, math.floor(avail / (grid_size + 12)))
-      local tbl_flags = flag(reaper.ImGui_TableFlags_NoBordersInBody) | flag(reaper.ImGui_TableFlags_SizingStretchSame)
-
-      local should_close_popup = false
-      local clicked_variant = nil
-      
-      local table_began = reaper.ImGui_BeginTable(ctx, 'grid##' .. el, cols, tbl_flags)
-      if table_began then
-        local table_ok, table_err = pcall(function()
-          local idx = 0
-          for _, v in ipairs(list) do
-            if idx % cols == 0 then reaper.ImGui_TableNextRow(ctx) end
-            reaper.ImGui_TableNextColumn(ctx)
-
-            draw_card_image(ctx, v.path, grid_size, 0)
-            tooltip(ctx, (v.name or '?') .. '.png')
-
-            if reaper.ImGui_IsItemClicked(ctx) then
-              clicked_variant = v
-              should_close_popup = true
-            end
-
-            reaper.ImGui_PushTextWrapPos(ctx, reaper.ImGui_GetCursorPosX(ctx) + grid_size)
-            reaper.ImGui_Text(ctx, v.name or "?")
-            reaper.ImGui_PopTextWrapPos(ctx)
-
-            idx = idx + 1
-          end
-        end)
-        
-        reaper.ImGui_EndTable(ctx)
-        
-        if not table_ok then
-          reaper.ImGui_Text(ctx, "Grid error: " .. tostring(table_err))
-        end
-      end
-      
-      if clicked_variant then
-        selections[el] = { path = clicked_variant.path, dest = (el or "element") .. ".png" }
-        assembler.save_selections(selections)
-        RIH.clear()
-      end
-
-      reaper.ImGui_Separator(ctx)
-      if reaper.ImGui_Button(ctx, 'Clear selection') then
-        selections[el] = nil
-        assembler.save_selections(selections)
-        should_close_popup = true
-        RIH.clear()
-      end
-      reaper.ImGui_SameLine(ctx)
-      if reaper.ImGui_Button(ctx, 'Close') then
-        should_close_popup = true
-      end
-      
-      if should_close_popup then
-        reaper.ImGui_CloseCurrentPopup(ctx)
-      end
-
-      reaper.ImGui_EndPopup(ctx)
-    end
-  end
-
-  return L:export(function(ctx, _state)
+  L:begin_frame(function()
     if cache and cache.begin_frame then cache:begin_frame() end
+    if tab_transition_alpha < tab_transition_target then
+      tab_transition_alpha = math.min(tab_transition_target, tab_transition_alpha + 0.08)
+    end
+  end)
 
-    if reaper.ImGui_Button(ctx, 'Apply / Repack Theme') then
-      local info = theme.get_theme_info()
-      local status, dir = theme.get_status()
-      local tinfo
-      if status == 'direct' then
-        tinfo = { mode='direct', ui_dir=dir, themes_dir=info.themes_dir, theme_name=info.theme_name }
-      elseif status == 'linked-ready' or status == 'zip-ready' then
-        tinfo = { mode='zip', cache_dir=dir, themes_dir=info.themes_dir, theme_name=info.theme_name }
-      else
-        reaper.ShowMessageBox('No image source. Link a .ReaperThemeZip first (use status bar or Debug tab).', 'Assembler', 0)
-        return
+  L:on_hide(function()
+    core.try("on_hide", function()
+      if cache and cache.clear then cache:clear() end
+      if ui_packages.on_leave then pcall(ui_packages.on_leave, core) end
+      if ui_assets.on_leave then pcall(ui_assets.on_leave, core) end
+    end)
+  end)
+
+  local function do_assemble()
+    local ok = false
+    if core.assembler then
+      if type(core.assembler.assemble) == 'function' then core.assembler.assemble(core); ok = true
+      elseif type(core.assembler.apply) == 'function' then core.assembler.apply(core); ok = true
+      elseif type(core.assembler.apply_theme) == 'function' then core.assembler.apply_theme(core); ok = true
       end
-      local ok, msg = assembler.apply(tinfo, selections)
-      reaper.ShowMessageBox(ok and ('OK: '..(msg or 'done')) or ('Failed: '..tostring(msg)), 'Assembler', 0)
     end
+    if not ok then reaper.ShowMessageBox('Assemble: no backend hooked yet (mock).', 'Assembler', 0) end
+  end
 
-    reaper.ImGui_SameLine(ctx)
-    if reaper.ImGui_Button(ctx, 'Rescan Assembler Folder') then
-      refresh_variants()
-    end
+  return L:export(function(ctx)
+    -- Compute dynamic footer height from current frame height so there is no slack
+    local frame_h = reaper.ImGui_GetFrameHeight(ctx) or 0
+    local footer_h = frame_h + FOOTER_PAD_V * 2
+    local avail_w = select(1, reaper.ImGui_GetContentRegionAvail(ctx)) or 0
+    local avail_h = select(2, reaper.ImGui_GetContentRegionAvail(ctx)) or 0
+    local child_h = math.max(0, avail_h - footer_h)
 
-    reaper.ImGui_SameLine(ctx)
-    reaper.ImGui_SetNextItemWidth(ctx, 160)
-    local ch1, new_card = reaper.ImGui_SliderInt(ctx, 'Card size', card_size, 96, 192)
-    if ch1 then
-      card_size = new_card
-      if settings then settings:set('card_size', card_size) end
-      RIH.clear()
-    end
+    -- Disable scrollbars in the child region
+    local NO_SCROLL = reaper.ImGui_WindowFlags_NoScrollbar() | reaper.ImGui_WindowFlags_NoScrollWithMouse()
 
-    reaper.ImGui_SameLine(ctx)
-    local ch2, new_flag = reaper.ImGui_Checkbox(ctx, 'Show original image sizes', show_original_sizes)
-    if ch2 then
-      show_original_sizes = new_flag
-      if settings then settings:set('show_original_sizes', show_original_sizes) end
-      RIH.clear()
-    end
-
-    reaper.ImGui_Separator(ctx)
-
-    if #elements == 0 then
-      reaper.ImGui_Text(ctx, 'No elements found in theme Assembler folder.')
-      reaper.ImGui_BulletText(ctx, 'Expected: <theme>/ui_img/Assembler/<element>/<variant>.png')
-      return
-    end
-
-    local avail = select(1, reaper.ImGui_GetContentRegionAvail(ctx)) or 0
-    local cols  = math.max(1, math.floor(avail / (card_size + 24)))
-    local tbl_flags = flag(reaper.ImGui_TableFlags_NoBordersInBody) | flag(reaper.ImGui_TableFlags_SizingStretchSame)
-
-    local main_table_began = reaper.ImGui_BeginTable(ctx, 'cards', cols, tbl_flags)
-    if main_table_began then
-      local main_ok, main_err = pcall(function()
-        for i, el in ipairs(elements) do
-          if (i-1) % cols == 0 then reaper.ImGui_TableNextRow(ctx) end
-          reaper.ImGui_TableNextColumn(ctx)
-          draw_element_card(ctx, el)
+    if BeginChildCompat(ctx, 'assembler_content', -1, child_h, false, NO_SCROLL) then
+      if reaper.ImGui_BeginTabBar(ctx, 'assembler_subtabs') then
+        if reaper.ImGui_BeginTabItem(ctx, '📦 PACKAGES') then
+          current_tab = 'PACKAGES'
+          if last_tab ~= current_tab then on_tab_switched(); last_tab = current_tab end
+          reaper.ImGui_PushStyleVar(ctx, reaper.ImGui_StyleVar_Alpha(), tab_transition_alpha)
+          core.try("draw_packages", function() ui_packages.draw(ctx, core) end)
+          reaper.ImGui_PopStyleVar(ctx)
+          reaper.ImGui_EndTabItem(ctx)
         end
-      end)
-      
-      reaper.ImGui_EndTable(ctx)
-      
-      if not main_ok then
-        reaper.ImGui_Text(ctx, "Main grid error: " .. tostring(main_err))
+
+        if reaper.ImGui_BeginTabItem(ctx, '🎨 ASSETS') then
+          current_tab = 'ASSETS'
+          if last_tab ~= current_tab then on_tab_switched(); last_tab = current_tab end
+          reaper.ImGui_PushStyleVar(ctx, reaper.ImGui_StyleVar_Alpha(), tab_transition_alpha)
+          core.try("draw_assets", function() ui_assets.draw(ctx, core) end)
+          reaper.ImGui_PopStyleVar(ctx)
+          reaper.ImGui_EndTabItem(ctx)
+        end
+
+        reaper.ImGui_EndTabBar(ctx)
       end
     end
+    reaper.ImGui_EndChild(ctx)
+
+    -- Sticky footer with centered "Assemble" (default styles)
+    local footer_x1, footer_y1 = reaper.ImGui_GetCursorScreenPos(ctx)
+    local dl = reaper.ImGui_GetWindowDrawList(ctx)
+    local region_w = select(1, reaper.ImGui_GetContentRegionAvail(ctx)) or avail_w
+    local footer_x2 = footer_x1 + region_w
+
+    -- hairline separator
+    reaper.ImGui_DrawList_AddLine(dl, footer_x1, footer_y1 + 0.5, footer_x2, footer_y1 + 0.5, 0x00000055, 1)
+
+    -- Split the exact space around the button so there’s no extra gap
+    local top_pad = math.max(0, math.floor((footer_h - frame_h) / 2))
+    local bot_pad = math.max(0, footer_h - frame_h - top_pad)
+
+    reaper.ImGui_Dummy(ctx, 1, top_pad)
+
+    local label = 'Assemble'
+    local tw = select(1, reaper.ImGui_CalcTextSize(ctx, label)) or 0
+    local approx_btn_w = tw + 32
+    local center_x = math.max(0, (region_w - approx_btn_w) // 2)
+    reaper.ImGui_SetCursorPosX(ctx, reaper.ImGui_GetCursorPosX(ctx) + center_x)
+
+    if reaper.ImGui_Button(ctx, label) then core.try("assemble", do_assemble) end
+
+    reaper.ImGui_Dummy(ctx, 1, bot_pad)
   end)
 end
 

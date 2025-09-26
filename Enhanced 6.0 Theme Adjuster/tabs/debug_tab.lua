@@ -52,7 +52,8 @@ function M.create(theme_mod, settings)
     want_preload = {},
   }
 
-  local thumbs = L:register( ImageCache.new({ budget = 48 }) )
+  -- NOTE: no_crop=true => show full PNGs, even if metadata says 3-state
+  local thumbs = L:register( ImageCache.new({ budget = 48, no_crop = true }) )
 
   local function page_bounds()
     local N = #s.list
@@ -81,7 +82,6 @@ function M.create(theme_mod, settings)
     collectgarbage('collect')
   end
 
-  -- Auto-detect on tab show
   L:on_show(function()
     if not s.img_dir then
       s.img_dir = T.prepare_images(false)
@@ -89,9 +89,7 @@ function M.create(theme_mod, settings)
     end
   end)
 
-  -- Toolbar
   local function toolbar(ctx)
-    -- Status display
     local status, dir, zip_name = T.get_status()
     if status == 'direct' and dir then
       text_color(ctx, C.teal or 0x41E0A3FF, ('READY - Direct: %s'):format(dir))
@@ -107,7 +105,6 @@ function M.create(theme_mod, settings)
       text_color(ctx, C.red or 0xE04141FF, 'ERROR - Check theme status')
     end
 
-    -- Controls (only trigger fetch when inputs that affect listing change)
     local changed
 
     reaper.ImGui_SetNextItemWidth(ctx, 140)
@@ -139,7 +136,6 @@ function M.create(theme_mod, settings)
       fetch_list()
     end
 
-    -- Paging + info
     local shown = #s.list
     local pages = math.max(1, math.ceil((shown>0 and shown or 1)/math.max(1, s.page_size)))
     if s.page_index > pages then s.page_index = pages end
@@ -174,7 +170,6 @@ function M.create(theme_mod, settings)
     end
   end
 
-  -- Grid
   local function grid(ctx)
     local shown = #s.list
     if shown == 0 then return end
@@ -214,7 +209,9 @@ function M.create(theme_mod, settings)
   end
 
   return L:export(function(ctx, _state)
-    -- Theme info
+    -- IMPORTANT: allow budgeted creation each frame
+    if thumbs then thumbs:begin_frame() end
+
     local info = T.get_theme_info()
     reaper.ImGui_Text(ctx, 'Theme:')
     reaper.ImGui_SameLine(ctx); reaper.ImGui_Text(ctx, info.theme_name or 'Unknown')

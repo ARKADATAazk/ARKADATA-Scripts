@@ -131,7 +131,7 @@ end
 local function snap(x) return math.floor(x + 0.5) end
 
 ----------------------------------------------------------------
--- Header (tabstrip) — fixed-width tabs with text clipping
+-- Header (tabstrip) – fixed-width tabs with text clipping
 ----------------------------------------------------------------
 local function draw_tabstrip(ctx, tabs, active_idx, fonts, colors, header_h, pull_up)
   push_font(ctx, fonts.tabs)
@@ -329,7 +329,13 @@ function M.run(opts)
     end
   end
 
+  -- Get proper child flags including NoMove to prevent dragging from content
   local CHILD_NONE = (reaper.ImGui_ChildFlags_None and reaper.ImGui_ChildFlags_None() or 0)
+  local CHILD_NO_MOVE = 0
+  if reaper.ImGui_ChildFlags_NoMove then
+    CHILD_NO_MOVE = reaper.ImGui_ChildFlags_NoMove()
+  end
+  
   local open = true
 
   local HEADER_PULL_UP = CONFIG.HEADER_PULL_UP
@@ -418,7 +424,8 @@ function M.run(opts)
         reaper.ImGui_PushStyleVar(ctx, reaper.ImGui_StyleVar_ItemSpacing(), CONFIG.ITEM_SPACING, CONFIG.ITEM_SPACING)
         reaper.ImGui_PushStyleColor(ctx, reaper.ImGui_Col_ChildBg(), CONFIG.BODY_BG)
 
-        if reaper.ImGui_BeginChild(ctx, "##body", -1, body_h, CHILD_NONE, 0) then
+        -- Use CHILD_NO_MOVE flag to prevent dragging the parent window from child content
+        if reaper.ImGui_BeginChild(ctx, "##body", -1, body_h, CHILD_NONE | CHILD_NO_MOVE, 0) then
           local cur = tabs[state.active_idx]
           if cur and cur.begin_frame then pcall(cur.begin_frame) end
 

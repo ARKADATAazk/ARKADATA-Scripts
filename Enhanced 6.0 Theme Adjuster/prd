@@ -1,0 +1,342 @@
+PRD — Assembler “Packages” System for Enhanced 6.0 Theme Adjuster
+1) Summary
+
+Introduce a package-based asset overlay system that lets theme users quickly apply curated sets of images to their theme, with ordering, per-asset inclusion/exclusion, and per-asset provider “pins”. Packages live in the theme at %Theme%/Assembler/Packages/ and contain canonically named REAPER assets (no special suffixes). The Assembler resolves conflicts by package order (top wins) and feeds a single resolved map into the existing image_cache + reaper_img_handler. Optional DevMode can generate a lightweight manifest.json for prettier tiles and filtering, but functionality never depends on it.
+
+2) Goals / Non-Goals
+
+Goals
+
+Zero-setup for theme devs: drop images in %Theme%/Assembler/Packages/<PackageName>/.
+
+Users can activate/deactivate packages, drag to reorder, micro-manage assets, and pin specific providers.
+
+Preview changes inside the Adjuster without writing files; Apply writes to the theme (folder or zip).
+
+Persist user choices per theme in %Script%/cache/<theme_id>/.assembler_state.json.
+
+Be robust about image handles (no stale pointers), fully integrated with image_cache/reaper_img_handler.
+
+Non-Goals (v1)
+
+DPI variants / density picking.
+
+Perfect in-script visual simulation of TCP/MCP stacks (users preview by applying to the actual theme).
+
+Backward compatibility migrations (script is fresh).
+
+3) Scope
+
+In-scope
+
+Package discovery, indexing, conflict resolution.
+
+UI: package grid, drag order, active border, conflict badge, micro-manage dialog, pins.
+
+Preview pipeline (hot-swap resolved map → image_cache/reaper_img_handler).
+
+Apply pipeline (folder copy or zip repack) + backups + revert last apply.
+
+DevMode: optional manifest.json generator, validation, mosaic curator.
+
+Out-of-scope (v1)
+
+DPI (@2x, scaling rules).
+
+Cloud sync of states.
+
+Package dependency graphs.
+
+4) User Stories
+
+As a user, I open the Assembler → Packages tab, see tiles for each package, toggle a few on, drag order, and preview results in the app.
+
+I open Micro-manage, exclude tcp_recarm_on.png from a package, and pin tcp_mute_on.png to a specific package.
+
+I click Apply to write assets into my folder theme (with automatic backups), and REAPER reflects the change.
+
+With a .ReaperThemeZip, I Apply and the script extracts, updates, repacks, and (optionally) offers to switch to the repacked theme.
+
+As a theme dev, I flip DevMode and generate a manifest.json with tags, color, and a curated mosaic preview for a package.
+
+5) Folder Layouts
+Theme (authoring)
+%Theme%/
+  Assembler/
+    Assets/                  # legacy per-asset folders (unchanged)
+      tcp_mute_on/...
+    Packages/
+      CleanLines/
+        tcp_panel_bg.png
+        tcp_mute_on.png
+        track_solo_on.png
+        ...
+        (optional) manifest.json   # DevMode-generated; display metadata only
+
+Script cache (per theme)
+%Script%/cache/
+  <theme_id>/
+    .assembler_state.json          # active packages, order, pins, exclusions, etc.
+    .resolved_map.json             # (debug) effective key→path
+    previews/                      # mosaic thumbs per package
+    unpacked_theme/                # zip themes unpack here for apply/repack
+    backups/                       # original files first time they’re overwritten
+
+
+theme_id = stable hash of absolute theme path (shortened, e.g. 8–12 hex chars).
+
+6) Data & File Formats
+Asset keying
+
+Key = canonical REAPER asset filename without extension, e.g. tcp_mute_on.
+
+No @state suffix. Multi-frame strips remain single PNGs; reaper_img_handler/slice maps handle frames.
+
+.assembler_state.json
+{
+  "version": 1,
+  "active_order": ["CleanLines", "DarkBevel"],
+  "pins": { "tcp_mute_on": "DarkBevel" },
+  "exclusions": { "CleanLines": ["tcp_recarm_on"] },
+  "areas_visibility": { "TCP": true, "MCP": true, "Transport": true, "Global": true },
+  "last_scan": "2025-09-26T21:15:03Z"
+}
+
+Optional manifest.json (DevMode; display metadata only)
+{
+  "name": "CleanLines",
+  "version": "1.0.0",
+  "author": "ARKADATA",
+  "description": "Flat edges, crisp icons for TCP.",
+  "tags": ["flat", "light"],
+  "preview": {
+    "mosaic": ["tcp_panel_bg.png", "tcp_mute_on.png", "track_solo_on.png"],
+    "color": "#A0E7AE"
+  }
+}
+
+7) Core Algorithms
+7.1 Package Scan
+
+Input: %Theme%/Assembler/Packages/*.
+
+For each <PackageName>/, collect *.png (primary; *.jpg|gif optional).
+
+Build packages_index:
+
+{
+  id: "CleanLines",
+  path: "<theme>/Assembler/Packages/CleanLines",
+  assets: { "tcp_mute_on": { path, is_strip?:bool }, ... },
+  meta: { name, tags, color, mosaic }  # from manifest if present
+}
+
+
+Infer area (for UI filtering) by key prefix: tcp_, mcp_, transport_, else global.
+
+7.2 Resolve
+
+Start with empty resolved.
+
+For each pkg in active_order (bottom→top):
+For each key not excluded for this pkg, set resolved[key] = { path, provider=pkg }. (Overrides previous.)
+
+Apply pins: force resolved[key] to pinned provider if that package contains the key (even if inactive).
+
+For keys missing in resolved, retain theme’s original asset (and existing global fallback mapping stays as is).
+
+7.3 Preview & Apply
+
+Preview: atomically swap the source map used by image_cache/reaper_img_handler. No disk writes.
+
+Apply (folder theme):
+
+On first overwrite per file, copy original to %Script%/cache/<theme_id>/backups/<relpath>.
+
+Copy resolved files into theme paths.
+
+Apply (zip theme):
+
+Extract once into unpacked_theme/ (if not already).
+
+Overwrite inside unpacked_theme/.
+
+Repack to a new .ReaperThemeZip (e.g., ThemeName (Packages).ReaperThemeZip).
+
+Offer to switch theme or leave it to the user.
+
+Revert last apply: restore from backups for folder themes; re-create previous zip from backups + prior archive for zip themes.
+
+8) UI/UX
+8.1 Packages Grid
+
+Tile: name, asset count, small mosaic preview (random 3–6 or manifest’s list).
+
+Active: 2px green border; Inactive: grayscale/low-contrast.
+
+Badges: N assets, K conflicts (if it provides keys also provided by other active packages).
+
+Interactions:
+
+Click tile: toggle active.
+
+Drag tile: reorder (higher wins).
+
+Right-click: Micro-manage…, Pin assets…, Open folder, Rescan.
+
+Top bar: filters (Area/tags/search), Activate all in view, Deactivate all, Apply.
+
+8.2 Micro-manage Dialog
+
+List of provided keys (searchable).
+
+Checkboxes per key (include/exclude for this package).
+
+“Pin provider” per key to force resolution to this package.
+
+Show which other packages also provide the same key (quick jump).
+
+8.3 DevMode
+
+Toggle switch in header.
+
+Extra actions per tile: Generate manifest, Validate asset names, Rebuild mosaic.
+
+“Create new package” wizard (name → create folder).
+
+9) Integrations
+image_cache / reaper_img_handler
+
+ImageMap.apply(resolved_map) replaces the internal key→path table.
+
+All ImGui textures are owned by image_cache with reference counting. Popouts get ref handles only.
+
+On apply() or rescan, do an atomic swap: build new cache entries, then swap pointers to avoid stale handle errors.
+
+Global Fallbacks
+
+Existing fallback mapping (e.g., global_* → track_env*) remains unchanged and is applied after packages resolution if a key is missing.
+
+10) Errors, Edge Cases
+
+Package with no valid assets → tile disabled, tooltip explains.
+
+Conflicting writes during Apply (permissions/locked files) → show per-file errors; continue others; provide retry.
+
+Zip repack failure → keep unpacked_theme/ intact; show error; allow retry.
+
+Broken images → log and skip; show count badge “X errors”.
+
+State file corrupted → back up and regenerate defaults.
+
+11) Performance
+
+Scan once per session or on explicit Rescan (watch folder mtimes if cheap).
+
+Mosaic thumbnails cached under %Script%/cache/<theme_id>/previews/<package_id>.png keyed by folder hash.
+
+Apply uses buffered copy; only overwrite when content differs (hash compare).
+
+12) Telemetry/Logging (local)
+
+Verbose log under %Script%/cache/<theme_id>/assembler.log:
+
+scan results, conflicts, resolved counts, apply actions, errors.
+
+Toggle “Debug logging” in DevMode.
+
+13) Security/Permissions
+
+Never write into the theme zip directly; always via unpacked_theme/ then repack to a new file.
+
+For folder themes, create a backups/ mirror before first overwrite of any file.
+
+14) API (Lua, high-level)
+-- Discovery
+Assembler.scan_packages(theme_root) -> packages_index
+
+-- State
+Assembler.load_state(theme_id) -> state_tbl
+Assembler.save_state(theme_id, state_tbl)
+
+-- Resolve
+Assembler.resolve(packages_index, state_tbl) -> resolved_map
+
+-- Preview bridge
+ImageMap.apply(resolved_map) -- updates image_cache/reaper_img_handler atomically
+
+-- Apply
+Assembler.apply_to_theme(theme_root, resolved_map, opts) -> {ok, stats, errors}
+
+-- DevMode (optional)
+DevMode.generate_manifest(package_path, meta_tbl) -> ok, err
+DevMode.validate_package(package_path) -> {warnings}
+DevMode.build_mosaic_thumb(package, cache_dir) -> thumb_path
+
+15) Milestones
+
+M1 — Core (scan → resolve → preview)
+
+Package scanner & indexer.
+
+State load/save, active toggles, drag-order.
+
+Resolver + ImageMap.apply.
+
+Minimal grid UI (toggle/drag), Rescan.
+
+Acceptance: can toggle/order packages and see changes in preview (no file writes).
+
+M2 — Micro-manage & Pins
+
+Include/exclude per package.
+
+Per-asset provider pins.
+
+Conflict badges & per-key provider stack view.
+
+Acceptance: pin beats order; exclusions honored.
+
+M3 — Apply & Backups
+
+Folder theme copy with backups + revert last apply.
+
+Zip theme: extract/update/repack to new file.
+
+Acceptance: assets are written correctly; backups created; revert works.
+
+M4 — DevMode
+
+Manifest generator, validation, curated mosaic, tags/color.
+
+Previews cache.
+
+Acceptance: manifest influences tile display only.
+
+M5 — Polish
+
+Error reporting, logs, UX tweaks (filters, activate all).
+
+Performance pass (hashing, only-when-changed copies).
+
+16) Acceptance Criteria (selected)
+
+Zero-manifest packages appear and function end-to-end.
+
+Grid shows correct asset counts; conflicts indicated.
+
+Reordering changes the winning provider for overlapping keys.
+
+Micro-manage exclusions remove those keys from that package only.
+
+Pins force provider regardless of order or active state.
+
+Preview never crashes (no stale texture handles).
+
+Apply (folder) writes only changed files and creates backups on first touch.
+
+Apply (zip) produces a valid new .ReaperThemeZip.
+
+Revert restores prior state for folder themes; zip themes are restored using prior archive/backups.
+
+DevMode manifest presence/absence does not change functional resolution.

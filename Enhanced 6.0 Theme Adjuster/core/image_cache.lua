@@ -1,14 +1,53 @@
 -- core/image_cache.lua
--- Budgeted, safe image cache for ReaImGui.
--- - Validates handles each frame before drawing (prevents stale-handle warnings)
--- - Recreates on demand within a per-frame creation budget
--- - Never calls ImGui_Image on an invalid handle
--- - Simple API: new({budget=?}), begin_frame(), draw_thumb(ctx,path,cell),
---              preload(path|{paths}), unload(path), clear()
+-- Metadata-driven 3-state image detection and caching
+-- Now supports opts.no_crop=true to bypass 3-state slicing (show full image)
 
 local M = {}
 
--- ---------- helpers ----------
+local metadata = nil
+
+local function load_metadata()
+  if metadata then return metadata end
+  
+  local SEP = package.config:sub(1,1)
+  local src = debug.getinfo(1,'S').source:sub(2)
+  local dir = src:match("(.*"..SEP..")") or ("."..SEP)
+  local meta_path = dir:gsub("core"..SEP.."$", "") .. "reaper_img_metadata.json"
+  
+  local file = io.open(meta_path, "r")
+  if not file then
+    metadata = { images = {} }
+    return metadata
+  end
+  
+  local content = file:read("*a")
+  file:close()
+  
+  local json_ok, json = pcall(require, 'json')
+  if json_ok and json and json.decode then
+    local result = json.decode(content)
+    if result and result.images then
+      metadata = result
+      return metadata
+    end
+  end
+  
+  metadata = { images = {} }
+  local images_start = content:match('"images"%s*:%s*{')
+  if images_start then
+    local start_pos = content:find('"images"%s*:%s*{')
+    if start_pos then
+      local images_content = content:sub(start_pos)
+      for img_name, is_3state_str in images_content:gmatch('"([^"]+)"%s*:%s*{[^}]*"is_3state"%s*:%s*(%a+)') do
+        if img_name ~= "_comment" then
+          metadata.images[img_name] = { is_3state = (is_3state_str == "true") }
+        end
+      end
+    end
+  end
+  
+  return metadata
+end
 
 local function img_flags_noerr()
   return (type(reaper.ImGui_ImageFlags_NoErrors) == "function") and reaper.ImGui_ImageFlags_NoErrors() or 0
@@ -31,76 +70,58 @@ local function image_size(img)
   return nil, nil
 end
 
--- ---------- cache object ----------
+local function get_image_name(path)
+  if not path then return nil end
+  local name = path:match("[^\\/]+$") or path
+  return name:gsub("%.png$", ""):gsub("%.PNG$", "")
+end
+
+local function is_three_state_from_metadata(path)
+  local meta = load_metadata()
+  local name = get_image_name(path)
+  if not name then return false end
+  local img_meta = meta.images[name]
+  return img_meta and img_meta.is_3state == true
+end
 
 local Cache = {}
 Cache.__index = Cache
 
--- opts:
---   budget : max images to (re)create per frame (default 48)
 function M.new(opts)
   opts = opts or {}
   local self = setmetatable({
-    _cache        = {},          -- path -> { img=?, w=?, h=? } | false (permanent fail)
-    _creates_left = 0,           -- per-frame remaining budget
-    _budget       = math.max(0, tonumber(opts.budget or 48)) -- >=0
+    _cache        = {},
+    _creates_left = 0,
+    _budget       = math.max(0, tonumber(opts.budget or 48)),
+    _no_crop      = opts.no_crop == true,  -- <— NEW: bypass slicing when true
   }, Cache)
   return self
 end
 
--- Call once per frame (your lifecycle should do this for you)
 function Cache:begin_frame()
   self._creates_left = self._budget
 end
 
--- Unload everything (called on tab hide/close)
 function Cache:clear()
   for _, rec in pairs(self._cache) do
-    if rec and rec.img then
-      destroy_image(rec.img)
-      rec.img = nil
-    end
+    if rec and rec.img then destroy_image(rec.img) end
   end
   self._cache = {}
   collectgarbage('collect')
 end
 
--- Unload a single path
 function Cache:unload(path)
   local rec = self._cache[path]
   if rec and rec.img then destroy_image(rec.img) end
   self._cache[path] = nil
 end
 
--- Pre-create image(s) within budget
-function Cache:preload(item)
-  if type(item) == "table" then
-    for _, p in ipairs(item) do self:preload(p) end
-    return
-  end
-  local path = item
-  if not path or path == "" then return end
-  local rec = self._cache[path]
-  if rec == false then return end           -- previously failed
-  if rec and rec.img then return end        -- already loaded
-  if self._creates_left <= 0 then return end
-
-  local img = create_image(path)
-  if img then
-    local w, h = image_size(img)
-    if not w then
-      destroy_image(img)
-      self._cache[path] = false
-      return
-    end
-    self._cache[path] = { img = img, w = w, h = h }
-    self._creates_left = self._creates_left - 1
-  else
-    self._cache[path] = false
-  end
+function Cache:set_no_crop(b)
+  self._no_crop = not not b
+  -- We keep existing records; drawing uses stored src rects.
+  -- If you want to refresh to full frames immediately, call :clear() after toggling.
 end
 
--- Ensure a valid record exists or create one (budgeted).
 local function ensure_record(self, path)
   if not path or path == "" then return nil end
 
@@ -123,107 +144,136 @@ local function ensure_record(self, path)
     return nil
   end
 
-  rec = { img = img, w = w, h = h }
+  -- Decide source rectangle once on creation
+  local src_x, src_y, src_w, src_h
+  if self._no_crop then
+    -- Show the whole texture (no slicing)
+    src_x, src_y, src_w, src_h = 0, 0, w, h
+  else
+    if is_three_state_from_metadata(path) and w > 0 then
+      local frame_w = math.floor(w / 3)
+      src_x, src_y, src_w, src_h = 0, 0, frame_w, h
+    else
+      src_x, src_y, src_w, src_h = 0, 0, w, h
+    end
+  end
+  
+  rec = { 
+    img = img, 
+    w = w, 
+    h = h,
+    src_x = src_x,
+    src_y = src_y, 
+    src_w = src_w,
+    src_h = src_h
+  }
   self._cache[path] = rec
   self._creates_left = self._creates_left - 1
   return rec
 end
 
--- Re-validate a record's handle; if stale, try to recreate within budget.
 local function validate_record(self, path, rec)
-  if not rec or not rec.img then return ensure_record(self, path) end
+  if not rec or not rec.img then
+    return ensure_record(self, path)
+  end
 
-  local w, h = image_size(rec.img)
-  if w and h then
-    -- keep sizes fresh
+  if type(rec.img) ~= "userdata" then
+    pcall(destroy_image, rec.img)
+    self._cache[path] = nil
+    return ensure_record(self, path)
+  end
+
+  local ok, w, h = pcall(reaper.ImGui_Image_GetSize, rec.img)
+  if ok and w and h and w > 0 and h > 0 then
     rec.w, rec.h = w, h
     return rec
   end
-
-  -- stale -> destroy and recreate
-  destroy_image(rec.img)
+  
+  pcall(destroy_image, rec.img)
   self._cache[path] = nil
   return ensure_record(self, path)
 end
 
--- Draw helper: fit original image into (cell x cell) while preserving aspect.
--- Returns true if drawn, false if a placeholder was drawn.
+function Cache:draw_original(ctx, path)
+  if not path or path == "" then
+    reaper.ImGui_Dummy(ctx, 16, 16)
+    return false
+  end
+  local rec = validate_record(self, path, self._cache[path])
+  if not rec or not rec.img then
+    reaper.ImGui_Dummy(ctx, 16, 16)
+    return false
+  end
+  local u0 = rec.src_x / rec.w
+  local v0 = rec.src_y / rec.h
+  local u1 = (rec.src_x + rec.src_w) / rec.w
+  local v1 = (rec.src_y + rec.src_h) / rec.h
+  local ok = pcall(reaper.ImGui_Image, ctx, rec.img, rec.src_w, rec.src_h, u0, v0, u1, v1)
+  if not ok then
+    destroy_image(rec.img)
+    self._cache[path] = false
+    reaper.ImGui_Dummy(ctx, rec.src_w or 16, rec.src_h or 16)
+    return false
+  end
+  return true
+end
+
 function Cache:draw_thumb(ctx, path, cell)
   cell = math.max(1, math.floor(tonumber(cell) or 1))
-
   if not path or path == "" then
     reaper.ImGui_Dummy(ctx, cell, cell)
     return false
   end
-
-  -- validate / (re)create within budget
   local rec = validate_record(self, path, self._cache[path])
   if not rec or not rec.img then
     reaper.ImGui_Dummy(ctx, cell, cell)
     return false
   end
-
-  local w, h = rec.w or 0, rec.h or 0
-  if w <= 0 or h <= 0 then
-    destroy_image(rec.img); self._cache[path] = false
+  local src_w, src_h = rec.src_w, rec.src_h
+  if src_w <= 0 or src_h <= 0 then
     reaper.ImGui_Dummy(ctx, cell, cell)
     return false
   end
-
-  -- ✦ Final safety: re-check size RIGHT before drawing.
-  local w2, h2 = image_size(rec.img)
-  if not w2 or not h2 then
-    destroy_image(rec.img); self._cache[path] = nil
-    -- try recreate once if budget allows
-    rec = ensure_record(self, path)
-    if not rec or not rec.img then
-      self._cache[path] = false
-      reaper.ImGui_Dummy(ctx, cell, cell)
-      return false
-    end
-    w, h = rec.w, rec.h
-  else
-    w, h = w2, h2
-  end
-
-  local scale = math.min(cell / w, cell / h)
-  local dw = math.max(1, math.floor(w * scale))
-  local dh = math.max(1, math.floor(h * scale))
-
-  local ok = pcall(reaper.ImGui_Image, ctx, rec.img, dw, dh)
+  local scale = math.min(cell / src_w, cell / src_h)
+  local dw = math.max(1, math.floor(src_w * scale))
+  local dh = math.max(1, math.floor(src_h * scale))
+  local u0 = rec.src_x / rec.w
+  local v0 = rec.src_y / rec.h
+  local u1 = (rec.src_x + rec.src_w) / rec.w
+  local v1 = (rec.src_y + rec.src_h) / rec.h
+  local ok = pcall(reaper.ImGui_Image, ctx, rec.img, dw, dh, u0, v0, u1, v1)
   if not ok then
-    destroy_image(rec.img); self._cache[path] = false
+    destroy_image(rec.img)
+    self._cache[path] = false
     reaper.ImGui_Dummy(ctx, cell, cell)
     return false
   end
-
   return true
 end
 
--- Optional: draw to an exact size (stretches to w x h)
 function Cache:draw_fit(ctx, path, w, h)
   w = math.max(1, math.floor(tonumber(w) or 1))
   h = math.max(1, math.floor(tonumber(h) or 1))
-
   if not path or path == "" then
     reaper.ImGui_Dummy(ctx, w, h)
     return false
   end
-
   local rec = validate_record(self, path, self._cache[path])
   if not rec then
     reaper.ImGui_Dummy(ctx, w, h)
     return false
   end
-
-  local ok = pcall(reaper.ImGui_Image, ctx, rec.img, w, h)
+  local u0 = rec.src_x / rec.w
+  local v0 = rec.src_y / rec.h
+  local u1 = (rec.src_x + rec.src_w) / rec.w
+  local v1 = (rec.src_y + rec.src_h) / rec.h
+  local ok = pcall(reaper.ImGui_Image, ctx, rec.img, w, h, u0, v0, u1, v1)
   if not ok then
     destroy_image(rec.img)
     self._cache[path] = false
     reaper.ImGui_Dummy(ctx, w, h)
     return false
   end
-
   return true
 end
 

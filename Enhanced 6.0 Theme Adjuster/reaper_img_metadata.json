@@ -2,7 +2,6 @@
   "_comment": "Metadata for REAPER theme images. Schema fields: kind ('sliced-button' | 'bg' | 'knob-stack' | 'image' | 'thumb'), is_3state, fallback, aliases[], has_pink",
   "images": {
 
-    // ===== Core (kept from your file) =========================================================
     "button_off": {"kind":"sliced-button","is_3state":true,"description":"Generic button off"},
     "button_on": {"kind":"sliced-button","is_3state":true,"description":"Generic button on"},
     "scrollbar_v": {"kind":"thumb","is_3state":true,"description":"Vertical scrollbar thumb"},
@@ -89,7 +88,10 @@
     "envcp_mod": {"kind":"sliced-button","is_3state":true},
     "envcp_learn": {"kind":"sliced-button","is_3state":true},
 
-    // ===== Transport ========================================================================
+
+    
+
+
     "transport_basis_half": {"kind":"sliced-button","is_3state":true},
     "transport_basis_half_dotted": {"kind":"sliced-button","is_3state":true},
     "transport_basis_quarter": {"kind":"sliced-button","is_3state":true},
@@ -134,7 +136,8 @@
     "transport_status_bg": {"kind":"bg","is_3state":false},
     "transport_status_bg_err": {"kind":"bg","is_3state":false},
 
-    // ===== Track Panel (TCP) ================================================================
+
+
     "folder_start": {"kind":"bg","is_3state":false},
     "folder_indent": {"kind":"bg","is_3state":false},
     "folder_end": {"kind":"bg","is_3state":false},
@@ -242,7 +245,8 @@
     "tcp_widththumb": {"kind":"thumb","is_3state":false,"fallback":"tcp_panthumb"},
     "tcp_widththumb_vert": {"kind":"thumb","is_3state":false,"fallback":"tcp_panthumb_vert"},
 
-    // ===== Track / Env Buttons ===============================================================
+
+
     "track_env": {"kind":"sliced-button","is_3state":true},
     "track_env_read": {"kind":"sliced-button","is_3state":true,"aliases":["transport_automation_read"]},
     "track_env_touch": {"kind":"sliced-button","is_3state":true,"aliases":["transport_automation_touch"]},
@@ -295,7 +299,6 @@
     "track_solo_off": {"kind":"sliced-button","is_3state":true},
     "track_solo_on": {"kind":"sliced-button","is_3state":true},
 
-    // ===== Toolbar ===========================================================================
     "toolbar_bg": {"kind":"bg","is_3state":false,"has_pink":true},
     "toolbar_blank": {"kind":"image","is_3state":false},
     "toolbar_envitem_off": {"kind":"sliced-button","is_3state":true},
@@ -305,7 +308,10 @@
     "toolbar_load": {"kind":"sliced-button","is_3state":true},
     "toolbar_save": {"kind":"sliced-button","is_3state":true},
 
-    // ===== Mixer Panel (MCP) ================================================================
+
+    
+
+
     "mcp_bgsel": {"kind":"bg","is_3state":false},
     "mcp_env": {"kind":"sliced-button","is_3state":true,"fallback":"track_env"},
     "mcp_env_read": {"kind":"sliced-button","is_3state":true,"fallback":"track_env_read"},
@@ -442,7 +448,10 @@
     "mcp_widththumb": {"kind":"thumb","is_3state":false,"fallback":"mcp_panthumb"},
     "mcp_widththumb_vert": {"kind":"thumb","is_3state":false,"fallback":"mcp_panthumb_vert"},
 
-    // ===== Meters ============================================================================
+
+    
+
+
     "meter_automute": {"kind":"bg","is_3state":false},
     "meter_bg_h": {"kind":"bg","is_3state":false},
     "meter_bg_mcp": {"kind":"bg","is_3state":false},
@@ -470,7 +479,10 @@
     "meter_strip_v_rms": {"kind":"image","is_3state":false,"fallback":"meter_strip_v"},
     "meter_unsolo": {"kind":"bg","is_3state":false},
 
-    // ===== MIDI Editor (general) =============================================================
+
+    
+
+
     "midi_note_colormap": {"kind":"image","is_3state":false},
     "midi_score_colormap": {"kind":"image","is_3state":false},
     "piano_black_key": {"kind":"bg","is_3state":false},
@@ -478,7 +490,10 @@
     "piano_white_key": {"kind":"bg","is_3state":false},
     "piano_white_key_sel": {"kind":"bg","is_3state":false},
 
-    // ===== Item Images =======================================================================
+
+    
+
+
     "item_bg": {"kind":"bg","is_3state":false},
     "item_bg_sel": {"kind":"bg","is_3state":false},
     "item_env_off": {"kind":"sliced-button","is_3state":true},
@@ -509,7 +524,10 @@
     "item_volknob": {"kind":"sliced-button","is_3state":true},
     "item_volknob_stack": {"kind":"knob-stack","is_3state":false},
 
-    // ===== Inline MIDI Editor ================================================================
+
+    
+
+
     "midi_inline_ccwithitems_off": {"kind":"image","is_3state":false},
     "midi_inline_ccwithitems_on": {"kind":"image","is_3state":false},
     "midi_inline_close": {"kind":"image","is_3state":false},
@@ -524,7 +542,10 @@
     "midi_inline_scrollbar": {"kind":"bg","is_3state":false},
     "midi_inline_scrollthumb": {"kind":"bg","is_3state":false},
 
-    // ===== General ===========================================================================
+
+    
+
+
     "cursor_seltrack": {"kind":"bg","is_3state":false},
     "fixed_lanes_big": {"kind":"sliced-button","is_3state":true},
     "fixed_lanes_hidden": {"kind":"sliced-button","is_3state":true},
@@ -639,7 +660,9 @@
     "toosmall_r": {"kind":"bg","is_3state":false},
     "vu_indicator": {"kind":"image","is_3state":false},
 
-    // ===== Envelope Control Panel (ENVELOPES) ===============================================
+
+
+
     "envcp_arm_off": {"kind":"sliced-button","is_3state":true,"fallback":"track_recarm_off"},
     "envcp_arm_on": {"kind":"sliced-button","is_3state":true,"fallback":"track_recarm_on"},
     "envcp_bgsel": {"kind":"bg","is_3state":false,"fallback":"tcp_bgsel"},
@@ -661,7 +684,9 @@
     "envcp_parammod": {"kind":"sliced-button","is_3state":true},
     "envcp_parammod_on": {"kind":"sliced-button","is_3state":true,"fallback":"envcp_parammod"},
 
-    // ===== Deprecated placeholders ===========================================================
+
+    
+
     "fader_h": {"kind":"image","is_3state":false},
     "fader_v": {"kind":"image","is_3state":false}
   }
