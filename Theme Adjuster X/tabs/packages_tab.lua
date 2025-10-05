@@ -7,7 +7,7 @@ local ImGui = require 'imgui' '0.9'
 local Lifecycle = require('ReArkitekt.core.lifecycle')
 local ColorBlocks = require('ReArkitekt.gui.widgets.colorblocks')
 local Draw = require('ReArkitekt.gui.draw')
-local Effects = require('ReArkitekt.gui.effects')
+local Effects = require('ReArkitekt.gui.fx.effects')
 
 local M = {}
 

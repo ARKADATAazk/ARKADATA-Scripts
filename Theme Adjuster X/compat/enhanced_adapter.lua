@@ -22,9 +22,9 @@ A.reorder = require('ReArkitekt.gui.systems.reorder')
 
 -- Effects
 A.effects = {
-  ants       = require('ReArkitekt.gui.effects.marching_ants'),
-  ghost_drag = require('ReArkitekt.gui.effects.ghost_drag'),
-  drop_line  = require('ReArkitekt.gui.effects.drop_line'),
+  ants       = require('ReArkitekt.gui.fx.effects.marching_ants'),
+  ghost_drag = require('ReArkitekt.gui.fx.effects.ghost_drag'),
+  drop_line  = require('ReArkitekt.gui.fx.effects.drop_line'),
 }
 
 return A

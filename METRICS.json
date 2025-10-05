@@ -1,0 +1,1428 @@
+{
+  "project": "D:\\Dropbox\\REAPER\\Scripts\\ARKADATA Scripts",
+  "generated": "2025-10-05T23:39:18.466486",
+  "summary": {
+    "total_files": 46,
+    "total_folders": 1,
+    "total_lines": 8505,
+    "total_code_lines": 6664,
+    "total_exports": 108,
+    "total_classes": 34,
+    "total_modules": 112,
+    "pure_modules": 27,
+    "entry_points": 10,
+    "circular_dependencies": 0,
+    "average_file_size": 184,
+    "average_complexity": 15,
+    "largest_files": [
+      {
+        "path": "ReArkitekt/gui/widgets/grid/core.lua",
+        "lines": 671
+      },
+      {
+        "path": "ReArkitekt/gui/widgets/region_tiles/coordinator.lua",
+        "lines": 636
+      },
+      {
+        "path": "ReArkitekt/mock_region_playlist.lua",
+        "lines": 571
+      },
+      {
+        "path": "ReArkitekt/core/colors.lua",
+        "lines": 368
+      },
+      {
+        "path": "ReArkitekt/gui/fx/dnd/drag_indicator.lua",
+        "lines": 317
+      },
+      {
+        "path": "ReArkitekt/demo.lua",
+        "lines": 299
+      },
+      {
+        "path": "ReArkitekt/gui/images.lua",
+        "lines": 284
+      },
+      {
+        "path": "ReArkitekt/gui/widgets/navigation/menutabs.lua",
+        "lines": 268
+      },
+      {
+        "path": "ReArkitekt/gui/widgets/sliders/hue.lua",
+        "lines": 260
+      },
+      {
+        "path": "ReArkitekt/gui/widgets/tiles_container.lua",
+        "lines": 249
+      }
+    ],
+    "most_complex_files": [
+      {
+        "path": "ReArkitekt/core/colors.lua",
+        "score": 58
+      },
+      {
+        "path": "ReArkitekt/gui/widgets/region_tiles/coordinator.lua",
+        "score": 45
+      },
+      {
+        "path": "ReArkitekt/gui/widgets/grid/core.lua",
+        "score": 44
+      },
+      {
+        "path": "ReArkitekt/demo.lua",
+        "score": 29
+      },
+      {
+        "path": "ReArkitekt/widget_demo.lua",
+        "score": 27
+      },
+      {
+        "path": "ReArkitekt/mock_region_playlist.lua",
+        "score": 26
+      },
+      {
+        "path": "ReArkitekt/gui/widgets/package_tiles/grid.lua",
+        "score": 24
+      },
+      {
+        "path": "ReArkitekt/gui/images.lua",
+        "score": 21
+      },
+      {
+        "path": "ReArkitekt/gui/widgets/grid/input.lua",
+        "score": 21
+      },
+      {
+        "path": "ReArkitekt/gui/widgets/region_tiles/selector.lua",
+        "score": 21
+      }
+    ],
+    "most_imported_files": [
+      {
+        "path": "ReArkitekt/gui/draw.lua",
+        "import_count": 11
+      },
+      {
+        "path": "ReArkitekt/core/colors.lua",
+        "import_count": 7
+      },
+      {
+        "path": "ReArkitekt/gui/widgets/grid/core.lua",
+        "import_count": 5
+      },
+      {
+        "path": "ReArkitekt/app/shell.lua",
+        "import_count": 4
+      },
+      {
+        "path": "ReArkitekt/gui/fx/tile_motion.lua",
+        "import_count": 4
+      },
+      {
+        "path": "ReArkitekt/gui/widgets/status_bar.lua",
+        "import_count": 3
+      },
+      {
+        "path": "ReArkitekt/gui/fx/dnd/drag_indicator.lua",
+        "import_count": 2
+      },
+      {
+        "path": "ReArkitekt/gui/fx/marching_ants.lua",
+        "import_count": 2
+      },
+      {
+        "path": "ReArkitekt/gui/fx/motion.lua",
+        "import_count": 2
+      },
+      {
+        "path": "ReArkitekt/gui/systems/tile_utilities.lua",
+        "import_count": 2
+      }
+    ],
+    "isolated_files": [
+      "ReArkitekt/core/lifecycle.lua",
+      "ReArkitekt/gui/images.lua",
+      "ReArkitekt/gui/style.lua",
+      "ReArkitekt/gui/systems/reorder.lua",
+      "ReArkitekt/input/wheel_guard.lua"
+    ]
+  },
+  "files": [
+    {
+      "path": "ReArkitekt/app/runtime.lua",
+      "name": "runtime.lua",
+      "lines": {
+        "total": 68,
+        "code": 41,
+        "comment": 16,
+        "blank": 11
+      },
+      "exports": 1,
+      "imports": 0,
+      "imported_by": 1,
+      "complexity": 8,
+      "modules": [
+        "M"
+      ],
+      "classes": [
+        "M"
+      ],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": true,
+        "is_utility": false,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/app/shell.lua",
+      "name": "shell.lua",
+      "lines": {
+        "total": 96,
+        "code": 72,
+        "comment": 3,
+        "blank": 21
+      },
+      "exports": 1,
+      "imports": 2,
+      "imported_by": 4,
+      "complexity": 10,
+      "modules": [
+        "M"
+      ],
+      "classes": [],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": false,
+        "is_utility": true,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/app/window.lua",
+      "name": "window.lua",
+      "lines": {
+        "total": 182,
+        "code": 139,
+        "comment": 5,
+        "blank": 38
+      },
+      "exports": 1,
+      "imports": 0,
+      "imported_by": 1,
+      "complexity": 8,
+      "modules": [
+        "M"
+      ],
+      "classes": [
+        "M"
+      ],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": true,
+        "is_utility": false,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/core/colors.lua",
+      "name": "colors.lua",
+      "lines": {
+        "total": 368,
+        "code": 270,
+        "comment": 31,
+        "blank": 67
+      },
+      "exports": 29,
+      "imports": 0,
+      "imported_by": 7,
+      "complexity": 58,
+      "modules": [
+        "M"
+      ],
+      "classes": [],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": true,
+        "is_utility": true,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/core/json.lua",
+      "name": "json.lua",
+      "lines": {
+        "total": 120,
+        "code": 106,
+        "comment": 4,
+        "blank": 10
+      },
+      "exports": 2,
+      "imports": 0,
+      "imported_by": 1,
+      "complexity": 9,
+      "modules": [
+        "M",
+        "out",
+        "obj",
+        "arr"
+      ],
+      "classes": [],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": true,
+        "is_utility": true,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/core/lifecycle.lua",
+      "name": "lifecycle.lua",
+      "lines": {
+        "total": 80,
+        "code": 52,
+        "comment": 16,
+        "blank": 12
+      },
+      "exports": 1,
+      "imports": 0,
+      "imported_by": 0,
+      "complexity": 12,
+      "modules": [
+        "M",
+        "Group"
+      ],
+      "classes": [
+        "Group",
+        "M"
+      ],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": true,
+        "is_utility": false,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/core/settings.lua",
+      "name": "settings.lua",
+      "lines": {
+        "total": 118,
+        "code": 97,
+        "comment": 3,
+        "blank": 18
+      },
+      "exports": 1,
+      "imports": 1,
+      "imported_by": 0,
+      "complexity": 17,
+      "modules": [
+        "Settings",
+        "out",
+        "M",
+        "t"
+      ],
+      "classes": [
+        "Settings"
+      ],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": false,
+        "is_utility": false,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/demo.lua",
+      "name": "demo.lua",
+      "lines": {
+        "total": 299,
+        "code": 250,
+        "comment": 1,
+        "blank": 48
+      },
+      "exports": 0,
+      "imports": 7,
+      "imported_by": 0,
+      "complexity": 29,
+      "modules": [
+        "result"
+      ],
+      "classes": [],
+      "flags": {
+        "is_entry_point": true,
+        "is_pure_module": false,
+        "is_utility": false,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/demo2.lua",
+      "name": "demo2.lua",
+      "lines": {
+        "total": 185,
+        "code": 141,
+        "comment": 15,
+        "blank": 29
+      },
+      "exports": 0,
+      "imports": 4,
+      "imported_by": 0,
+      "complexity": 19,
+      "modules": [],
+      "classes": [],
+      "flags": {
+        "is_entry_point": true,
+        "is_pure_module": false,
+        "is_utility": false,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/draw.lua",
+      "name": "draw.lua",
+      "lines": {
+        "total": 113,
+        "code": 80,
+        "comment": 16,
+        "blank": 17
+      },
+      "exports": 10,
+      "imports": 0,
+      "imported_by": 11,
+      "complexity": 20,
+      "modules": [
+        "M"
+      ],
+      "classes": [],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": true,
+        "is_utility": true,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/fx/animations/destroy.lua",
+      "name": "destroy.lua",
+      "lines": {
+        "total": 151,
+        "code": 113,
+        "comment": 2,
+        "blank": 36
+      },
+      "exports": 1,
+      "imports": 0,
+      "imported_by": 1,
+      "complexity": 13,
+      "modules": [
+        "M",
+        "DestroyAnim",
+        "completed"
+      ],
+      "classes": [
+        "DestroyAnim",
+        "M"
+      ],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": true,
+        "is_utility": false,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/fx/animations/spawn.lua",
+      "name": "spawn.lua",
+      "lines": {
+        "total": 63,
+        "code": 45,
+        "comment": 2,
+        "blank": 16
+      },
+      "exports": 1,
+      "imports": 0,
+      "imported_by": 1,
+      "complexity": 14,
+      "modules": [
+        "M",
+        "SpawnTracker"
+      ],
+      "classes": [
+        "SpawnTracker",
+        "M"
+      ],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": true,
+        "is_utility": false,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/fx/dnd/drag_indicator.lua",
+      "name": "drag_indicator.lua",
+      "lines": {
+        "total": 317,
+        "code": 256,
+        "comment": 3,
+        "blank": 58
+      },
+      "exports": 2,
+      "imports": 1,
+      "imported_by": 2,
+      "complexity": 13,
+      "modules": [
+        "M"
+      ],
+      "classes": [],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": false,
+        "is_utility": true,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/fx/dnd/drop_indicator.lua",
+      "name": "drop_indicator.lua",
+      "lines": {
+        "total": 149,
+        "code": 120,
+        "comment": 2,
+        "blank": 27
+      },
+      "exports": 3,
+      "imports": 0,
+      "imported_by": 1,
+      "complexity": 6,
+      "modules": [
+        "M"
+      ],
+      "classes": [],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": true,
+        "is_utility": true,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/fx/effects.lua",
+      "name": "effects.lua",
+      "lines": {
+        "total": 25,
+        "code": 14,
+        "comment": 4,
+        "blank": 7
+      },
+      "exports": 1,
+      "imports": 0,
+      "imported_by": 1,
+      "complexity": 2,
+      "modules": [
+        "M"
+      ],
+      "classes": [],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": true,
+        "is_utility": true,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/fx/marching_ants.lua",
+      "name": "marching_ants.lua",
+      "lines": {
+        "total": 141,
+        "code": 117,
+        "comment": 2,
+        "blank": 22
+      },
+      "exports": 1,
+      "imports": 0,
+      "imported_by": 2,
+      "complexity": 5,
+      "modules": [
+        "M"
+      ],
+      "classes": [],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": true,
+        "is_utility": true,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/fx/motion.lua",
+      "name": "motion.lua",
+      "lines": {
+        "total": 177,
+        "code": 147,
+        "comment": 3,
+        "blank": 27
+      },
+      "exports": 3,
+      "imports": 0,
+      "imported_by": 2,
+      "complexity": 17,
+      "modules": [
+        "M",
+        "Track",
+        "RectTrack"
+      ],
+      "classes": [
+        "Track",
+        "RectTrack"
+      ],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": true,
+        "is_utility": false,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/fx/tile_motion.lua",
+      "name": "tile_motion.lua",
+      "lines": {
+        "total": 64,
+        "code": 48,
+        "comment": 3,
+        "blank": 13
+      },
+      "exports": 1,
+      "imports": 0,
+      "imported_by": 4,
+      "complexity": 13,
+      "modules": [
+        "M",
+        "TileAnimator"
+      ],
+      "classes": [
+        "TileAnimator",
+        "M"
+      ],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": true,
+        "is_utility": false,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/images.lua",
+      "name": "images.lua",
+      "lines": {
+        "total": 284,
+        "code": 239,
+        "comment": 7,
+        "blank": 38
+      },
+      "exports": 1,
+      "imports": 0,
+      "imported_by": 0,
+      "complexity": 21,
+      "modules": [
+        "M",
+        "Cache"
+      ],
+      "classes": [
+        "Cache",
+        "M"
+      ],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": true,
+        "is_utility": false,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/style.lua",
+      "name": "style.lua",
+      "lines": {
+        "total": 173,
+        "code": 132,
+        "comment": 29,
+        "blank": 12
+      },
+      "exports": 3,
+      "imports": 0,
+      "imported_by": 0,
+      "complexity": 6,
+      "modules": [
+        "M"
+      ],
+      "classes": [],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": true,
+        "is_utility": true,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/systems/height_stabilizer.lua",
+      "name": "height_stabilizer.lua",
+      "lines": {
+        "total": 73,
+        "code": 45,
+        "comment": 17,
+        "blank": 11
+      },
+      "exports": 1,
+      "imports": 0,
+      "imported_by": 1,
+      "complexity": 12,
+      "modules": [
+        "M",
+        "HeightStabilizer"
+      ],
+      "classes": [
+        "HeightStabilizer",
+        "M"
+      ],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": true,
+        "is_utility": false,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/systems/reorder.lua",
+      "name": "reorder.lua",
+      "lines": {
+        "total": 126,
+        "code": 79,
+        "comment": 27,
+        "blank": 20
+      },
+      "exports": 3,
+      "imports": 0,
+      "imported_by": 0,
+      "complexity": 7,
+      "modules": [
+        "M",
+        "t",
+        "base",
+        "new_order",
+        "new_order",
+        "new_order"
+      ],
+      "classes": [],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": true,
+        "is_utility": true,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/systems/selection.lua",
+      "name": "selection.lua",
+      "lines": {
+        "total": 141,
+        "code": 100,
+        "comment": 22,
+        "blank": 19
+      },
+      "exports": 1,
+      "imports": 0,
+      "imported_by": 1,
+      "complexity": 12,
+      "modules": [
+        "M",
+        "Selection",
+        "out",
+        "out"
+      ],
+      "classes": [
+        "Selection",
+        "M"
+      ],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": true,
+        "is_utility": false,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/systems/tile_utilities.lua",
+      "name": "tile_utilities.lua",
+      "lines": {
+        "total": 27,
+        "code": 14,
+        "comment": 7,
+        "blank": 6
+      },
+      "exports": 1,
+      "imports": 0,
+      "imported_by": 2,
+      "complexity": 2,
+      "modules": [
+        "M"
+      ],
+      "classes": [],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": true,
+        "is_utility": true,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/widgets/grid/animation.lua",
+      "name": "animation.lua",
+      "lines": {
+        "total": 100,
+        "code": 79,
+        "comment": 3,
+        "blank": 18
+      },
+      "exports": 1,
+      "imports": 2,
+      "imported_by": 1,
+      "complexity": 18,
+      "modules": [
+        "M",
+        "AnimationCoordinator"
+      ],
+      "classes": [
+        "AnimationCoordinator",
+        "M"
+      ],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": false,
+        "is_utility": false,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/widgets/grid/core.lua",
+      "name": "core.lua",
+      "lines": {
+        "total": 671,
+        "code": 559,
+        "comment": 2,
+        "blank": 110
+      },
+      "exports": 1,
+      "imports": 10,
+      "imported_by": 5,
+      "complexity": 44,
+      "modules": [
+        "M",
+        "Grid",
+        "map",
+        "non_dragged_items",
+        "drop_zones",
+        "dragged_set",
+        "current_keys",
+        "new_keys",
+        "rect_map",
+        "order",
+        "dragged_set",
+        "filtered_order",
+        "new_order"
+      ],
+      "classes": [
+        "Grid",
+        "M"
+      ],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": false,
+        "is_utility": false,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/widgets/grid/input.lua",
+      "name": "input.lua",
+      "lines": {
+        "total": 232,
+        "code": 186,
+        "comment": 2,
+        "blank": 44
+      },
+      "exports": 9,
+      "imports": 1,
+      "imported_by": 1,
+      "complexity": 21,
+      "modules": [
+        "M",
+        "keys_to_adjust",
+        "order",
+        "order"
+      ],
+      "classes": [],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": false,
+        "is_utility": true,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/widgets/grid/layout.lua",
+      "name": "layout.lua",
+      "lines": {
+        "total": 100,
+        "code": 57,
+        "comment": 26,
+        "blank": 17
+      },
+      "exports": 2,
+      "imports": 0,
+      "imported_by": 1,
+      "complexity": 4,
+      "modules": [
+        "M",
+        "rects"
+      ],
+      "classes": [],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": true,
+        "is_utility": true,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/widgets/grid/rendering.lua",
+      "name": "rendering.lua",
+      "lines": {
+        "total": 89,
+        "code": 68,
+        "comment": 2,
+        "blank": 19
+      },
+      "exports": 0,
+      "imports": 3,
+      "imported_by": 1,
+      "complexity": 9,
+      "modules": [
+        "M"
+      ],
+      "classes": [],
+      "flags": {
+        "is_entry_point": true,
+        "is_pure_module": false,
+        "is_utility": false,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/widgets/navigation/menutabs.lua",
+      "name": "menutabs.lua",
+      "lines": {
+        "total": 268,
+        "code": 228,
+        "comment": 3,
+        "blank": 37
+      },
+      "exports": 1,
+      "imports": 0,
+      "imported_by": 1,
+      "complexity": 11,
+      "modules": [
+        "M",
+        "o",
+        "o",
+        "edges"
+      ],
+      "classes": [
+        "M"
+      ],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": true,
+        "is_utility": false,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/widgets/package_tiles/grid.lua",
+      "name": "grid.lua",
+      "lines": {
+        "total": 196,
+        "code": 158,
+        "comment": 2,
+        "blank": 36
+      },
+      "exports": 1,
+      "imports": 5,
+      "imported_by": 1,
+      "complexity": 24,
+      "modules": [
+        "M"
+      ],
+      "classes": [
+        "M"
+      ],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": false,
+        "is_utility": false,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/widgets/package_tiles/micromanage.lua",
+      "name": "micromanage.lua",
+      "lines": {
+        "total": 126,
+        "code": 93,
+        "comment": 11,
+        "blank": 22
+      },
+      "exports": 6,
+      "imports": 0,
+      "imported_by": 2,
+      "complexity": 12,
+      "modules": [
+        "M"
+      ],
+      "classes": [],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": true,
+        "is_utility": true,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/widgets/package_tiles/renderer.lua",
+      "name": "renderer.lua",
+      "lines": {
+        "total": 232,
+        "code": 188,
+        "comment": 2,
+        "blank": 42
+      },
+      "exports": 0,
+      "imports": 3,
+      "imported_by": 1,
+      "complexity": 9,
+      "modules": [
+        "M"
+      ],
+      "classes": [],
+      "flags": {
+        "is_entry_point": true,
+        "is_pure_module": false,
+        "is_utility": false,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/widgets/region_tiles/active_grid.lua",
+      "name": "active_grid.lua",
+      "lines": {
+        "total": 196,
+        "code": 163,
+        "comment": 2,
+        "blank": 31
+      },
+      "exports": 1,
+      "imports": 2,
+      "imported_by": 1,
+      "complexity": 8,
+      "modules": [
+        "M",
+        "item_map",
+        "items_by_key",
+        "dragged_items",
+        "items_by_key",
+        "new_items",
+        "spawned_keys"
+      ],
+      "classes": [],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": false,
+        "is_utility": true,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/widgets/region_tiles/coordinator.lua",
+      "name": "coordinator.lua",
+      "lines": {
+        "total": 636,
+        "code": 517,
+        "comment": 2,
+        "blank": 117
+      },
+      "exports": 1,
+      "imports": 10,
+      "imported_by": 1,
+      "complexity": 45,
+      "modules": [
+        "M",
+        "result",
+        "RegionTiles",
+        "colors",
+        "keys_to_adjust"
+      ],
+      "classes": [
+        "RegionTiles",
+        "M"
+      ],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": false,
+        "is_utility": false,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/widgets/region_tiles/pool_grid.lua",
+      "name": "pool_grid.lua",
+      "lines": {
+        "total": 96,
+        "code": 77,
+        "comment": 2,
+        "blank": 17
+      },
+      "exports": 1,
+      "imports": 2,
+      "imported_by": 1,
+      "complexity": 8,
+      "modules": [
+        "M",
+        "rids",
+        "rids"
+      ],
+      "classes": [],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": false,
+        "is_utility": true,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/widgets/region_tiles/renderers/active.lua",
+      "name": "active.lua",
+      "lines": {
+        "total": 172,
+        "code": 132,
+        "comment": 2,
+        "blank": 38
+      },
+      "exports": 1,
+      "imports": 4,
+      "imported_by": 2,
+      "complexity": 14,
+      "modules": [
+        "M"
+      ],
+      "classes": [],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": false,
+        "is_utility": true,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/widgets/region_tiles/renderers/pool.lua",
+      "name": "pool.lua",
+      "lines": {
+        "total": 116,
+        "code": 87,
+        "comment": 2,
+        "blank": 27
+      },
+      "exports": 1,
+      "imports": 4,
+      "imported_by": 2,
+      "complexity": 14,
+      "modules": [
+        "M"
+      ],
+      "classes": [],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": false,
+        "is_utility": true,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/widgets/region_tiles/selector.lua",
+      "name": "selector.lua",
+      "lines": {
+        "total": 97,
+        "code": 72,
+        "comment": 2,
+        "blank": 23
+      },
+      "exports": 1,
+      "imports": 3,
+      "imported_by": 1,
+      "complexity": 21,
+      "modules": [
+        "M",
+        "Selector"
+      ],
+      "classes": [
+        "Selector",
+        "M"
+      ],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": false,
+        "is_utility": false,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/widgets/selection_rectangle.lua",
+      "name": "selection_rectangle.lua",
+      "lines": {
+        "total": 98,
+        "code": 67,
+        "comment": 14,
+        "blank": 17
+      },
+      "exports": 1,
+      "imports": 0,
+      "imported_by": 2,
+      "complexity": 12,
+      "modules": [
+        "M",
+        "SelRect"
+      ],
+      "classes": [
+        "SelRect",
+        "M"
+      ],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": true,
+        "is_utility": false,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/widgets/sliders/hue.lua",
+      "name": "hue.lua",
+      "lines": {
+        "total": 260,
+        "code": 199,
+        "comment": 13,
+        "blank": 48
+      },
+      "exports": 4,
+      "imports": 0,
+      "imported_by": 1,
+      "complexity": 11,
+      "modules": [
+        "M",
+        "_locks"
+      ],
+      "classes": [],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": true,
+        "is_utility": true,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/widgets/status_bar.lua",
+      "name": "status_bar.lua",
+      "lines": {
+        "total": 196,
+        "code": 151,
+        "comment": 9,
+        "blank": 36
+      },
+      "exports": 1,
+      "imports": 0,
+      "imported_by": 3,
+      "complexity": 11,
+      "modules": [
+        "M",
+        "right_items",
+        "item_widths"
+      ],
+      "classes": [
+        "M"
+      ],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": true,
+        "is_utility": false,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/gui/widgets/tiles_container.lua",
+      "name": "tiles_container.lua",
+      "lines": {
+        "total": 249,
+        "code": 183,
+        "comment": 15,
+        "blank": 51
+      },
+      "exports": 2,
+      "imports": 0,
+      "imported_by": 2,
+      "complexity": 17,
+      "modules": [
+        "M",
+        "Container"
+      ],
+      "classes": [
+        "Container",
+        "M"
+      ],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": true,
+        "is_utility": false,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/input/wheel_guard.lua",
+      "name": "wheel_guard.lua",
+      "lines": {
+        "total": 42,
+        "code": 34,
+        "comment": 2,
+        "blank": 6
+      },
+      "exports": 4,
+      "imports": 0,
+      "imported_by": 0,
+      "complexity": 11,
+      "modules": [],
+      "classes": [],
+      "flags": {
+        "is_entry_point": false,
+        "is_pure_module": false,
+        "is_utility": true,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/mock_region_playlist.lua",
+      "name": "mock_region_playlist.lua",
+      "lines": {
+        "total": 571,
+        "code": 472,
+        "comment": 2,
+        "blank": 97
+      },
+      "exports": 0,
+      "imports": 6,
+      "imported_by": 0,
+      "complexity": 26,
+      "modules": [
+        "result",
+        "new_items",
+        "keys_to_delete",
+        "new_items",
+        "dragged_keys",
+        "filtered_items",
+        "new_keys"
+      ],
+      "classes": [],
+      "flags": {
+        "is_entry_point": true,
+        "is_pure_module": false,
+        "is_utility": false,
+        "is_config": false
+      }
+    },
+    {
+      "path": "ReArkitekt/widget_demo.lua",
+      "name": "widget_demo.lua",
+      "lines": {
+        "total": 222,
+        "code": 177,
+        "comment": 17,
+        "blank": 28
+      },
+      "exports": 0,
+      "imports": 3,
+      "imported_by": 0,
+      "complexity": 27,
+      "modules": [
+        "t",
+        "arr"
+      ],
+      "classes": [],
+      "flags": {
+        "is_entry_point": true,
+        "is_pure_module": false,
+        "is_utility": false,
+        "is_config": false
+      }
+    }
+  ],
+  "folders": {
+    "ReArkitekt": {
+      "file_count": 46,
+      "total_lines": 8505,
+      "code_lines": 6664,
+      "total_exports": 108,
+      "total_classes": 34
+    }
+  },
+  "dependencies": {
+    "cycles": [],
+    "entry_points": [
+      "ReArkitekt/widget_demo.lua",
+      "ReArkitekt/demo.lua",
+      "ReArkitekt/core/settings.lua",
+      "ReArkitekt/gui/systems/reorder.lua",
+      "ReArkitekt/input/wheel_guard.lua",
+      "ReArkitekt/gui/style.lua",
+      "ReArkitekt/core/lifecycle.lua",
+      "ReArkitekt/mock_region_playlist.lua",
+      "ReArkitekt/demo2.lua",
+      "ReArkitekt/gui/images.lua"
+    ],
+    "pure_modules": [
+      "ReArkitekt/app/runtime.lua",
+      "ReArkitekt/app/window.lua",
+      "ReArkitekt/core/colors.lua",
+      "ReArkitekt/core/json.lua",
+      "ReArkitekt/core/lifecycle.lua",
+      "ReArkitekt/gui/draw.lua",
+      "ReArkitekt/gui/fx/animations/destroy.lua",
+      "ReArkitekt/gui/fx/animations/spawn.lua",
+      "ReArkitekt/gui/fx/dnd/drop_indicator.lua",
+      "ReArkitekt/gui/fx/effects.lua",
+      "ReArkitekt/gui/fx/marching_ants.lua",
+      "ReArkitekt/gui/fx/motion.lua",
+      "ReArkitekt/gui/fx/tile_motion.lua",
+      "ReArkitekt/gui/images.lua",
+      "ReArkitekt/gui/style.lua",
+      "ReArkitekt/gui/systems/height_stabilizer.lua",
+      "ReArkitekt/gui/systems/reorder.lua",
+      "ReArkitekt/gui/systems/selection.lua",
+      "ReArkitekt/gui/systems/tile_utilities.lua",
+      "ReArkitekt/gui/widgets/grid/layout.lua",
+      "ReArkitekt/gui/widgets/navigation/menutabs.lua",
+      "ReArkitekt/gui/widgets/package_tiles/micromanage.lua",
+      "ReArkitekt/gui/widgets/selection_rectangle.lua",
+      "ReArkitekt/gui/widgets/sliders/hue.lua",
+      "ReArkitekt/gui/widgets/status_bar.lua",
+      "ReArkitekt/gui/widgets/tiles_container.lua",
+      "ReArkitekt/input/wheel_guard.lua"
+    ]
+  }
+}

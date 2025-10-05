@@ -5,7 +5,7 @@ package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
 
 local Draw = require('ReArkitekt.gui.draw')
-local Effects = require('ReArkitekt.gui.effects')
+local MarchingAnts = require('ReArkitekt.gui.fx.marching_ants')
 local Colors = require('ReArkitekt.core.colors')
 
 local M = {}
@@ -76,7 +76,7 @@ function M.TileRenderer.border(dl, rect, base_color, is_selected, is_active, is_
       )
     end
     
-    Effects.marching_ants_rounded(
+    MarchingAnts.draw(
       dl, x1 + 0.5, y1 + 0.5, x2 - 0.5, y2 - 0.5,
       ant_color, M.CONFIG.colors.border.thickness, M.CONFIG.tile.rounding,
       M.CONFIG.selection.ant_dash, M.CONFIG.selection.ant_gap, M.CONFIG.selection.ant_speed

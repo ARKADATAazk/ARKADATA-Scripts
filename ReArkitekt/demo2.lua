@@ -17,7 +17,7 @@ addpath(join(HERE,  "ReArkitekt/?/?.lua"))
 
 -- Libs
 local Shell         = require("ReArkitekt.app.shell")
-local ColorSliders  = require("ReArkitekt.gui.widgets.hue_slider")
+local ColorSliders  = require("ReArkitekt.gui.widgets.sliders.hue")
 local StatusBar     = require("ReArkitekt.gui.widgets.status_bar")
 local TilesContainer = require("ReArkitekt.gui.widgets.tiles_container")
 

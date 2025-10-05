@@ -27,7 +27,7 @@ local Settings     = (function() local ok,m=pcall(require,"ReArkitekt.core.setti
 local okStyle,Style= pcall(require,"ReArkitekt.gui.style")
 local ColorBlocks  = require("ReArkitekt.gui.widgets.colorblocks")
 local Draw         = require("ReArkitekt.gui.draw")
-local Effects      = require("ReArkitekt.gui.effects")
+local Effects      = require("ReArkitekt.gui.fx.effects")
 
 -- Small helpers
 local function log(...) local t={}; for i=1,select("#",...) do t[#t+1]=tostring(select(i,...)) end reaper.ShowConsoleMsg(table.concat(t," ").."\n") end

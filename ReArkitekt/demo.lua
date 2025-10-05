@@ -16,7 +16,7 @@ addpath(join(HERE,  "ReArkitekt/?/init.lua"))
 addpath(join(HERE,  "ReArkitekt/?/?.lua"))
 
 local Shell          = require("ReArkitekt.app.shell")
-local Menutabs       = require("ReArkitekt.gui.widgets.menutabs")
+local Menutabs       = require("ReArkitekt.gui.widgets.navigation.menutabs")
 local StatusBar      = require("ReArkitekt.gui.widgets.status_bar")
 local PackageGrid    = require("ReArkitekt.gui.widgets.package_tiles.grid")
 local Micromanage    = require("ReArkitekt.gui.widgets.package_tiles.micromanage")

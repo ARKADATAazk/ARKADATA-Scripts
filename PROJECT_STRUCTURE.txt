@@ -1,0 +1,67 @@
+ARKADATA Scripts/
+└── ReArkitekt/
+    ├── app/
+    │   ├── runtime.lua         # (68 lines)
+    │   ├── shell.lua         # (96 lines)
+    │   └── window.lua         # (182 lines)
+    ├── core/
+    │   ├── colors.lua         # (368 lines)
+    │   ├── json.lua         # (120 lines)
+    │   ├── lifecycle.lua         # (80 lines)
+    │   └── settings.lua         # (118 lines)
+    ├── gui/
+    │   ├── fx/
+    │   │   ├── animations/
+    │   │   │   ├── destroy.lua         # (151 lines)
+    │   │   │   └── spawn.lua         # (63 lines)
+    │   │   ├── dnd/
+    │   │   │   ├── drag_indicator.lua         # (317 lines)
+    │   │   │   └── drop_indicator.lua         # (149 lines)
+    │   │   ├── effects.lua         # (25 lines)
+    │   │   ├── marching_ants.lua         # (141 lines)
+    │   │   ├── motion.lua         # (177 lines)
+    │   │   └── tile_motion.lua         # (64 lines)
+    │   ├── systems/
+    │   │   ├── height_stabilizer.lua         # (73 lines)
+    │   │   ├── reorder.lua         # (126 lines)
+    │   │   ├── selection.lua         # (141 lines)
+    │   │   └── tile_utilities.lua         # (27 lines)
+    │   ├── widgets/
+    │   │   ├── grid/
+    │   │   │   ├── animation.lua         # (100 lines)
+    │   │   │   ├── core.lua         # (671 lines)
+    │   │   │   ├── input.lua         # (232 lines)
+    │   │   │   ├── layout.lua         # (100 lines)
+    │   │   │   └── rendering.lua         # (89 lines)
+    │   │   ├── navigation/
+    │   │   │   └── menutabs.lua         # (268 lines)
+    │   │   ├── package_tiles/
+    │   │   │   ├── grid.lua         # (196 lines)
+    │   │   │   ├── micromanage.lua         # (126 lines)
+    │   │   │   └── renderer.lua         # (232 lines)
+    │   │   ├── region_tiles/
+    │   │   │   ├── renderers/
+    │   │   │   │   ├── active.lua         # (172 lines)
+    │   │   │   │   └── pool.lua         # (116 lines)
+    │   │   │   ├── active_grid.lua         # (196 lines)
+    │   │   │   ├── coordinator.lua         # (636 lines)
+    │   │   │   ├── pool_grid.lua         # (96 lines)
+    │   │   │   └── selector.lua         # (97 lines)
+    │   │   ├── sliders/
+    │   │   │   └── hue.lua         # (260 lines)
+    │   │   ├── selection_rectangle.lua         # (98 lines)
+    │   │   ├── status_bar.lua         # (196 lines)
+    │   │   └── tiles_container.lua         # (249 lines)
+    │   ├── draw.lua         # (113 lines)
+    │   ├── images.lua         # (284 lines)
+    │   └── style.lua         # (173 lines)
+    ├── input/
+    │   └── wheel_guard.lua         # (42 lines)
+    ├── demo.lua         # (299 lines)
+    ├── demo2.lua         # (185 lines)
+    ├── mock_region_playlist.lua         # (571 lines)
+    └── widget_demo.lua         # (222 lines)
+
+Total lines of Lua code (with comments): 8,505
+Total lines of Lua code (code only): 6,664
+Code/Total Ratio: 78.4% is actual code

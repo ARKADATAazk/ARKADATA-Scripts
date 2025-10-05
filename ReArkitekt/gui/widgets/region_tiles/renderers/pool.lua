@@ -1,5 +1,5 @@
--- ReArkitekt/gui/widgets/tiles/pool_tile.lua
--- Pool tile rendering with responsive element hiding
+-- ReArkitekt/gui/widgets/region_tiles/renderers/pool.lua
+-- Pool tile rendering with responsive element hiding (using new color system)
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.10'
@@ -50,6 +50,8 @@ function M.render(ctx, rect, region, state, animator, hover_config, tile_height,
   
   local base_color = region.color or M.CONFIG.bg_base
   
+  local palette = Colors.derive_palette_adaptive(base_color, 'auto')
+  
   local bg_color = Grid.TileHelpers.compute_fill_color(base_color, hover_factor, hover_config)
   local border_color = Grid.TileHelpers.compute_border_color(
     base_color, state.hover, false, hover_factor,
@@ -67,14 +69,6 @@ function M.render(ctx, rect, region, state, animator, hover_config, tile_height,
   local height_factor = math.min(1.0, math.max(0.0, (actual_height - 20) / (72 - 20)))
   
   if show_text then
-    local r, g, b, a = Colors.rgba_to_components(base_color)
-    local max_channel = math.max(r, g, b)
-    local boost = 255 / (max_channel > 0 and max_channel or 1)
-    local border_r = math.min(255, math.floor(r * boost * 0.95))
-    local border_g = math.min(255, math.floor(g * boost * 0.95))
-    local border_b = math.min(255, math.floor(b * boost * 0.95))
-    local flashy_border = Colors.components_to_rgba(border_r, border_g, border_b, 0xFF)
-    
     local display_name = region.name
     if state.index then
       display_name = string.format("#%d - %s", state.index, region.name)
@@ -92,18 +86,10 @@ function M.render(ctx, rect, region, state, animator, hover_config, tile_height,
       text_y = y1 + 6
     end
     
-    Draw.text(dl, text_x, text_y, flashy_border, display_name)
+    Draw.text(dl, text_x, text_y, palette.border, display_name)
   end
   
   if show_length then
-    local r, g, b, a = Colors.rgba_to_components(base_color)
-    local max_channel = math.max(r, g, b)
-    local boost = 255 / (max_channel > 0 and max_channel or 1)
-    local border_r = math.min(255, math.floor(r * boost * 0.95))
-    local border_g = math.min(255, math.floor(g * boost * 0.95))
-    local border_b = math.min(255, math.floor(b * boost * 0.95))
-    local flashy_border = Colors.components_to_rgba(border_r, border_g, border_b, 0xFF)
-    
     local length_seconds = (region["end"] or 0) - (region.start or 0)
     local length_str = TileUtil.format_bar_length(length_seconds)
     
@@ -123,7 +109,7 @@ function M.render(ctx, rect, region, state, animator, hover_config, tile_height,
     local length_text_x = length_x + scaled_length_padding_x
     local length_text_y = length_y + scaled_length_padding_y
     
-    Draw.text(dl, length_text_x, length_text_y, Colors.with_alpha(flashy_border, 0x99), length_str)
+    Draw.text(dl, length_text_x, length_text_y, Colors.with_alpha(palette.border, 0x99), length_str)
   end
 end
 

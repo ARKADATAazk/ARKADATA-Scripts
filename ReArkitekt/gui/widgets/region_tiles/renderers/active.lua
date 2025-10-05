@@ -1,5 +1,5 @@
--- ReArkitekt/gui/widgets/tiles/active_tile.lua
--- Active sequence tile rendering with responsive element hiding
+-- ReArkitekt/gui/widgets/region_tiles/renderers/active.lua
+-- Active sequence tile rendering with responsive element hiding (using new color system)
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.10'
@@ -66,6 +66,8 @@ function M.render(ctx, rect, item, state, get_region_by_rid, animator, on_repeat
     base_color = Colors.adjust_brightness(base_color, M.CONFIG.disabled.brightness)
   end
   
+  local palette = Colors.derive_palette_adaptive(base_color, 'auto')
+  
   local bg_color = Grid.TileHelpers.compute_fill_color(base_color, hover_factor, hover_config)
   local border_color = Grid.TileHelpers.compute_border_color(
     base_color, state.hover, false, hover_factor, 
@@ -84,15 +86,9 @@ function M.render(ctx, rect, item, state, get_region_by_rid, animator, on_repeat
   local height_factor = math.min(1.0, math.max(0.0, (actual_height - 20) / (72 - 20)))
   
   if show_text then
-    local r, g, b, a = Colors.rgba_to_components(base_color)
-    local max_channel = math.max(r, g, b)
-    local boost = 255 / (max_channel > 0 and max_channel or 1)
-    local border_r = math.min(255, math.floor(r * boost * 0.95))
-    local border_g = math.min(255, math.floor(g * boost * 0.95))
-    local border_b = math.min(255, math.floor(b * boost * 0.95))
-    local flashy_border = Colors.components_to_rgba(border_r, border_g, border_b, 0xFF)
-    
-    local text_color = is_enabled and flashy_border or Colors.with_alpha(flashy_border, M.CONFIG.disabled.text_alpha)
+    local text_color = is_enabled 
+      and palette.border 
+      or Colors.with_alpha(palette.border, M.CONFIG.disabled.text_alpha)
     
     local display_name = region.name
     if state.index then
@@ -129,7 +125,9 @@ function M.render(ctx, rect, item, state, get_region_by_rid, animator, on_repeat
     local badge_y2 = badge_y + bh + scaled_badge_padding_y * 2
     
     local badge_bg = M.CONFIG.badge_bg_color
-    local badge_text_color = is_enabled and base_color or Colors.with_alpha(base_color, M.CONFIG.disabled.text_alpha)
+    local badge_text_color = is_enabled 
+      and base_color 
+      or Colors.with_alpha(base_color, M.CONFIG.disabled.text_alpha)
     
     ImGui.DrawList_AddRectFilled(dl, badge_x, badge_y, badge_x2, badge_y2,
                                   badge_bg, M.CONFIG.badge_rounding)
@@ -144,14 +142,6 @@ function M.render(ctx, rect, item, state, get_region_by_rid, animator, on_repeat
   end
   
   if show_length then
-    local r, g, b, a = Colors.rgba_to_components(base_color)
-    local max_channel = math.max(r, g, b)
-    local boost = 255 / (max_channel > 0 and max_channel or 1)
-    local border_r = math.min(255, math.floor(r * boost * 0.95))
-    local border_g = math.min(255, math.floor(g * boost * 0.95))
-    local border_b = math.min(255, math.floor(b * boost * 0.95))
-    local flashy_border = Colors.components_to_rgba(border_r, border_g, border_b, 0xFF)
-    
     local length_seconds = (region["end"] or 0) - (region.start or 0)
     local length_str = TileUtil.format_bar_length(length_seconds)
     
@@ -171,7 +161,10 @@ function M.render(ctx, rect, item, state, get_region_by_rid, animator, on_repeat
     local length_text_x = length_x + scaled_length_padding_x
     local length_text_y = length_y + scaled_length_padding_y
     
-    local length_text_color = is_enabled and Colors.with_alpha(flashy_border, 0x99) or Colors.with_alpha(flashy_border, 0x44)
+    local length_text_color = is_enabled 
+      and Colors.with_alpha(palette.border, 0x99) 
+      or Colors.with_alpha(palette.border, 0x44)
+    
     Draw.text(dl, length_text_x, length_text_y, length_text_color, length_str)
   end
 end
