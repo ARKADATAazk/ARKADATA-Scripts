@@ -1,6 +1,5 @@
--- ReArkitekt/gui/widgets/colorblocks.lua
--- Reusable grid widget with selection, drag & drop, spawn/destroy animations
--- Now with generic rendering helpers for tiles
+-- ReArkitekt/gui/widgets/grid/core.lua
+-- Main grid orchestrator - composes rendering, animation, and input modules
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
@@ -8,15 +7,13 @@ local ImGui = require 'imgui' '0.9'
 local LayoutGrid = require('ReArkitekt.gui.systems.layout_grid')
 local Motion     = require('ReArkitekt.gui.systems.motion')
 local Selection  = require('ReArkitekt.gui.systems.selection')
-local Reorder    = require('ReArkitekt.gui.systems.reorder')
 local SelRect    = require('ReArkitekt.gui.widgets.selection_rectangle')
 local Draw       = require('ReArkitekt.gui.draw')
-local Colors     = require('ReArkitekt.gui.colors')
-local Effects    = require('ReArkitekt.gui.effects')
 local GhostTiles = require('ReArkitekt.gui.widgets.tiles.ghost_tiles')
 local DropIndicator = require('ReArkitekt.gui.widgets.tiles.drop_indicator')
-local SpawnAnim  = require('ReArkitekt.gui.systems.spawn_animation')
-local DestroyAnim = require('ReArkitekt.gui.systems.destroy_animation')
+local Rendering  = require('ReArkitekt.gui.widgets.grid.rendering')
+local Animation  = require('ReArkitekt.gui.widgets.grid.animation')
+local Input      = require('ReArkitekt.gui.widgets.grid.input')
 
 local M = {}
 
@@ -87,75 +84,8 @@ local DEFAULTS = {
   },
 }
 
-M.TileHelpers = {}
-
-function M.TileHelpers.render_hover_shadow(dl, x1, y1, x2, y2, hover_factor, rounding, config)
-  config = config or DEFAULTS.tile_helpers.hover_shadow
-  if not config.enabled or hover_factor < 0.01 then return end
-  
-  local shadow_alpha = math.floor(hover_factor * (config.max_alpha or 20))
-  local shadow_col = (0x000000 << 8) | shadow_alpha
-  
-  for i = (config.max_offset or 2), 1, -1 do
-    Draw.rect_filled(dl, x1 - i, y1 - i + 2, x2 + i, y2 + i + 2, shadow_col, rounding)
-  end
-end
-
-function M.TileHelpers.render_border(dl, x1, y1, x2, y2, is_selected, base_color, border_color, thickness, rounding, config)
-  config = config or DEFAULTS.tile_helpers.selection
-  
-  if is_selected then
-    local ant_color = Colors.generate_marching_ants_color(
-      base_color,
-      config.brightness_factor or 1.5,
-      config.saturation_factor or 0.5
-    )
-    
-    Effects.marching_ants_rounded(
-      dl, x1 + 0.5, y1 + 0.5, x2 - 0.5, y2 - 0.5,
-      ant_color, thickness, rounding,
-      config.ant_dash or 8, config.ant_gap or 6, config.ant_speed or 20
-    )
-  else
-    Draw.rect(dl, x1, y1, x2, y2, border_color, rounding, thickness)
-  end
-end
-
-function M.TileHelpers.compute_border_color(base_color, is_hovered, is_active, hover_factor, hover_lerp)
-  local r, g, b, a = Colors.rgba_to_components(base_color)
-  local max_channel = math.max(r, g, b)
-  local boost = 255 / (max_channel > 0 and max_channel or 1)
-  
-  local border_r = math.min(255, math.floor(r * boost * 0.95))
-  local border_g = math.min(255, math.floor(g * boost * 0.95))
-  local border_b = math.min(255, math.floor(b * boost * 0.95))
-  local flashy_border = Colors.components_to_rgba(border_r, border_g, border_b, 0xFF)
-  
-  if is_hovered and hover_factor and hover_lerp then
-    local selection_color = Colors.generate_selection_color(base_color)
-    return Colors.lerp(flashy_border, selection_color, hover_factor * hover_lerp)
-  end
-  
-  return flashy_border
-end
-
-function M.TileHelpers.compute_fill_color(base_color, hover_factor, hover_config)
-  local desat_amount = hover_config and hover_config.base_fill_desaturation or 0.5
-  local bright_amount = hover_config and hover_config.base_fill_brightness or 0.45
-  local fill_alpha = hover_config and hover_config.base_fill_alpha or 0xCC
-  
-  local desat = Colors.desaturate(base_color, desat_amount)
-  local darkened = Colors.adjust_brightness(desat, bright_amount)
-  local base_fill = Colors.with_alpha(darkened, fill_alpha)
-  
-  if hover_factor and hover_factor > 0 then
-    local hover_brightness = hover_config and hover_config.hover_brightness_factor or 0.65
-    local hover_fill = Colors.adjust_brightness(base_fill, hover_brightness)
-    return Colors.lerp(base_fill, hover_fill, hover_factor)
-  end
-  
-  return base_fill
-end
+-- Re-export TileHelpers for backward compatibility
+M.TileHelpers = Rendering.TileHelpers
 
 local Grid = {}
 Grid.__index = Grid
@@ -163,9 +93,6 @@ Grid.__index = Grid
 function M.new(opts)
   opts = opts or {}
 
-  local spawn_cfg = opts.config and opts.config.spawn or DEFAULTS.spawn
-  local destroy_cfg = opts.config and opts.config.destroy or DEFAULTS.destroy
-  
   local grid = setmetatable({
     id               = opts.id or "grid",
     gap              = opts.gap or 12,
@@ -189,7 +116,6 @@ function M.new(opts)
     is_copy_mode_check = opts.is_copy_mode_check,
     on_drag_start    = opts.on_drag_start,
     on_external_drop = opts.on_external_drop,
-    on_destroy_complete = opts.on_destroy_complete,
     accept_external_drops = opts.accept_external_drops or false,
     render_drop_zones = opts.render_drop_zones or true,
 
@@ -201,12 +127,10 @@ function M.new(opts)
       opts.layout_snap or DEFAULTS.layout.snap_epsilon
     ),
     sel_rect         = SelRect.new(),
-    spawn_anim       = SpawnAnim.new({
-      duration = spawn_cfg.duration or DEFAULTS.spawn.duration,
-    }),
-    destroy_anim     = DestroyAnim.new({
-      duration = destroy_cfg.duration or DEFAULTS.destroy.duration,
-      on_complete = opts.on_destroy_complete,
+    animator         = Animation.new({
+      spawn = opts.config and opts.config.spawn or DEFAULTS.spawn,
+      destroy = opts.config and opts.config.destroy or DEFAULTS.destroy,
+      on_destroy_complete = opts.on_destroy_complete,
     }),
 
     hover_id         = nil,
@@ -223,11 +147,12 @@ function M.new(opts)
     external_drop_target = nil,
     last_window_pos  = nil,
     previous_item_keys = {},
-    allow_spawn_on_new = false,
     delete_key_pressed_last_frame = false,
     
     last_layout_cols = 1,
   }, Grid)
+
+  grid.animator:set_rect_track(grid.rect_track)
 
   return grid
 end
@@ -239,174 +164,6 @@ local function build_rect_map(rects, items, key_fn)
     if rects[i] then map[key] = rects[i] end
   end
   return map
-end
-
-function Grid:_is_external_drag_active()
-  if not self.external_drag_check then return false end
-  return self.external_drag_check() == true
-end
-
-function Grid:_is_mouse_in_exclusion(ctx, item, rect)
-  if not self.get_exclusion_zones then return false end
-
-  local zones = self.get_exclusion_zones(item, rect)
-  if not zones or #zones == 0 then return false end
-
-  local mx, my = ImGui.GetMousePos(ctx)
-  for _, z in ipairs(zones) do
-    if Draw.point_in_rect(mx, my, z[1], z[2], z[3], z[4]) then
-      return true
-    end
-  end
-  return false
-end
-
-function Grid:_find_hovered_item(ctx, items)
-  local mx, my = ImGui.GetMousePos(ctx)
-  for _, item in ipairs(items) do
-    local key = self.key(item)
-    local rect = self.rect_track:get(key)
-    if rect and Draw.point_in_rect(mx, my, rect[1], rect[2], rect[3], rect[4]) then
-      if not self:_is_mouse_in_exclusion(ctx, item, rect) then
-        return item, key, self.selection:is_selected(key)
-      end
-    end
-  end
-  return nil, nil, false
-end
-
-function Grid:_handle_keyboard_input(ctx)
-  if not self.on_delete then return false end
-  
-  local delete_pressed = ImGui.IsKeyPressed(ctx, ImGui.Key_Delete)
-  
-  if delete_pressed and not self.delete_key_pressed_last_frame then
-    self.delete_key_pressed_last_frame = true
-    
-    if self.selection:count() > 0 then
-      local keys_to_delete = self.selection:selected_keys()
-      self.on_delete(keys_to_delete)
-      self.selection:clear()
-      if self.on_select then self.on_select(self.selection:selected_keys()) end
-      return true
-    end
-  elseif not delete_pressed then
-    self.delete_key_pressed_last_frame = false
-  end
-  
-  return false
-end
-
-function Grid:_handle_wheel_input(ctx, items)
-  if not self.on_wheel_adjust then return false end
-  
-  local wheel_y = ImGui.GetMouseWheel(ctx)
-  if wheel_y == 0 then return false end
-  
-  local item, key, is_selected = self:_find_hovered_item(ctx, items)
-  if not item or not key then return false end
-  
-  local wheel_step = (self.config.wheel and self.config.wheel.step) or DEFAULTS.wheel.step
-  local delta = (wheel_y > 0) and wheel_step or -wheel_step
-  
-  local keys_to_adjust = {}
-  if is_selected and self.selection:count() > 0 then
-    keys_to_adjust = self.selection:selected_keys()
-  else
-    keys_to_adjust = {key}
-  end
-  
-  self.on_wheel_adjust(keys_to_adjust, delta)
-  return true
-end
-
-function Grid:_handle_tile_input(ctx, item, rect)
-  local key = self.key(item)
-  
-  if self:_is_mouse_in_exclusion(ctx, item, rect) then
-    return false
-  end
-
-  local mx, my = ImGui.GetMousePos(ctx)
-  local is_hovered = Draw.point_in_rect(mx, my, rect[1], rect[2], rect[3], rect[4])
-  if is_hovered then self.hover_id = key end
-
-  if is_hovered and not self.sel_rect:is_active() and not self.drag.active and not self:_is_external_drag_active() then
-    if ImGui.IsMouseClicked(ctx, 0) then
-      local alt = ImGui.IsKeyDown(ctx, ImGui.Key_LeftAlt) or ImGui.IsKeyDown(ctx, ImGui.Key_RightAlt)
-      
-      if alt then
-        if self.on_delete then
-          local was_selected = self.selection:is_selected(key)
-          if was_selected and self.selection:count() > 1 then
-            local keys_to_delete = self.selection:selected_keys()
-            self.on_delete(keys_to_delete)
-          else
-            self.on_delete({key})
-          end
-        end
-        return is_hovered
-      end
-      
-      local shift = ImGui.IsKeyDown(ctx, ImGui.Key_LeftShift) or ImGui.IsKeyDown(ctx, ImGui.Key_RightShift)
-      local ctrl  = ImGui.IsKeyDown(ctx, ImGui.Key_LeftCtrl)  or ImGui.IsKeyDown(ctx, ImGui.Key_RightCtrl)
-      local was_selected = self.selection:is_selected(key)
-
-      if ctrl then
-        self.selection:toggle(key)
-        if self.on_select then self.on_select(self.selection:selected_keys()) end
-      elseif shift and self.selection.last_clicked then
-        local items = self.get_items()
-        local order = {}
-        for _, it in ipairs(items) do order[#order+1] = self.key(it) end
-        self.selection:range(order, self.selection.last_clicked, key)
-        if self.on_select then self.on_select(self.selection:selected_keys()) end
-      else
-        if not was_selected then
-          self.drag.pending_selection = key
-        end
-      end
-
-      self.drag.pressed_id = key
-      self.drag.pressed_was_selected = was_selected
-      self.drag.press_pos = {mx, my}
-    end
-
-    if ImGui.IsMouseClicked(ctx, 1) and self.on_right_click then
-      self.on_right_click(key, self.selection:selected_keys())
-    end
-
-    if ImGui.IsMouseDoubleClicked(ctx, 0) and self.on_double_click then
-      self.on_double_click(key)
-    end
-  end
-
-  return is_hovered
-end
-
-function Grid:_check_start_drag(ctx)
-  if not self.drag.pressed_id or self.drag.active or self:_is_external_drag_active() then return end
-
-  local threshold = (self.config.drag and self.config.drag.threshold) or DEFAULTS.drag.threshold
-  if ImGui.IsMouseDragging(ctx, 0, threshold) then
-    self.drag.pending_selection = nil
-    self.drag.active = true
-
-    if self.selection:count() > 0 and self.selection:is_selected(self.drag.pressed_id) then
-      local items = self.get_items()
-      local order = {}
-      for _, item in ipairs(items) do order[#order+1] = self.key(item) end
-      self.drag.ids = self.selection:selected_keys_in(order)
-    else
-      self.drag.ids = { self.drag.pressed_id }
-      self.selection:single(self.drag.pressed_id)
-      if self.on_select then self.on_select(self.selection:selected_keys()) end
-    end
-
-    if self.on_drag_start then
-      self.on_drag_start(self.drag.ids)
-    end
-  end
 end
 
 function Grid:_find_drop_target(ctx, mx, my, dragged_set, items)
@@ -564,7 +321,7 @@ function Grid:_find_drop_target(ctx, mx, my, dragged_set, items)
 end
 
 function Grid:_update_external_drop_target(ctx)
-  if not self.accept_external_drops or not self:_is_external_drag_active() then
+  if not self.accept_external_drops or not Input.is_external_drag_active(self) then
     self.external_drop_target = nil
     return
   end
@@ -666,29 +423,11 @@ function Grid:get_drop_target_index()
 end
 
 function Grid:mark_spawned(keys)
-  local spawn_cfg = self.config.spawn or DEFAULTS.spawn
-  if not spawn_cfg.enabled then return end
-  
-  self.allow_spawn_on_new = true
+  self.animator:mark_spawned(keys)
 end
 
 function Grid:mark_destroyed(keys)
-  local destroy_cfg = self.config.destroy or DEFAULTS.destroy
-  if not destroy_cfg.enabled then
-    if self.on_destroy_complete then
-      for _, key in ipairs(keys) do
-        self.on_destroy_complete(key)
-      end
-    end
-    return
-  end
-  
-  for _, key in ipairs(keys) do
-    local rect = self.rect_track:get(key)
-    if rect then
-      self.destroy_anim:destroy(key, rect)
-    end
-  end
+  self.animator:mark_destroyed(keys)
 end
 
 function Grid:draw(ctx)
@@ -698,8 +437,8 @@ function Grid:draw(ctx)
     return
   end
 
-  local keyboard_consumed = self:_handle_keyboard_input(ctx)
-  local wheel_consumed = self:_handle_wheel_input(ctx, items)
+  local keyboard_consumed = Input.handle_keyboard_input(self, ctx)
+  local wheel_consumed = Input.handle_wheel_input(self, ctx, items, DEFAULTS)
   
   if wheel_consumed then
     local current_scroll_y = ImGui.GetScrollY(ctx)
@@ -730,16 +469,7 @@ function Grid:draw(ctx)
     end
   end
   
-  if #new_keys > 0 and self.allow_spawn_on_new then
-    for _, key in ipairs(new_keys) do
-      local rect = self.rect_track:get(key)
-      if rect then
-        self.spawn_anim:spawn(key, rect)
-      end
-    end
-    self.allow_spawn_on_new = false
-  end
-  
+  self.animator:handle_spawn(new_keys, self.rect_track)
   self.previous_item_keys = current_keys
 
   local wx, wy = ImGui.GetWindowPos(ctx)
@@ -759,7 +489,7 @@ function Grid:draw(ctx)
     self.rect_track:update()
   end
   
-  self.destroy_anim:update(0.016)
+  self.animator:update(0.016)
 
   local tile_h = rects[1] and (rects[1][4] - rects[1][2]) or 100
   local grid_height = rows * (tile_h + self.gap) + self.gap
@@ -780,7 +510,7 @@ function Grid:draw(ctx)
     return false
   end
 
-  if bg_clicked and not mouse_over_any_tile() and not self:_is_external_drag_active() then
+  if bg_clicked and not mouse_over_any_tile() and not Input.is_external_drag_active(self) then
     local mx, my = ImGui.GetMousePos(ctx)
     local ctrl = ImGui.IsKeyDown(ctx, ImGui.Key_LeftCtrl) or ImGui.IsKeyDown(ctx, ImGui.Key_RightCtrl)
     local shift = ImGui.IsKeyDown(ctx, ImGui.Key_LeftShift) or ImGui.IsKeyDown(ctx, ImGui.Key_RightShift)
@@ -792,7 +522,7 @@ function Grid:draw(ctx)
 
   local marquee_threshold = (self.config.marquee and self.config.marquee.drag_threshold) or DEFAULTS.marquee.drag_threshold
   
-  if self.sel_rect:is_active() and ImGui.IsMouseDragging(ctx, 0, marquee_threshold) and not self:_is_external_drag_active() then
+  if self.sel_rect:is_active() and ImGui.IsMouseDragging(ctx, 0, marquee_threshold) and not Input.is_external_drag_active(self) then
     local mx, my = ImGui.GetMousePos(ctx)
     self.sel_rect:update(mx, my)
 
@@ -822,12 +552,7 @@ function Grid:draw(ctx)
     local rect = self.rect_track:get(key)
     
     if rect then
-      if self.spawn_anim:is_spawning(key) then
-        local width_factor = self.spawn_anim:get_width_factor(key)
-        local full_width = rect[3] - rect[1]
-        local spawn_width = full_width * width_factor
-        rect = {rect[1], rect[2], rect[1] + spawn_width, rect[4]}
-      end
+      rect = self.animator:apply_spawn_to_rect(key, rect)
       
       self.current_rects[key] = {rect[1], rect[2], rect[3], rect[4], item}
 
@@ -837,18 +562,16 @@ function Grid:draw(ctx)
         index    = i,
       }
 
-      local is_hovered = self:_handle_tile_input(ctx, item, rect)
+      local is_hovered = Input.handle_tile_input(self, ctx, item, rect)
       state.hover = is_hovered
 
       self.render_tile(ctx, rect, item, state)
     end
   end
   
-  for key, anim_data in pairs(self.destroy_anim.destroying) do
-    self.destroy_anim:render(ctx, dl, key, anim_data.rect, 0x1A1A1AFF, 6)
-  end
+  self.animator:render_destroy_effects(ctx, dl)
 
-  self:_check_start_drag(ctx)
+  Input.check_start_drag(self, ctx, DEFAULTS)
 
   if self.drag.active then
     self:_draw_drag_visuals(ctx, dl)
@@ -856,7 +579,7 @@ function Grid:draw(ctx)
 
   self:_update_external_drop_target(ctx)
 
-  if self:_is_external_drag_active() then
+  if Input.is_external_drag_active(self) then
     self:_draw_external_drop_visuals(ctx, dl)
     
     if self.accept_external_drops and ImGui.IsMouseReleased(ctx, 0) then
@@ -905,7 +628,7 @@ function Grid:draw(ctx)
     self.drag.pending_selection = nil
   end
 
-  if not self.drag.active and ImGui.IsMouseReleased(ctx, 0) and not self:_is_external_drag_active() then
+  if not self.drag.active and ImGui.IsMouseReleased(ctx, 0) and not Input.is_external_drag_active(self) then
     if self.drag.pending_selection then
       self.selection:single(self.drag.pending_selection)
       if self.on_select then self.on_select(self.selection:selected_keys()) end
@@ -928,8 +651,7 @@ function Grid:clear()
   self.selection:clear()
   self.rect_track:clear()
   self.sel_rect:clear()
-  self.spawn_anim:clear()
-  self.destroy_anim:clear()
+  self.animator:clear()
   self.hover_id = nil
   self.current_rects = {}
   self.drag = {
@@ -944,7 +666,6 @@ function Grid:clear()
   self.external_drop_target = nil
   self.last_window_pos = nil
   self.previous_item_keys = {}
-  self.allow_spawn_on_new = false
   self.delete_key_pressed_last_frame = false
   self.last_layout_cols = 1
 end

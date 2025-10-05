@@ -6,7 +6,7 @@ local ImGui = require 'imgui' '0.10'
 
 local Draw = require('ReArkitekt.gui.draw')
 local Colors = require('ReArkitekt.gui.colors')
-local Grid = require('ReArkitekt.gui.widgets.colorblocks')
+local Grid = require('ReArkitekt.gui.widgets.grid.core')
 local TileUtil = require('ReArkitekt.gui.systems.tile_utilities')
 
 local M = {}
