@@ -1,7 +1,8 @@
 -- core/image_cache.lua
 -- Metadata-driven 3-state image detection and caching
 -- Now supports opts.no_crop=true to bypass 3-state slicing (show full image)
-
+package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
+local ImGui = require 'imgui' '0.9'
 local M = {}
 
 local metadata = nil
@@ -50,22 +51,22 @@ local function load_metadata()
 end
 
 local function img_flags_noerr()
-  return (type(reaper.ImGui_ImageFlags_NoErrors) == "function") and reaper.ImGui_ImageFlags_NoErrors() or 0
+  return (type(ImGui.ImageFlags_NoErrors) == "function") and ImGui.ImageFlags_NoErrors or 0
 end
 
 local function create_image(path)
-  local ok, img = pcall(reaper.ImGui_CreateImage, path, img_flags_noerr())
+  local ok, img = pcall(ImGui.CreateImage, path, img_flags_noerr)
   if ok and img then return img end
   return nil
 end
 
 local function destroy_image(img)
   if not img then return end
-  pcall(reaper.ImGui_DestroyImage, img)
+  pcall(ImGui.DestroyImage, img)
 end
 
 local function image_size(img)
-  local ok, w, h = pcall(reaper.ImGui_Image_GetSize, img)
+  local ok, w, h = pcall(ImGui.Image_GetSize, img)
   if ok and w and h then return w, h end
   return nil, nil
 end
@@ -183,7 +184,7 @@ local function validate_record(self, path, rec)
     return ensure_record(self, path)
   end
 
-  local ok, w, h = pcall(reaper.ImGui_Image_GetSize, rec.img)
+  local ok, w, h = pcall(ImGui.Image_GetSize, rec.img)
   if ok and w and h and w > 0 and h > 0 then
     rec.w, rec.h = w, h
     return rec
@@ -196,23 +197,23 @@ end
 
 function Cache:draw_original(ctx, path)
   if not path or path == "" then
-    reaper.ImGui_Dummy(ctx, 16, 16)
+    ImGui.Dummy(ctx, 16, 16)
     return false
   end
   local rec = validate_record(self, path, self._cache[path])
   if not rec or not rec.img then
-    reaper.ImGui_Dummy(ctx, 16, 16)
+    ImGui.Dummy(ctx, 16, 16)
     return false
   end
   local u0 = rec.src_x / rec.w
   local v0 = rec.src_y / rec.h
   local u1 = (rec.src_x + rec.src_w) / rec.w
   local v1 = (rec.src_y + rec.src_h) / rec.h
-  local ok = pcall(reaper.ImGui_Image, ctx, rec.img, rec.src_w, rec.src_h, u0, v0, u1, v1)
+  local ok = pcall(ImGui.Image, ctx, rec.img, rec.src_w, rec.src_h, u0, v0, u1, v1)
   if not ok then
     destroy_image(rec.img)
     self._cache[path] = false
-    reaper.ImGui_Dummy(ctx, rec.src_w or 16, rec.src_h or 16)
+    ImGui.Dummy(ctx, rec.src_w or 16, rec.src_h or 16)
     return false
   end
   return true
@@ -221,17 +222,17 @@ end
 function Cache:draw_thumb(ctx, path, cell)
   cell = math.max(1, math.floor(tonumber(cell) or 1))
   if not path or path == "" then
-    reaper.ImGui_Dummy(ctx, cell, cell)
+    ImGui.Dummy(ctx, cell, cell)
     return false
   end
   local rec = validate_record(self, path, self._cache[path])
   if not rec or not rec.img then
-    reaper.ImGui_Dummy(ctx, cell, cell)
+    ImGui.Dummy(ctx, cell, cell)
     return false
   end
   local src_w, src_h = rec.src_w, rec.src_h
   if src_w <= 0 or src_h <= 0 then
-    reaper.ImGui_Dummy(ctx, cell, cell)
+    ImGui.Dummy(ctx, cell, cell)
     return false
   end
   local scale = math.min(cell / src_w, cell / src_h)
@@ -241,11 +242,11 @@ function Cache:draw_thumb(ctx, path, cell)
   local v0 = rec.src_y / rec.h
   local u1 = (rec.src_x + rec.src_w) / rec.w
   local v1 = (rec.src_y + rec.src_h) / rec.h
-  local ok = pcall(reaper.ImGui_Image, ctx, rec.img, dw, dh, u0, v0, u1, v1)
+  local ok = pcall(ImGui.Image, ctx, rec.img, dw, dh, u0, v0, u1, v1)
   if not ok then
     destroy_image(rec.img)
     self._cache[path] = false
-    reaper.ImGui_Dummy(ctx, cell, cell)
+    ImGui.Dummy(ctx, cell, cell)
     return false
   end
   return true
@@ -255,23 +256,23 @@ function Cache:draw_fit(ctx, path, w, h)
   w = math.max(1, math.floor(tonumber(w) or 1))
   h = math.max(1, math.floor(tonumber(h) or 1))
   if not path or path == "" then
-    reaper.ImGui_Dummy(ctx, w, h)
+    ImGui.Dummy(ctx, w, h)
     return false
   end
   local rec = validate_record(self, path, self._cache[path])
   if not rec then
-    reaper.ImGui_Dummy(ctx, w, h)
+    ImGui.Dummy(ctx, w, h)
     return false
   end
   local u0 = rec.src_x / rec.w
   local v0 = rec.src_y / rec.h
   local u1 = (rec.src_x + rec.src_w) / rec.w
   local v1 = (rec.src_y + rec.src_h) / rec.h
-  local ok = pcall(reaper.ImGui_Image, ctx, rec.img, w, h, u0, v0, u1, v1)
+  local ok = pcall(ImGui.Image, ctx, rec.img, w, h, u0, v0, u1, v1)
   if not ok then
     destroy_image(rec.img)
     self._cache[path] = false
-    reaper.ImGui_Dummy(ctx, w, h)
+    ImGui.Dummy(ctx, w, h)
     return false
   end
   return true

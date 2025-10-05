@@ -2,6 +2,9 @@
 -- Subtabs in a child + sticky bottom footer with centered "Assemble" button.
 -- No custom styles applied; child scrollbars disabled (ImGui 0.9/0.10 compatible).
 
+package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
+local ImGui = require 'imgui' '0.9'
+
 local lifecycle_ok, lifecycle = pcall(require, 'lifecycle')
 if not lifecycle_ok then
   reaper.ShowMessageBox('core/lifecycle.lua not found.', 'Assembler', 0)
@@ -45,14 +48,14 @@ if not ui_assets_ok then
 end
 
 -- ---------- ImGui 0.9/0.10 compatibility ----------
-local HAS_CHILD_FLAGS = (reaper.ImGui_ChildFlags_None ~= nil)
+local HAS_CHILD_FLAGS = (ImGui.ChildFlags_None ~= nil)
 
 local function BeginChildCompat(ctx, id, w, h, want_border, window_flags)
   if HAS_CHILD_FLAGS then
-    local child_flags = want_border and (reaper.ImGui_ChildFlags_Border()) or 0
-    return reaper.ImGui_BeginChild(ctx, id, w, h, child_flags, window_flags or 0)
+    local child_flags = want_border and (ImGui.ChildFlags_Border) or 0
+    return ImGui.BeginChild(ctx, id, w, h, child_flags, window_flags or 0)
   else
-    return reaper.ImGui_BeginChild(ctx, id, w, h, want_border and true or false, window_flags or 0)
+    return ImGui.BeginChild(ctx, id, w, h, want_border and true or false, window_flags or 0)
   end
 end
 -- --------------------------------------------------
@@ -125,64 +128,64 @@ function M.create(theme_mod, settings)
 
   return L:export(function(ctx)
     -- Compute dynamic footer height from current frame height so there is no slack
-    local frame_h = reaper.ImGui_GetFrameHeight(ctx) or 0
+    local frame_h = ImGui.GetFrameHeight(ctx) or 0
     local footer_h = frame_h + FOOTER_PAD_V * 2
-    local avail_w = select(1, reaper.ImGui_GetContentRegionAvail(ctx)) or 0
-    local avail_h = select(2, reaper.ImGui_GetContentRegionAvail(ctx)) or 0
+    local avail_w = select(1, ImGui.GetContentRegionAvail(ctx)) or 0
+    local avail_h = select(2, ImGui.GetContentRegionAvail(ctx)) or 0
     local child_h = math.max(0, avail_h - footer_h)
 
     -- Disable scrollbars in the child region
-    local NO_SCROLL = reaper.ImGui_WindowFlags_NoScrollbar() | reaper.ImGui_WindowFlags_NoScrollWithMouse()
+    local NO_SCROLL = ImGui.WindowFlags_NoScrollbar | ImGui.WindowFlags_NoScrollWithMouse
 
     if BeginChildCompat(ctx, 'assembler_content', -1, child_h, false, NO_SCROLL) then
-      if reaper.ImGui_BeginTabBar(ctx, 'assembler_subtabs') then
-        if reaper.ImGui_BeginTabItem(ctx, '📦 PACKAGES') then
+      if ImGui.BeginTabBar(ctx, 'assembler_subtabs') then
+        if ImGui.BeginTabItem(ctx, '📦 PACKAGES') then
           current_tab = 'PACKAGES'
           if last_tab ~= current_tab then on_tab_switched(); last_tab = current_tab end
-          reaper.ImGui_PushStyleVar(ctx, reaper.ImGui_StyleVar_Alpha(), tab_transition_alpha)
+          ImGui.PushStyleVar(ctx, ImGui.StyleVar_Alpha, tab_transition_alpha)
           core.try("draw_packages", function() ui_packages.draw(ctx, core) end)
-          reaper.ImGui_PopStyleVar(ctx)
-          reaper.ImGui_EndTabItem(ctx)
+          ImGui.PopStyleVar(ctx)
+          ImGui.EndTabItem(ctx)
         end
 
-        if reaper.ImGui_BeginTabItem(ctx, '🎨 ASSETS') then
+        if ImGui.BeginTabItem(ctx, '🎨 ASSETS') then
           current_tab = 'ASSETS'
           if last_tab ~= current_tab then on_tab_switched(); last_tab = current_tab end
-          reaper.ImGui_PushStyleVar(ctx, reaper.ImGui_StyleVar_Alpha(), tab_transition_alpha)
+          ImGui.PushStyleVar(ctx, ImGui.StyleVar_Alpha, tab_transition_alpha)
           core.try("draw_assets", function() ui_assets.draw(ctx, core) end)
-          reaper.ImGui_PopStyleVar(ctx)
-          reaper.ImGui_EndTabItem(ctx)
+          ImGui.PopStyleVar(ctx)
+          ImGui.EndTabItem(ctx)
         end
 
-        reaper.ImGui_EndTabBar(ctx)
+        ImGui.EndTabBar(ctx)
       end
     end
-    reaper.ImGui_EndChild(ctx)
+    ImGui.EndChild(ctx)
 
     -- Sticky footer with centered "Assemble" (default styles)
-    local footer_x1, footer_y1 = reaper.ImGui_GetCursorScreenPos(ctx)
-    local dl = reaper.ImGui_GetWindowDrawList(ctx)
-    local region_w = select(1, reaper.ImGui_GetContentRegionAvail(ctx)) or avail_w
+    local footer_x1, footer_y1 = ImGui.GetCursorScreenPos(ctx)
+    local dl = ImGui.GetWindowDrawList(ctx)
+    local region_w = select(1, ImGui.GetContentRegionAvail(ctx)) or avail_w
     local footer_x2 = footer_x1 + region_w
 
     -- hairline separator
-    reaper.ImGui_DrawList_AddLine(dl, footer_x1, footer_y1 + 0.5, footer_x2, footer_y1 + 0.5, 0x00000055, 1)
+    ImGui.DrawList_AddLine(dl, footer_x1, footer_y1 + 0.5, footer_x2, footer_y1 + 0.5, 0x00000055, 1)
 
     -- Split the exact space around the button so there’s no extra gap
     local top_pad = math.max(0, math.floor((footer_h - frame_h) / 2))
     local bot_pad = math.max(0, footer_h - frame_h - top_pad)
 
-    reaper.ImGui_Dummy(ctx, 1, top_pad)
+    ImGui.Dummy(ctx, 1, top_pad)
 
     local label = 'Assemble'
-    local tw = select(1, reaper.ImGui_CalcTextSize(ctx, label)) or 0
+    local tw = select(1, ImGui.CalcTextSize(ctx, label)) or 0
     local approx_btn_w = tw + 32
     local center_x = math.max(0, (region_w - approx_btn_w) // 2)
-    reaper.ImGui_SetCursorPosX(ctx, reaper.ImGui_GetCursorPosX(ctx) + center_x)
+    ImGui.SetCursorPosX(ctx, ImGui.GetCursorPosX(ctx) + center_x)
 
-    if reaper.ImGui_Button(ctx, label) then core.try("assemble", do_assemble) end
+    if ImGui.Button(ctx, label) then core.try("assemble", do_assemble) end
 
-    reaper.ImGui_Dummy(ctx, 1, bot_pad)
+    ImGui.Dummy(ctx, 1, bot_pad)
   end)
 end
 

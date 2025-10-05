@@ -1,6 +1,9 @@
 -- tabs/assembler/core.lua
 -- Enhanced core: shared state, scanning, helpers, selection management, and settings persistence.
 
+package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
+local ImGui = require 'imgui' '0.9'
+
 local M = {}
 
 -- Console logger with timestamp
@@ -45,7 +48,7 @@ end
 
 -- Enhanced draw helpers with modern effects
 local function add_rect(dl, x1,y1,x2,y2, col, rounding, thickness)
-  reaper.ImGui_DrawList_AddRect(dl, x1,y1,x2,y2, col, rounding or 0, 0, thickness or 1)
+  ImGui.DrawList_AddRect(dl, x1,y1,x2,y2, col, rounding or 0, 0, thickness or 1)
 end
 
 local function add_shadow(dl, x1,y1,x2,y2, intensity, spread, rounding)
@@ -56,7 +59,7 @@ local function add_shadow(dl, x1,y1,x2,y2, intensity, spread, rounding)
   for i = spread, 1, -1 do
     local alpha = math.floor((intensity * 255 * (i / spread)))
     local offset = (spread - i) * 1.5
-    reaper.ImGui_DrawList_AddRectFilled(dl,
+    ImGui.DrawList_AddRectFilled(dl,
       x1 - offset, y1 - offset + spread/2,
       x2 + offset, y2 + offset + spread/2,
       (0x000000 << 8) | alpha, rounding)

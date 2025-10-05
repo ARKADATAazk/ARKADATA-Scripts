@@ -1,7 +1,8 @@
 -- core/lifecycle.lua
 -- Generic lifecycle manager for any UI view (tab, panel, popup...).
 -- Handles per-frame resets and cleanup for registered resources.
-
+package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
+local ImGui = require 'imgui' '0.9'
 local M = {}
 
 -- ResourceGroup: tracks resources & callbacks for a single view/scope.

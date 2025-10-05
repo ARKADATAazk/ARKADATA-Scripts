@@ -79,7 +79,7 @@ Index of this file:
 - [SECTION] Example App: Assets Browser / ShowExampleAppAssetsBrowser()
 --]]
 
-package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua'
+package.path = ImGui.GetBuiltinPath() .. '/?.lua'
 local ImGui = require 'imgui' '0.10'
 
 local ctx, clipper
@@ -306,7 +306,7 @@ function demo.ShowDemoWindow(open)
   if demo.no_collapse       then window_flags = window_flags | ImGui.WindowFlags_NoCollapse            end
   if demo.no_nav            then window_flags = window_flags | ImGui.WindowFlags_NoNav                 end
   if demo.no_background     then window_flags = window_flags | ImGui.WindowFlags_NoBackground          end
-  -- if demo.no_bring_to_front then window_flags = window_flags | ImGui.WindowFlags_NoBringToFrontOnFocus() end
+  -- if demo.no_bring_to_front then window_flags = window_flags | ImGui.WindowFlags_NoBringToFrontOnFocus end
   if demo.no_docking        then window_flags = window_flags | ImGui.WindowFlags_NoDocking             end
   if demo.topmost           then window_flags = window_flags | ImGui.WindowFlags_TopMost               end
   if demo.unsaved_document  then window_flags = window_flags | ImGui.WindowFlags_UnsavedDocument       end
@@ -4916,7 +4916,7 @@ function demo.DemoWindowTables()
     ImGui.SameLine(ctx); rv,tables.borders_bg.contents_type = ImGui.RadioButtonEx(ctx, 'Text', tables.borders_bg.contents_type, 0)
     ImGui.SameLine(ctx); rv,tables.borders_bg.contents_type = ImGui.RadioButtonEx(ctx, 'FillButton', tables.borders_bg.contents_type, 1)
     rv,tables.borders_bg.display_headers = ImGui.Checkbox(ctx, 'Display headers', tables.borders_bg.display_headers)
-    -- rv,tables.borders_bg.flags = ImGui.CheckboxFlags(ctx, 'TableFlags_NoBordersInBody', tables.borders_bg.flags, ImGui.TableFlags_NoBordersInBody()); ImGui.SameLine(ctx); demo.HelpMarker('Disable vertical borders in columns Body (borders will always appear in Headers')
+    -- rv,tables.borders_bg.flags = ImGui.CheckboxFlags(ctx, 'TableFlags_NoBordersInBody', tables.borders_bg.flags, ImGui.TableFlags_NoBordersInBody); ImGui.SameLine(ctx); demo.HelpMarker('Disable vertical borders in columns Body (borders will always appear in Headers')
     demo.PopStyleCompact()
 
     if ImGui.BeginTable(ctx, 'table1', 3, tables.borders_bg.flags) then
@@ -5085,8 +5085,8 @@ function demo.DemoWindowTables()
     rv,tables.reorder.flags = ImGui.CheckboxFlags(ctx, 'TableFlags_Resizable', tables.reorder.flags, ImGui.TableFlags_Resizable)
     rv,tables.reorder.flags = ImGui.CheckboxFlags(ctx, 'TableFlags_Reorderable', tables.reorder.flags, ImGui.TableFlags_Reorderable)
     rv,tables.reorder.flags = ImGui.CheckboxFlags(ctx, 'TableFlags_Hideable', tables.reorder.flags, ImGui.TableFlags_Hideable)
-    -- rv,tables.reorder.flags = ImGui.CheckboxFlags(ctx, 'TableFlags_NoBordersInBody', tables.reorder.flags, ImGui.TableFlags_NoBordersInBody())
-    -- rv,tables.reorder.flags = ImGui.CheckboxFlags(ctx, 'TableFlags_NoBordersInBodyUntilResize', tables.reorder.flags, ImGui.TableFlags_NoBordersInBodyUntilResize()); ImGui.SameLine(ctx); demo.HelpMarker('Disable vertical borders in columns Body until hovered for resize (borders will always appear in Headers)')
+    -- rv,tables.reorder.flags = ImGui.CheckboxFlags(ctx, 'TableFlags_NoBordersInBody', tables.reorder.flags, ImGui.TableFlags_NoBordersInBody)
+    -- rv,tables.reorder.flags = ImGui.CheckboxFlags(ctx, 'TableFlags_NoBordersInBodyUntilResize', tables.reorder.flags, ImGui.TableFlags_NoBordersInBodyUntilResize); ImGui.SameLine(ctx); demo.HelpMarker('Disable vertical borders in columns Body until hovered for resize (borders will always appear in Headers)')
     rv,tables.reorder.flags = ImGui.CheckboxFlags(ctx, 'TableFlags_HighlightHoveredColumn', tables.reorder.flags, ImGui.TableFlags_HighlightHoveredColumn)
     demo.PopStyleCompact()
 
@@ -5587,7 +5587,7 @@ function demo.DemoWindowTables()
     if not tables.col_widths then
       tables.col_widths = {
         flags1 = ImGui.TableFlags_Borders, --|
-                 -- ImGui.TableFlags_NoBordersInBodyUntilResize(),
+                 -- ImGui.TableFlags_NoBordersInBodyUntilResize,
         flags2 = ImGui.TableFlags_None,
       }
     end
@@ -5595,7 +5595,7 @@ function demo.DemoWindowTables()
 
     demo.PushStyleCompact()
     rv,tables.col_widths.flags1 = ImGui.CheckboxFlags(ctx, 'TableFlags_Resizable', tables.col_widths.flags1, ImGui.TableFlags_Resizable)
-    -- rv,tables.col_widths.flags1 = ImGui.CheckboxFlags(ctx, TableFlags_NoBordersInBodyUntilResize', tables.col_widths.flags1, ImGui.TableFlags_NoBordersInBodyUntilResize())
+    -- rv,tables.col_widths.flags1 = ImGui.CheckboxFlags(ctx, TableFlags_NoBordersInBodyUntilResize', tables.col_widths.flags1, ImGui.TableFlags_NoBordersInBodyUntilResize)
     demo.PopStyleCompact()
     if ImGui.BeginTable(ctx, 'table1', 3, tables.col_widths.flags1) then
       -- We could also set TableFlags_SizingFixedFit on the table and then all columns
@@ -6304,7 +6304,7 @@ function demo.DemoWindowTables()
                 ImGui.TableFlags_RowBg           |
                 ImGui.TableFlags_BordersOuter    |
                 ImGui.TableFlags_BordersV        |
-                -- ImGui.TableFlags_NoBordersInBody() |
+                -- ImGui.TableFlags_NoBordersInBody |
                 ImGui.TableFlags_ScrollY,
         items = {},
       }
@@ -6391,7 +6391,7 @@ function demo.DemoWindowTables()
                 ImGui.TableFlags_SortMulti       |
                 ImGui.TableFlags_RowBg           |
                 ImGui.TableFlags_Borders         |
-                -- ImGui.TableFlags_NoBordersInBody() |
+                -- ImGui.TableFlags_NoBordersInBody |
                 ImGui.TableFlags_ScrollX         |
                 ImGui.TableFlags_ScrollY         |
                 ImGui.TableFlags_SizingFixedFit,
@@ -6436,8 +6436,8 @@ function demo.DemoWindowTables()
         rv,tables.advanced.flags = ImGui.CheckboxFlags(ctx, 'TableFlags_BordersH', tables.advanced.flags, ImGui.TableFlags_BordersH)
         rv,tables.advanced.flags = ImGui.CheckboxFlags(ctx, 'TableFlags_BordersOuterH', tables.advanced.flags, ImGui.TableFlags_BordersOuterH)
         rv,tables.advanced.flags = ImGui.CheckboxFlags(ctx, 'TableFlags_BordersInnerH', tables.advanced.flags, ImGui.TableFlags_BordersInnerH)
-        -- rv,tables.advanced.flags = ImGui.CheckboxFlags(ctx, 'TableFlags_NoBordersInBody', tables.advanced.flags, ImGui.TableFlags_NoBordersInBody()) ImGui.SameLine(ctx); demo.HelpMarker('Disable vertical borders in columns Body (borders will always appear in Headers')
-        -- rv,tables.advanced.flags = ImGui.CheckboxFlags(ctx, 'TableFlags_NoBordersInBodyUntilResize', tables.advanced.flags, ImGui.TableFlags_NoBordersInBodyUntilResize()) ImGui.SameLine(ctx); demo.HelpMarker('Disable vertical borders in columns Body until hovered for resize (borders will always appear in Headers)')
+        -- rv,tables.advanced.flags = ImGui.CheckboxFlags(ctx, 'TableFlags_NoBordersInBody', tables.advanced.flags, ImGui.TableFlags_NoBordersInBody) ImGui.SameLine(ctx); demo.HelpMarker('Disable vertical borders in columns Body (borders will always appear in Headers')
+        -- rv,tables.advanced.flags = ImGui.CheckboxFlags(ctx, 'TableFlags_NoBordersInBodyUntilResize', tables.advanced.flags, ImGui.TableFlags_NoBordersInBodyUntilResize) ImGui.SameLine(ctx); demo.HelpMarker('Disable vertical borders in columns Body until hovered for resize (borders will always appear in Headers)')
         ImGui.TreePop(ctx)
       end
 
@@ -7198,7 +7198,7 @@ function demo.ShowStyleEditor()
     'Save/Revert in local non-persistent storage. Default Colors definition are not affected. \z
      Use "Export" below to save them somewhere.')
 
-  local funcPrefixes = {'ImGui.', 'reaper.ImGui_'}
+  local funcPrefixes = {'ImGui.', 'ImGui.'}
   local export = function(enumName, funcSuffix, curTable, refTable, isEqual, formatValue)
     local lines, name_maxlen = {}, 0
     for i, name in demo.EachEnum(enumName) do

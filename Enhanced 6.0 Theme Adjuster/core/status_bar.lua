@@ -1,11 +1,12 @@
 -- core/status_bar.lua
 -- Footer drawn INSIDE a child window (no bleed; fully clickable; flush-ready)
-
+package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
+local ImGui = require 'imgui' '0.9'
 local M = {}
 
 local function add_text(dl, x, y, col_u32, s)
-  if dl and reaper.ImGui_DrawList_AddText then
-    reaper.ImGui_DrawList_AddText(dl, x, y, col_u32, tostring(s or ""))
+  if dl and ImGui.DrawList_AddText then
+    ImGui.DrawList_AddText(dl, x, y, col_u32, tostring(s or ""))
   end
 end
 
@@ -63,36 +64,36 @@ function M.create(theme, opts)
   local function open_zip_popup(ctx)
     zips_cache = (theme and theme.list_theme_zips and theme.list_theme_zips()) or {}
     if zip_idx < 1 or zip_idx > #zips_cache then zip_idx = 1 end
-    reaper.ImGui_OpenPopup(ctx, 'Pick .ReaperThemeZip##statusbar')
+    ImGui.OpenPopup(ctx, 'Pick .ReaperThemeZip##statusbar')
   end
 
   local function draw_zip_popup(ctx)
-    if reaper.ImGui_BeginPopup(ctx, 'Pick .ReaperThemeZip##statusbar') then
+    if ImGui.BeginPopup(ctx, 'Pick .ReaperThemeZip##statusbar') then
       local info = theme.get_theme_info()
       if #zips_cache == 0 then
-        reaper.ImGui_Text(ctx, 'No .ReaperThemeZip files found in ColorThemes.')
+        ImGui.Text(ctx, 'No .ReaperThemeZip files found in ColorThemes.')
       else
         local preview = zips_cache[zip_idx]:match("[^\\/]+$") or zips_cache[zip_idx]
-        if reaper.ImGui_BeginCombo(ctx, 'ZIP', preview) then
+        if ImGui.BeginCombo(ctx, 'ZIP', preview) then
           for i,p in ipairs(zips_cache) do
             local label = p:match("[^\\/]+$") or p
             local sel = (i == zip_idx)
-            if reaper.ImGui_Selectable(ctx, label, sel) then zip_idx = i end
+            if ImGui.Selectable(ctx, label, sel) then zip_idx = i end
           end
-          reaper.ImGui_EndCombo(ctx)
+          ImGui.EndCombo(ctx)
         end
-        if reaper.ImGui_Button(ctx, 'Link and Build Cache##statusbar') then
+        if ImGui.Button(ctx, 'Link and Build Cache##statusbar') then
           if theme.build_cache_from_zip and zips_cache[zip_idx] and info.theme_name then
             theme.build_cache_from_zip(info.theme_name, zips_cache[zip_idx])
           end
-          reaper.ImGui_CloseCurrentPopup(ctx)
+          ImGui.CloseCurrentPopup(ctx)
         end
-        reaper.ImGui_SameLine(ctx)
-        if reaper.ImGui_Button(ctx, 'Cancel##statusbar') then
-          reaper.ImGui_CloseCurrentPopup(ctx)
+        ImGui.SameLine(ctx)
+        if ImGui.Button(ctx, 'Cancel##statusbar') then
+          ImGui.CloseCurrentPopup(ctx)
         end
       end
-      reaper.ImGui_EndPopup(ctx)
+      ImGui.EndPopup(ctx)
     end
   end
 
@@ -110,15 +111,15 @@ function M.create(theme, opts)
   end
 
   local function draw_child(ctx, forced_h)
-    local w = select(1, reaper.ImGui_GetContentRegionAvail(ctx)) or 0
-    local sx, sy = reaper.ImGui_GetCursorScreenPos(ctx)
-    local dl = reaper.ImGui_GetWindowDrawList(ctx)
+    local w = select(1, ImGui.GetContentRegionAvail(ctx)) or 0
+    local sx, sy = ImGui.GetCursorScreenPos(ctx)
+    local dl = ImGui.GetWindowDrawList(ctx)
     local h = forced_h or H
 
     local x1, y1, x2, y2 = sx, sy, sx + w, sy + h
 
-    reaper.ImGui_DrawList_AddRectFilled(dl, x1, y1, x2, y2, COL_BG, 0, 0)
-    reaper.ImGui_DrawList_AddLine(dl, x1, y1, x2, y1, COL_BORDER, 1.0)
+    ImGui.DrawList_AddRectFilled(dl, x1, y1, x2, y2, COL_BG, 0, 0)
+    ImGui.DrawList_AddLine(dl, x1, y1, x2, y1, COL_BORDER, 1.0)
 
     local display = get_display_info()
 
@@ -127,22 +128,22 @@ function M.create(theme, opts)
     local chip_x1 = x1 + LEFT_PAD
     local chip_x2 = chip_x1 + CHIP_SIZE
 
-    reaper.ImGui_DrawList_AddRectFilled(dl, chip_x1, chip_y1, chip_x2, chip_y2, display.color, 0, 0)
-    reaper.ImGui_DrawList_AddRect(dl,       chip_x1, chip_y1, chip_x2, chip_y2, BLACK, 0, 0, 1.0)
+    ImGui.DrawList_AddRectFilled(dl, chip_x1, chip_y1, chip_x2, chip_y2, display.color, 0, 0)
+    ImGui.DrawList_AddRect(dl,       chip_x1, chip_y1, chip_x2, chip_y2, BLACK, 0, 0, 1.0)
 
     local label_y = y1 + math.floor((h - 14) / 2) - 1
     add_text(dl, chip_x2 + TEXT_PAD, label_y, display.color, display.text)
 
-    local left_text_w = select(1, reaper.ImGui_CalcTextSize(ctx, display.text)) or 0
+    local left_text_w = select(1, ImGui.CalcTextSize(ctx, display.text)) or 0
 
-    reaper.ImGui_SetCursorPos(ctx, LEFT_PAD + CHIP_SIZE + TEXT_PAD + left_text_w + 10, math.floor((h - 20) / 2))
+    ImGui.SetCursorPos(ctx, LEFT_PAD + CHIP_SIZE + TEXT_PAD + left_text_w + 10, math.floor((h - 20) / 2))
     if display.button_text then
-      local btn_w = math.max(100, (select(1, reaper.ImGui_CalcTextSize(ctx, display.button_text)) or 0) + 16)
-      if reaper.ImGui_Button(ctx, display.button_text .. '##statusbar', btn_w, 20) then
+      local btn_w = math.max(100, (select(1, ImGui.CalcTextSize(ctx, display.button_text)) or 0) + 16)
+      if ImGui.Button(ctx, display.button_text .. '##statusbar', btn_w, 20) then
         if display.button_action == "pick"  then open_zip_popup(ctx)
         elseif display.button_action == "build" then theme.prepare_images(true) end
       end
-      reaper.ImGui_SameLine(ctx)
+      ImGui.SameLine(ctx)
     end
     draw_zip_popup(ctx)
 
@@ -157,7 +158,7 @@ function M.create(theme, opts)
       right_text = (right_text ~= '' and (right_note .. '  ·  ' .. right_text)) or right_note
     end
 
-    local right_text_w = (right_text ~= '' and (select(1, reaper.ImGui_CalcTextSize(ctx, right_text)) or 0)) or 0
+    local right_text_w = (right_text ~= '' and (select(1, ImGui.CalcTextSize(ctx, right_text)) or 0)) or 0
     local right_margin = 10
     local rebuild_w = 100
     local about_w = 20
@@ -169,8 +170,8 @@ function M.create(theme, opts)
     local text_x = rebuild_x - 10 - right_text_w
 
     if display.can_rebuild then
-      reaper.ImGui_SetCursorPos(ctx, rebuild_x, math.floor((h - 20) / 2))
-      if reaper.ImGui_Button(ctx, 'Rebuild Cache##statusbar', rebuild_w, 20) then
+      ImGui.SetCursorPos(ctx, rebuild_x, math.floor((h - 20) / 2))
+      if ImGui.Button(ctx, 'Rebuild Cache##statusbar', rebuild_w, 20) then
         theme.prepare_images(true)
       end
     else
@@ -183,16 +184,16 @@ function M.create(theme, opts)
 
     local sep_y1 = y1 + 4
     local sep_y2 = y2 - 4
-    reaper.ImGui_DrawList_AddLine(dl, x1 + sep_x, sep_y1, x1 + sep_x, sep_y2, COL_SEP, 1.0)
+    ImGui.DrawList_AddLine(dl, x1 + sep_x, sep_y1, x1 + sep_x, sep_y2, COL_SEP, 1.0)
 
-    reaper.ImGui_SetCursorPos(ctx, about_x, math.floor((h - 20) / 2))
-    if reaper.ImGui_Button(ctx, '?##statusbar', about_w, 20) then
+    ImGui.SetCursorPos(ctx, about_x, math.floor((h - 20) / 2))
+    if ImGui.Button(ctx, '?##statusbar', about_w, 20) then
       about.show(ctx, true, stored_fonts, main_window.x, main_window.y, main_window.w, main_window.h)
     end
     
     about.draw(ctx)
 
-    reaper.ImGui_Dummy(ctx, 0, h + PAD)
+    ImGui.Dummy(ctx, 0, h + PAD)
   end
 
   local function draw_overlay(ctx) draw_child(ctx, H) end

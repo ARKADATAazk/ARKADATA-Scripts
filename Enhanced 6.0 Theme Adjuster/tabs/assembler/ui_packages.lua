@@ -17,6 +17,9 @@
 --   • Click empty : clear all selection
 --   • Drag empty  : rectangle-select (hold Ctrl to add, else replace)
 
+package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
+local ImGui = require 'imgui' '0.9'
+
 local M = {}
 
 ----------------------------------------------------------------
@@ -90,7 +93,7 @@ local last_window_pos = nil
 -- HELPERS
 ----------------------------------------------------------------
 local function tooltip(ctx, text)
-  if reaper.ImGui_IsItemHovered(ctx) then reaper.ImGui_SetTooltip(ctx, text or "") end
+  if ImGui.IsItemHovered(ctx) then ImGui.SetTooltip(ctx, text or "") end
 end
 
 local function lerp(a, b, t) return a + (b - a) * math.min(1.0, t) end
@@ -119,11 +122,11 @@ local function color_lerp(c1, c2, t)
 end
 
 local function draw_centered_text(ctx, text, minx, miny, maxx, maxy, color)
-  local dl = reaper.ImGui_GetWindowDrawList(ctx)
-  local tw, th = reaper.ImGui_CalcTextSize(ctx, text)
+  local dl = ImGui.GetWindowDrawList(ctx)
+  local tw, th = ImGui.CalcTextSize(ctx, text)
   local cx = minx + math.floor((maxx - minx - tw) * 0.5)
   local cy = miny + math.floor((maxy - miny - th) * 0.5)
-  reaper.ImGui_DrawList_AddText(dl, cx, cy, color or 0xFFFFFFFF, text)
+  ImGui.DrawList_AddText(dl, cx, cy, color or 0xFFFFFFFF, text)
 end
 
 local function is_point_in_rect(x, y, x1, y1, x2, y2)
@@ -169,7 +172,7 @@ local function draw_marching_ants_rounded(dl, x1, y1, x2, y2, col, thickness, ra
     local t0, t1 = u0/seg_len, u1/seg_len
     local sx, sy = ax + (bx-ax)*t0, ay + (by-ay)*t0
     local ex, ey = ax + (bx-ax)*t1, ay + (by-ay)*t1
-    reaper.ImGui_DrawList_AddLine(dl, sx, sy, ex, ey, col, thickness)
+    ImGui.DrawList_AddLine(dl, sx, sy, ex, ey, col, thickness)
   end
   local function draw_arc_subseg(cx, cy, rr, a0, a1, u0, u1)
     local seg_len = math.max(1e-6, rr * math.abs(a1 - a0))
@@ -183,7 +186,7 @@ local function draw_marching_ants_rounded(dl, x1, y1, x2, y2, col, thickness, ra
       local ang = aa0 + (aa1 - aa0) * t
       local nx = cx + rr * math.cos(ang)
       local ny = cy + rr * math.sin(ang)
-      reaper.ImGui_DrawList_AddLine(dl, prevx, prevy, nx, ny, col, thickness)
+      ImGui.DrawList_AddLine(dl, prevx, prevy, nx, ny, col, thickness)
       prevx, prevy = nx, ny
     end
   end
@@ -263,83 +266,83 @@ end
 local function draw_micro_manage_core(ctx, core, P, on_close)
   local flags = core.flags
 
-  reaper.ImGui_SetNextItemWidth(ctx, 220)
-  local ch_s, new_q = reaper.ImGui_InputText(ctx, 'Search##mm', mm_search or '')
+  ImGui.SetNextItemWidth(ctx, 220)
+  local ch_s, new_q = ImGui.InputText(ctx, 'Search##mm', mm_search or '')
   if ch_s then mm_search = new_q end
-  reaper.ImGui_SameLine(ctx)
-  if reaper.ImGui_Button(ctx, 'Close##mm') then if on_close then on_close() end end
+  ImGui.SameLine(ctx)
+  if ImGui.Button(ctx, 'Close##mm') then if on_close then on_close() end end
 
   local excl = ensure_excl_table(core, P.id)
-  if reaper.ImGui_Button(ctx, 'Select all##mm') then
+  if ImGui.Button(ctx, 'Select all##mm') then
     for _,k in ipairs(P.keys_order) do if (mm_search=='' or k:find(mm_search,1,true)) then mm_multi[k]=true end end
   end
-  reaper.ImGui_SameLine(ctx)
-  if reaper.ImGui_Button(ctx, 'Clear selection##mm') then mm_multi = {} end
-  reaper.ImGui_SameLine(ctx)
-  if reaper.ImGui_Button(ctx, 'Include selected') then
+  ImGui.SameLine(ctx)
+  if ImGui.Button(ctx, 'Clear selection##mm') then mm_multi = {} end
+  ImGui.SameLine(ctx)
+  if ImGui.Button(ctx, 'Include selected') then
     for key,sel in pairs(mm_multi) do if sel then excl[key]=nil end end
     if core.deps.settings then core.deps.settings:set('pkg_exclusions', core.pkg.excl) end
   end
-  reaper.ImGui_SameLine(ctx)
-  if reaper.ImGui_Button(ctx, 'Exclude selected') then
+  ImGui.SameLine(ctx)
+  if ImGui.Button(ctx, 'Exclude selected') then
     for key,sel in pairs(mm_multi) do if sel then excl[key]=true end end
     if core.deps.settings then core.deps.settings:set('pkg_exclusions', core.pkg.excl) end
   end
-  reaper.ImGui_SameLine(ctx)
-  if reaper.ImGui_Button(ctx, 'Pin selected to this package') then
+  ImGui.SameLine(ctx)
+  if ImGui.Button(ctx, 'Pin selected to this package') then
     for key,sel in pairs(mm_multi) do if sel then core.pkg.pins[key]=P.id end end
     if core.deps.settings then core.deps.settings:set('pkg_pins', core.pkg.pins) end
   end
 
   local tbl_flags = core.bor(core.flags.TBL_BORDERS, core.flags.TBL_ROWBG, core.flags.TBL_STRETCH)
-  if reaper.ImGui_BeginTable(ctx, 'mm_table##'..P.id, 4, tbl_flags) then
-    reaper.ImGui_TableSetupColumn(ctx, 'Sel',     core.flags.COL_WIDTH_FIXED, 36)
-    reaper.ImGui_TableSetupColumn(ctx, 'Include', core.flags.COL_WIDTH_FIXED, 70)
-    reaper.ImGui_TableSetupColumn(ctx, 'Key')
-    reaper.ImGui_TableSetupColumn(ctx, 'Pinned Provider', core.flags.COL_WIDTH_FIXED, 180)
-    reaper.ImGui_TableHeadersRow(ctx)
+  if ImGui.BeginTable(ctx, 'mm_table##'..P.id, 4, tbl_flags) then
+    ImGui.TableSetupColumn(ctx, 'Sel',     core.flags.COL_WIDTH_FIXED, 36)
+    ImGui.TableSetupColumn(ctx, 'Include', core.flags.COL_WIDTH_FIXED, 70)
+    ImGui.TableSetupColumn(ctx, 'Key')
+    ImGui.TableSetupColumn(ctx, 'Pinned Provider', core.flags.COL_WIDTH_FIXED, 180)
+    ImGui.TableHeadersRow(ctx)
 
     for _, key in ipairs(P.keys_order) do
       if (mm_search=='' or key:find(mm_search,1,true)) then
-        reaper.ImGui_TableNextRow(ctx)
+        ImGui.TableNextRow(ctx)
 
-        reaper.ImGui_TableSetColumnIndex(ctx, 0)
+        ImGui.TableSetColumnIndex(ctx, 0)
         local sel = mm_multi[key] == true
-        local c1, v1 = reaper.ImGui_Checkbox(ctx, '##sel-'..key, sel); if c1 then mm_multi[key] = v1 end
+        local c1, v1 = ImGui.Checkbox(ctx, '##sel-'..key, sel); if c1 then mm_multi[key] = v1 end
 
-        reaper.ImGui_TableSetColumnIndex(ctx, 1)
+        ImGui.TableSetColumnIndex(ctx, 1)
         local included = excl[key] ~= true
-        local c2, v2 = reaper.ImGui_Checkbox(ctx, '##inc-'..key, included)
+        local c2, v2 = ImGui.Checkbox(ctx, '##inc-'..key, included)
         if c2 then
           if v2 then excl[key] = nil else excl[key] = true end
           if core.deps.settings then core.deps.settings:set('pkg_exclusions', core.pkg.excl) end
         end
 
-        reaper.ImGui_TableSetColumnIndex(ctx, 2)
-        reaper.ImGui_Text(ctx, key)
+        ImGui.TableSetColumnIndex(ctx, 2)
+        ImGui.Text(ctx, key)
 
-        reaper.ImGui_TableSetColumnIndex(ctx, 3)
+        ImGui.TableSetColumnIndex(ctx, 3)
         local current = core.pkg.pins[key] or '(none)'
         local preview = (current=='(none)') and '(none)' or current
-        if reaper.ImGui_BeginCombo(ctx, '##pin-'..key, preview) then
-          if reaper.ImGui_Selectable(ctx, '(none)', current=='(none)') then
+        if ImGui.BeginCombo(ctx, '##pin-'..key, preview) then
+          if ImGui.Selectable(ctx, '(none)', current=='(none)') then
             core.pkg.pins[key]=nil
             if core.deps.settings then core.deps.settings:set('pkg_pins', core.pkg.pins) end
           end
           for _, PP in ipairs(core.pkg.index) do
             if PP.assets[key] then
               local sel2 = (current == PP.id)
-              if reaper.ImGui_Selectable(ctx, PP.id, sel2) then
+              if ImGui.Selectable(ctx, PP.id, sel2) then
                 core.pkg.pins[key]=PP.id
                 if core.deps.settings then core.deps.settings:set('pkg_pins', core.pkg.pins) end
               end
             end
           end
-          reaper.ImGui_EndCombo(ctx)
+          ImGui.EndCombo(ctx)
         end
       end
     end
-    reaper.ImGui_EndTable(ctx)
+    ImGui.EndTable(ctx)
   end
 end
 
@@ -349,12 +352,12 @@ local function draw_micro_manage_window(ctx, core)
   local P = map[mm_window.pkgId]
   if not P then mm_window.open=false; mm_window.pkgId=nil; return end
   local title = ("Package • %s – Micro-manage##mmw-%s"):format(P.meta.name or P.id, P.id)
-  if reaper.ImGui_Begin(ctx, title) then
-    reaper.ImGui_Text(ctx, P.path or "(mock package)")
-    reaper.ImGui_Separator(ctx)
+  if ImGui.Begin(ctx, title) then
+    ImGui.Text(ctx, P.path or "(mock package)")
+    ImGui.Separator(ctx)
     draw_micro_manage_core(ctx, core, P, function() mm_window.open=false; mm_window.pkgId=nil end)
   end
-  reaper.ImGui_End(ctx)
+  ImGui.End(ctx)
 end
 
 ----------------------------------------------------------------
@@ -423,7 +426,7 @@ end
 local function compute_checkbox_rect(ctx, pkg, id, r_minx, r_miny, r_maxx, r_maxy)
   local ord = get_order_index(pkg, id)
   local badge = '#' .. tostring(ord)
-  local _, bh = reaper.ImGui_CalcTextSize(ctx, badge)
+  local _, bh = ImGui.CalcTextSize(ctx, badge)
   local cb_size = math.max(CB_MIN_SIZE, math.floor(bh + 2))
 
   local MARGIN = 8
@@ -438,7 +441,7 @@ end
 -- TILE RENDERING
 ----------------------------------------------------------------
 local function draw_package_tile(ctx, core, P, idx, minx, miny, maxx, maxy)
-  local dl = reaper.ImGui_GetWindowDrawList(ctx)
+  local dl = ImGui.GetWindowDrawList(ctx)
   local pkg = core.pkg
   local tile_w = maxx - minx
 
@@ -467,11 +470,11 @@ local function draw_package_tile(ctx, core, P, idx, minx, miny, maxx, maxy)
     local shadow_alpha = math.floor(hover_factor * 20)
     local shadow_col = (0x000000 << 8) | shadow_alpha
     for i = 2, 1, -1 do
-      reaper.ImGui_DrawList_AddRectFilled(dl, minx - i, miny - i + 2, maxx + i, maxy + i + 2, shadow_col, TILE_ROUNDING)
+      ImGui.DrawList_AddRectFilled(dl, minx - i, miny - i + 2, maxx + i, maxy + i + 2, shadow_col, TILE_ROUNDING)
     end
   end
 
-  reaper.ImGui_DrawList_AddRectFilled(dl, minx, miny, maxx, maxy, BG_FINAL, TILE_ROUNDING)
+  ImGui.DrawList_AddRectFilled(dl, minx, miny, maxx, maxy, BG_FINAL, TILE_ROUNDING)
 
   if is_selected then
     local sel_col = is_active and ANT_COLOR_ENABLED or ANT_COLOR_DISABLED
@@ -486,41 +489,41 @@ local function draw_package_tile(ctx, core, P, idx, minx, miny, maxx, maxy)
 
   local ord = get_order_index(pkg, P.id)
   local badge = '#' .. tostring(ord)
-  local bw, bh = reaper.ImGui_CalcTextSize(ctx, badge)
+  local bw, bh = ImGui.CalcTextSize(ctx, badge)
   local bx1, by1 = minx + 8, miny + 8
   local bx2, by2 = bx1 + bw + 10, by1 + bh + 6
   local badge_col = is_active and 0x00000099 or 0x00000066
-  reaper.ImGui_DrawList_AddRectFilled(dl, bx1, by1, bx2, by2, badge_col, 4)
+  ImGui.DrawList_AddRectFilled(dl, bx1, by1, bx2, by2, badge_col, 4)
   draw_centered_text(ctx, badge, bx1, by1, bx2, by2, 0xAAAAAAFF)
 
-  reaper.ImGui_SetCursorScreenPos(ctx, bx1, by1)
-  reaper.ImGui_InvisibleButton(ctx, '##ordtip-'..P.id, bx2-bx1, by2-by1)
+  ImGui.SetCursorScreenPos(ctx, bx1, by1)
+  ImGui.InvisibleButton(ctx, '##ordtip-'..P.id, bx2-bx1, by2-by1)
   tooltip(ctx, "Overwrite priority")
 
   local conflicts = core.pkg:conflicts(true)
   local conf = conflicts[P.id] or 0
   if conf > 0 then
     local ctext = string.format('%d conflicts', conf)
-    local cw, ch = reaper.ImGui_CalcTextSize(ctx, ctext)
+    local cw, ch = ImGui.CalcTextSize(ctx, ctext)
     local cx_mid = (minx + maxx) * 0.5
     local tx = math.floor(cx_mid - cw * 0.5)
     local ty = miny + 8
-    reaper.ImGui_DrawList_AddText(dl, tx, ty, CONFLICT_TEXT_COL, ctext)
+    ImGui.DrawList_AddText(dl, tx, ty, CONFLICT_TEXT_COL, ctext)
 
-    reaper.ImGui_SetCursorScreenPos(ctx, tx, ty)
-    reaper.ImGui_InvisibleButton(ctx, '##conftip-'..P.id, cw, ch)
+    ImGui.SetCursorScreenPos(ctx, tx, ty)
+    ImGui.InvisibleButton(ctx, '##conftip-'..P.id, cw, ch)
     tooltip(ctx, "Conflicting Assets in Packages\n(autosolved through Overwrite Priority)")
   end
 
   do
     local cbx1, cby1, cbx2, cby2 = compute_checkbox_rect(ctx, pkg, P.id, minx, miny, maxx, maxy)
-    reaper.ImGui_SetCursorScreenPos(ctx, cbx1, cby1)
-    reaper.ImGui_PushID(ctx, 'cb-'..P.id)
-    reaper.ImGui_PushStyleVar(ctx, reaper.ImGui_StyleVar_FramePadding(), CB_PAD_X, CB_PAD_Y)
-    local changed, new_active = reaper.ImGui_Checkbox(ctx, '##enable', is_active)
-    reaper.ImGui_PopStyleVar(ctx)
+    ImGui.SetCursorScreenPos(ctx, cbx1, cby1)
+    ImGui.PushID(ctx, 'cb-'..P.id)
+    ImGui.PushStyleVar(ctx, ImGui.StyleVar_FramePadding, CB_PAD_X, CB_PAD_Y)
+    local changed, new_active = ImGui.Checkbox(ctx, '##enable', is_active)
+    ImGui.PopStyleVar(ctx)
     tooltip(ctx, is_active and "Disable package" or "Enable package")
-    reaper.ImGui_PopID(ctx)
+    ImGui.PopID(ctx)
     if changed then
       pkg.active[P.id] = new_active
       if core.deps.settings then core.deps.settings:set('pkg_active', pkg.active) end
@@ -541,37 +544,37 @@ local function draw_package_tile(ctx, core, P, idx, minx, miny, maxx, maxy)
     local col = core.color_from_key(key)
     local cxx = mosaic_x + (i-1) * (cell_size + 6)
     local cyy = mosaic_y
-    reaper.ImGui_DrawList_AddRectFilled(dl, cxx, cyy, cxx + cell_size, cyy + cell_size, col, 3)
+    ImGui.DrawList_AddRectFilled(dl, cxx, cyy, cxx + cell_size, cyy + cell_size, col, 3)
     core.add_rect(dl, cxx, cyy, cxx + cell_size, cyy + cell_size, 0x00000088, 3, 1)
     draw_centered_text(ctx, label, cxx, cyy, cxx + cell_size, cyy + cell_size, 0xFFFFFFFF)
   end
 
   local footer_y = maxy - 32
   local footer_gradient = 0x00000044
-  reaper.ImGui_DrawList_AddRectFilled(dl, minx, footer_y, maxx, maxy, footer_gradient, 0, 12)
+  ImGui.DrawList_AddRectFilled(dl, minx, footer_y, maxx, maxy, footer_gradient, 0, 12)
 
   local name = P.meta.name or P.id
   local name_color = is_active and 0xFFFFFFFF or 0x999999FF
-  reaper.ImGui_SetCursorScreenPos(ctx, minx + 10, footer_y + 7)
-  reaper.ImGui_PushStyleColor(ctx, reaper.ImGui_Col_Text(), name_color)
-  reaper.ImGui_Text(ctx, name)
-  reaper.ImGui_PopStyleColor(ctx)
+  ImGui.SetCursorScreenPos(ctx, minx + 10, footer_y + 7)
+  ImGui.PushStyleColor(ctx, ImGui.Col_Text, name_color)
+  ImGui.Text(ctx, name)
+  ImGui.PopStyleColor(ctx)
 
   local count = 0; for _ in pairs(P.assets) do count = count + 1 end
   local count_lbl = string.format('%d assets', count)
-  local label_w = select(1, reaper.ImGui_CalcTextSize(ctx, count_lbl)) or 0
-  reaper.ImGui_SetCursorScreenPos(ctx, maxx - 10 - label_w, footer_y + 7)
-  reaper.ImGui_TextColored(ctx, 0x888888FF, count_lbl)
+  local label_w = select(1, ImGui.CalcTextSize(ctx, count_lbl)) or 0
+  ImGui.SetCursorScreenPos(ctx, maxx - 10 - label_w, footer_y + 7)
+  ImGui.TextColored(ctx, 0x888888FF, count_lbl)
 end
 
 ----------------------------------------------------------------
 -- GRID BACKGROUND & selection rect
 ----------------------------------------------------------------
 local function handle_selection_rect(ctx, core, grid_height, visible)
-  local content_min_x, content_min_y = reaper.ImGui_GetCursorScreenPos(ctx)
-  local avail_w = select(1, reaper.ImGui_GetContentRegionAvail(ctx)) or 0
+  local content_min_x, content_min_y = ImGui.GetCursorScreenPos(ctx)
+  local avail_w = select(1, ImGui.GetContentRegionAvail(ctx)) or 0
 
-  local mx, my = reaper.ImGui_GetMousePos(ctx)
+  local mx, my = ImGui.GetMousePos(ctx)
   local over_any_checkbox = false
   local pkg = core.pkg
   for _, P in ipairs(visible) do
@@ -586,15 +589,15 @@ local function handle_selection_rect(ctx, core, grid_height, visible)
   end
 
   if over_any_checkbox then
-    reaper.ImGui_Dummy(ctx, avail_w, grid_height)
+    ImGui.Dummy(ctx, avail_w, grid_height)
   else
-    reaper.ImGui_InvisibleButton(ctx, "##grid_background", avail_w, grid_height)
+    ImGui.InvisibleButton(ctx, "##grid_background", avail_w, grid_height)
   end
 
-  local bg_clicked = reaper.ImGui_IsItemClicked(ctx, core.flags.MB_LEFT)
+  local bg_clicked = ImGui.IsItemClicked(ctx, core.flags.MB_LEFT)
 
   if bg_clicked then
-    local mx2, my2 = reaper.ImGui_GetMousePos(ctx)
+    local mx2, my2 = ImGui.GetMousePos(ctx)
     local over_tile = false
     for _, P in ipairs(visible) do
       local r = tile_draw[P.id] or tile_positions[P.id]
@@ -613,14 +616,14 @@ local function handle_selection_rect(ctx, core, grid_height, visible)
   end
 
   if selection_state.is_dragging then
-    if reaper.ImGui_IsMouseDragging(ctx, core.flags.MB_LEFT, 5) then
-      local mx2, my2 = reaper.ImGui_GetMousePos(ctx)
+    if ImGui.IsMouseDragging(ctx, core.flags.MB_LEFT, 5) then
+      local mx2, my2 = ImGui.GetMousePos(ctx)
       selection_state.rect_current = {mx2, my2}
       selection_state.did_drag = true
     end
   end
 
-  if selection_state.is_dragging and reaper.ImGui_IsMouseReleased(ctx, core.flags.MB_LEFT) then
+  if selection_state.is_dragging and ImGui.IsMouseReleased(ctx, core.flags.MB_LEFT) then
     if not selection_state.did_drag then
       selection_state.selected = {}
       selection_state.last_click_pkg = nil
@@ -631,17 +634,17 @@ local function handle_selection_rect(ctx, core, grid_height, visible)
     selection_state.did_drag = false
   end
 
-  reaper.ImGui_SetCursorScreenPos(ctx, content_min_x, content_min_y)
+  ImGui.SetCursorScreenPos(ctx, content_min_x, content_min_y)
 end
 
 local function draw_selection_rect(ctx)
   if selection_state.is_dragging and selection_state.rect_start and selection_state.rect_current then
-    local dl = reaper.ImGui_GetWindowDrawList(ctx)
+    local dl = ImGui.GetWindowDrawList(ctx)
     local x1, y1 = selection_state.rect_start[1], selection_state.rect_start[2]
     local x2, y2 = selection_state.rect_current[1], selection_state.rect_current[2]
-    reaper.ImGui_DrawList_AddRectFilled(dl, math.min(x1, x2), math.min(y1, y2),
+    ImGui.DrawList_AddRectFilled(dl, math.min(x1, x2), math.min(y1, y2),
                                              math.max(x1, x2), math.max(y1, y2), 0xFFFFFF22, TILE_ROUNDING)
-    reaper.ImGui_DrawList_AddRect(dl,       math.min(x1, x2), math.min(y1, y2),
+    ImGui.DrawList_AddRect(dl,       math.min(x1, x2), math.min(y1, y2),
                                              math.max(x1, x2), math.max(y1, y2), 0xFFFFFFFF, TILE_ROUNDING, 0, 1)
   end
 end
@@ -653,65 +656,65 @@ function M.draw(ctx, core)
   local flags, bor = core.flags, core.bor
   local pkg = core.pkg
 
-  reaper.ImGui_PushStyleVar(ctx, reaper.ImGui_StyleVar_FrameRounding(), 4)
-  reaper.ImGui_PushStyleVar(ctx, reaper.ImGui_StyleVar_FramePadding(), 6, 3)
+  ImGui.PushStyleVar(ctx, ImGui.StyleVar_FrameRounding, 4)
+  ImGui.PushStyleVar(ctx, ImGui.StyleVar_FramePadding, 6, 3)
 
   if pkg.demo == nil then pkg.demo = false end
-  local ch_demo, nv_demo = reaper.ImGui_Checkbox(ctx, 'Demo/mock data', pkg.demo)
+  local ch_demo, nv_demo = ImGui.Checkbox(ctx, 'Demo/mock data', pkg.demo)
   if ch_demo then pkg.demo = nv_demo; if core.deps.settings then core.deps.settings:set('pkg_demo', pkg.demo) end; pkg:scan() end
 
-  reaper.ImGui_SameLine(ctx)
-  reaper.ImGui_SetNextItemWidth(ctx, 200)
-  local ch_s, new_q = reaper.ImGui_InputText(ctx, 'Search', pkg.search or '')
+  ImGui.SameLine(ctx)
+  ImGui.SetNextItemWidth(ctx, 200)
+  local ch_s, new_q = ImGui.InputText(ctx, 'Search', pkg.search or '')
   if ch_s then pkg.search = new_q; if core.deps.settings then core.deps.settings:set('pkg_search', pkg.search) end end
 
-  reaper.ImGui_SameLine(ctx)
-  reaper.ImGui_SetNextItemWidth(ctx, 140)
+  ImGui.SameLine(ctx)
+  ImGui.SetNextItemWidth(ctx, 140)
   local base_min = 160
   local base_max = 420
   if pkg.tile == nil then pkg.tile = 220 end
-  local ch_t, new_tile = reaper.ImGui_SliderInt(ctx, '##TileSizeMin', pkg.tile, base_min, base_max)
+  local ch_t, new_tile = ImGui.SliderInt(ctx, '##TileSizeMin', pkg.tile, base_min, base_max)
   if ch_t then pkg.tile = new_tile; if core.deps.settings then core.deps.settings:set('pkg_tilesize', pkg.tile) end end
-  reaper.ImGui_SameLine(ctx)
-  reaper.ImGui_Text(ctx, 'Size')
+  ImGui.SameLine(ctx)
+  ImGui.Text(ctx, 'Size')
 
-  reaper.ImGui_SameLine(ctx)
-  local c1, v1 = reaper.ImGui_Checkbox(ctx, 'TCP', pkg.filters.TCP); if c1 then pkg.filters.TCP = v1 end
-  reaper.ImGui_SameLine(ctx)
-  local c2, v2 = reaper.ImGui_Checkbox(ctx, 'MCP', pkg.filters.MCP); if c2 then pkg.filters.MCP = v2 end
-  reaper.ImGui_SameLine(ctx)
-  local c3, v3 = reaper.ImGui_Checkbox(ctx, 'Transport', pkg.filters.Transport); if c3 then pkg.filters.Transport = v3 end
-  reaper.ImGui_SameLine(ctx)
-  local c4, v4 = reaper.ImGui_Checkbox(ctx, 'Global', pkg.filters.Global); if c4 then pkg.filters.Global = v4 end
+  ImGui.SameLine(ctx)
+  local c1, v1 = ImGui.Checkbox(ctx, 'TCP', pkg.filters.TCP); if c1 then pkg.filters.TCP = v1 end
+  ImGui.SameLine(ctx)
+  local c2, v2 = ImGui.Checkbox(ctx, 'MCP', pkg.filters.MCP); if c2 then pkg.filters.MCP = v2 end
+  ImGui.SameLine(ctx)
+  local c3, v3 = ImGui.Checkbox(ctx, 'Transport', pkg.filters.Transport); if c3 then pkg.filters.Transport = v3 end
+  ImGui.SameLine(ctx)
+  local c4, v4 = ImGui.Checkbox(ctx, 'Global', pkg.filters.Global); if c4 then pkg.filters.Global = v4 end
   if c1 or c2 or c3 or c4 then if core.deps.settings then core.deps.settings:set('pkg_filters', pkg.filters) end end
 
-  reaper.ImGui_SameLine(ctx)
-  if reaper.ImGui_Button(ctx, 'Rescan##pkgs') then pkg:scan() end
+  ImGui.SameLine(ctx)
+  if ImGui.Button(ctx, 'Rescan##pkgs') then pkg:scan() end
 
-  reaper.ImGui_SameLine(ctx)
-  if reaper.ImGui_Button(ctx, 'Enable selected') then
+  ImGui.SameLine(ctx)
+  if ImGui.Button(ctx, 'Enable selected') then
     for pid, sel in pairs(selection_state.selected) do if sel then pkg.active[pid] = true end end
     if core.deps.settings then core.deps.settings:set('pkg_active', pkg.active) end
   end
 
-  reaper.ImGui_SameLine(ctx)
-  if reaper.ImGui_Button(ctx, 'Disable selected') then
+  ImGui.SameLine(ctx)
+  if ImGui.Button(ctx, 'Disable selected') then
     for pid, sel in pairs(selection_state.selected) do if sel then pkg.active[pid] = false end end
     if core.deps.settings then core.deps.settings:set('pkg_active', pkg.active) end
   end
 
-  reaper.ImGui_PopStyleVar(ctx, 2)
-  reaper.ImGui_Separator(ctx)
+  ImGui.PopStyleVar(ctx, 2)
+  ImGui.Separator(ctx)
 
   local visible = pkg:visible()
   if #visible == 0 then
-    reaper.ImGui_Text(ctx, 'No packages found.')
-    if not pkg.demo then reaper.ImGui_BulletText(ctx, 'Enable "Demo/mock data" to preview the UX without images.') end
+    ImGui.Text(ctx, 'No packages found.')
+    if not pkg.demo then ImGui.BulletText(ctx, 'Enable "Demo/mock data" to preview the UX without images.') end
     draw_micro_manage_window(ctx, core)
     return
   end
 
-  local avail_w = select(1, reaper.ImGui_GetContentRegionAvail(ctx)) or 0
+  local avail_w = select(1, ImGui.GetContentRegionAvail(ctx)) or 0
   local padding  = GRID_PADDING
   local min_w    = math.max(120, tonumber(pkg.tile) or 220)
   local cols = math.max(1, math.floor((avail_w + padding) / (min_w + padding)))
@@ -731,7 +734,7 @@ function M.draw(ctx, core)
   local rows        = math.ceil(#visible / cols)
   local grid_height = rows * (tile_h + padding) + padding
 
-  local origin_x, origin_y = reaper.ImGui_GetCursorScreenPos(ctx)
+  local origin_x, origin_y = ImGui.GetCursorScreenPos(ctx)
   tile_positions = {}
   do
     local x = origin_x + padding
@@ -756,7 +759,7 @@ function M.draw(ctx, core)
 
   handle_selection_rect(ctx, core, grid_height, visible)
 
-  local wx, wy = reaper.ImGui_GetWindowPos(ctx)
+  local wx, wy = ImGui.GetWindowPos(ctx)
   local window_moved = false
   if last_window_pos then
     if wx ~= last_window_pos[1] or wy ~= last_window_pos[2] then
@@ -791,7 +794,7 @@ function M.draw(ctx, core)
     end
   end
 
-  local mx2, my2 = reaper.ImGui_GetMousePos(ctx)
+  local mx2, my2 = ImGui.GetMousePos(ctx)
   for _, P in ipairs(visible) do
     local r = tile_draw[P.id] or tile_positions[P.id]
     if not r then goto continue end
@@ -803,9 +806,9 @@ function M.draw(ctx, core)
     local over_checkbox = is_point_in_rect(mx2, my2, cbx1, cby1, cbx2, cby2)
 
     if not selection_state.is_dragging and not drag.active and not over_checkbox then
-      if hover_state[P.id] and reaper.ImGui_IsMouseClicked(ctx, flags.MB_LEFT) then
-        local shift_held = reaper.ImGui_IsKeyDown(ctx, reaper.ImGui_Key_LeftShift()) or reaper.ImGui_IsKeyDown(ctx, reaper.ImGui_Key_RightShift())
-        local ctrl_held  = reaper.ImGui_IsKeyDown(ctx, reaper.ImGui_Key_LeftCtrl())  or reaper.ImGui_IsKeyDown(ctx, reaper.ImGui_Key_RightCtrl())
+      if hover_state[P.id] and ImGui.IsMouseClicked(ctx, flags.MB_LEFT) then
+        local shift_held = ImGui.IsKeyDown(ctx, ImGui.Key_LeftShift) or ImGui.IsKeyDown(ctx, ImGui.Key_RightShift)
+        local ctrl_held  = ImGui.IsKeyDown(ctx, ImGui.Key_LeftCtrl)  or ImGui.IsKeyDown(ctx, ImGui.Key_RightCtrl)
         local already_selected = selection_state.selected[P.id] == true
 
         if ctrl_held then
@@ -842,7 +845,7 @@ function M.draw(ctx, core)
       end
     end
 
-    if not over_checkbox and hover_state[P.id] and reaper.ImGui_IsMouseClicked(ctx, flags.MB_RIGHT) then
+    if not over_checkbox and hover_state[P.id] and ImGui.IsMouseClicked(ctx, flags.MB_RIGHT) then
       local selected_count = count_selected()
       if selected_count > 1 and selection_state.selected[P.id] then
         local new_status = not pkg.active[P.id]
@@ -853,7 +856,7 @@ function M.draw(ctx, core)
       end
     end
 
-    if not over_checkbox and hover_state[P.id] and reaper.ImGui_IsMouseDoubleClicked(ctx, flags.MB_LEFT) then
+    if not over_checkbox and hover_state[P.id] and ImGui.IsMouseDoubleClicked(ctx, flags.MB_LEFT) then
       mm_window.open = true
       mm_window.pkgId = P.id
       mm_search = ""; mm_multi = {}
@@ -863,7 +866,7 @@ function M.draw(ctx, core)
     if selection_state.is_dragging and selection_state.rect_start and selection_state.rect_current then
       local rx1, ry1 = selection_state.rect_start[1], selection_state.rect_start[2]
       local rx2, ry2 = selection_state.rect_current[1], selection_state.rect_current[2]
-      local ctrl_held = reaper.ImGui_IsKeyDown(ctx, reaper.ImGui_Key_LeftCtrl()) or reaper.ImGui_IsKeyDown(ctx, reaper.ImGui_Key_RightCtrl())
+      local ctrl_held = ImGui.IsKeyDown(ctx, ImGui.Key_LeftCtrl) or ImGui.IsKeyDown(ctx, ImGui.Key_RightCtrl)
       if rects_intersect(rx1, ry1, rx2, ry2, minx, miny, maxx, maxy) then
         selection_state.selected[P.id] = true
       elseif not ctrl_held then
@@ -876,9 +879,9 @@ function M.draw(ctx, core)
     ::continue::
   end
 
-  local mx3, my3 = reaper.ImGui_GetMousePos(ctx)
+  local mx3, my3 = ImGui.GetMousePos(ctx)
   if drag.pressed_id and not drag.active and not selection_state.is_dragging then
-    if reaper.ImGui_IsMouseDragging(ctx, flags.MB_LEFT, DRAG_THRESHOLD) then
+    if ImGui.IsMouseDragging(ctx, flags.MB_LEFT, DRAG_THRESHOLD) then
       drag.active = true
       if count_selected() > 0 and selection_state.selected[drag.pressed_id] then
         drag.ids = ordered_selection_in_pkg_order(pkg)
@@ -909,12 +912,12 @@ function M.draw(ctx, core)
       end
     end
 
-    local dl2 = reaper.ImGui_GetWindowDrawList(ctx)
+    local dl2 = ImGui.GetWindowDrawList(ctx)
     for _, id in ipairs(drag.ids) do
       local r = tile_draw[id] or tile_positions[id]
       if r then
-        reaper.ImGui_DrawList_AddRectFilled(dl2, r[1], r[2], r[3], r[4], DIM_ORIGINAL_FILL, TILE_ROUNDING)
-        reaper.ImGui_DrawList_AddRect(dl2, r[1]+0.5, r[2]+0.5, r[3]-0.5, r[4]-0.5, DIM_ORIGINAL_STROKE, TILE_ROUNDING, 0, 2)
+        ImGui.DrawList_AddRectFilled(dl2, r[1], r[2], r[3], r[4], DIM_ORIGINAL_FILL, TILE_ROUNDING)
+        ImGui.DrawList_AddRect(dl2, r[1]+0.5, r[2]+0.5, r[3]-0.5, r[4]-0.5, DIM_ORIGINAL_STROKE, TILE_ROUNDING, 0, 2)
       end
     end
 
@@ -922,13 +925,13 @@ function M.draw(ctx, core)
       local x1,y1,x2,y2 = drag.src_bbox[1], drag.src_bbox[2], drag.src_bbox[3], drag.src_bbox[4]
       local dx, dy = mx3 - drag.press_pos[1], my3 - drag.press_pos[2]
       x1, y1, x2, y2 = x1+dx, y1+dy, x2+dx, y2+dy
-      reaper.ImGui_DrawList_AddRectFilled(dl2, x1, y1, x2, y2, GHOST_FILL, TILE_ROUNDING+2)
-      reaper.ImGui_DrawList_AddRect(dl2, x1+0.5, y1+0.5, x2-0.5, y2-0.5, GHOST_STROKE, TILE_ROUNDING+2, 0, GHOST_STROKE_THICK)
+      ImGui.DrawList_AddRectFilled(dl2, x1, y1, x2, y2, GHOST_FILL, TILE_ROUNDING+2)
+      ImGui.DrawList_AddRect(dl2, x1+0.5, y1+0.5, x2-0.5, y2-0.5, GHOST_STROKE, TILE_ROUNDING+2, 0, GHOST_STROKE_THICK)
       local label = tostring(#drag.ids)
-      local tw, th = reaper.ImGui_CalcTextSize(ctx, label)
+      local tw, th = ImGui.CalcTextSize(ctx, label)
       local bx1, by1 = x2 - (tw+14), y1 - (th+14)
       local bx2, by2 = bx1 + tw + 8, by1 + th + 8
-      reaper.ImGui_DrawList_AddRectFilled(dl2, bx1, by1, bx2, by2, 0x000000AA, 6)
+      ImGui.DrawList_AddRectFilled(dl2, bx1, by1, bx2, by2, 0x000000AA, 6)
       draw_centered_text(ctx, label, bx1, by1, bx2, by2, 0xFFFFFFFF)
     end
 
@@ -936,13 +939,13 @@ function M.draw(ctx, core)
       local r = tile_draw[drag.target_id] or tile_positions[drag.target_id]
       if r then
         local x = (drag.target_side == 'before') and r[1] or r[3]
-        reaper.ImGui_DrawList_AddLine(dl2, x, r[2]-6, x, r[4]+6, DROP_LINE_COLOR, DROP_LINE_THICKNESS)
-        reaper.ImGui_DrawList_AddRectFilled(dl2, x-2, r[2]-6, x+2, r[2]-2, DROP_LINE_COLOR, DROP_LINE_RADIUS)
-        reaper.ImGui_DrawList_AddRectFilled(dl2, x-2, r[4]+2, x+2, r[4]+6, DROP_LINE_COLOR, DROP_LINE_RADIUS)
+        ImGui.DrawList_AddLine(dl2, x, r[2]-6, x, r[4]+6, DROP_LINE_COLOR, DROP_LINE_THICKNESS)
+        ImGui.DrawList_AddRectFilled(dl2, x-2, r[2]-6, x+2, r[2]-2, DROP_LINE_COLOR, DROP_LINE_RADIUS)
+        ImGui.DrawList_AddRectFilled(dl2, x-2, r[4]+2, x+2, r[4]+6, DROP_LINE_COLOR, DROP_LINE_RADIUS)
       end
     end
 
-    if reaper.ImGui_IsMouseReleased(ctx, flags.MB_LEFT) then
+    if ImGui.IsMouseReleased(ctx, flags.MB_LEFT) then
       if drag.target_id then
         perform_group_insert_relative(pkg, drag.ids, drag.target_id, drag.target_side)
         if core.deps.settings then core.deps.settings:set('pkg_order', pkg.order) end
@@ -958,7 +961,7 @@ function M.draw(ctx, core)
       drag.curr_mouse = nil
     end
   else
-    if reaper.ImGui_IsMouseReleased(ctx, flags.MB_LEFT) then
+    if ImGui.IsMouseReleased(ctx, flags.MB_LEFT) then
       drag.pressed_id = nil
       drag.pressed_was_sel = false
       drag.press_pos  = nil

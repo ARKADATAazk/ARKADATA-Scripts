@@ -1,5 +1,8 @@
 -- main.lua
 
+package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
+local ImGui = require 'imgui' '0.9'
+
 -- Expand package.path for subfolders
 do
   local sep = package.config:sub(1,1)

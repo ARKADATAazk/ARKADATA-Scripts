@@ -2,12 +2,15 @@
 -- Assets gallery (popup picker, stale-handle fix) scanning under /Assembler/Assets/
 -- CHANGE: expose M.on_leave(core) to drop popups + clear image handles on tab switch.
 
+package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
+local ImGui = require 'imgui' '0.9'
+
 local M = {}
 
 local SEP = package.config:sub(1,1)
 local function join(a,b) return (a:sub(-1)==SEP) and (a..b) or (a..SEP..b) end
 local function flag(f) return (type(f)=="function") and f() or 0 end
-local function tooltip(ctx, text) if reaper.ImGui_IsItemHovered(ctx) then reaper.ImGui_SetTooltip(ctx, text or "") end end
+local function tooltip(ctx, text) if ImGui.IsItemHovered(ctx) then ImGui.SetTooltip(ctx, text or "") end end
 
 local function sorted_keys(t)
   local k = {}
@@ -49,7 +52,7 @@ local function open_gallery_popup(ctx, core, el)
     cache:begin_frame()
   end
   active_popup = el
-  reaper.ImGui_OpenPopup(ctx, 'Gallery##' .. el)
+  ImGui.OpenPopup(ctx, 'Gallery##' .. el)
 end
 
 local function close_gallery_popup(core)
@@ -84,7 +87,7 @@ local function draw_element_card(ctx, core, el)
       cache:draw_thumb(ctx, chosen, assets.card)
     end
   else
-    reaper.ImGui_Dummy(ctx, assets.card, assets.card)
+    ImGui.Dummy(ctx, assets.card, assets.card)
   end
 
   local tip = "Click to choose variant"
@@ -95,48 +98,48 @@ local function draw_element_card(ctx, core, el)
   end
   tooltip(ctx, tip)
 
-  if reaper.ImGui_IsItemClicked(ctx) then
+  if ImGui.IsItemClicked(ctx) then
     open_gallery_popup(ctx, core, el)
   end
 
   -- Popup contents
-  if reaper.ImGui_BeginPopup(ctx, 'Gallery##' .. el) then
-    reaper.ImGui_Text(ctx, 'Choose variant for: ' .. el)
-    reaper.ImGui_SameLine(ctx)
-    reaper.ImGui_SetNextItemWidth(ctx, 140)
+  if ImGui.BeginPopup(ctx, 'Gallery##' .. el) then
+    ImGui.Text(ctx, 'Choose variant for: ' .. el)
+    ImGui.SameLine(ctx)
+    ImGui.SetNextItemWidth(ctx, 140)
 
     local assets_grid = assets.grid
-    local changed, new_sz = reaper.ImGui_SliderInt(ctx, 'Cell', assets_grid, 64, 192)
+    local changed, new_sz = ImGui.SliderInt(ctx, 'Cell', assets_grid, 64, 192)
     if changed then
       assets.grid = new_sz
       local s = core.deps.settings
       if s then s:set('grid_size', assets.grid) end
     end
 
-    reaper.ImGui_SameLine(ctx)
-    local ch_gal, new_gal = reaper.ImGui_Checkbox(ctx, 'Original sizes', assets.gallery_original_sizes)
+    ImGui.SameLine(ctx)
+    local ch_gal, new_gal = ImGui.Checkbox(ctx, 'Original sizes', assets.gallery_original_sizes)
     if ch_gal then
       assets.gallery_original_sizes = new_gal
       local s = core.deps.settings
       if s then s:set('gallery_original_sizes', assets.gallery_original_sizes) end
     end
 
-    reaper.ImGui_Separator(ctx)
+    ImGui.Separator(ctx)
 
     local list  = assets.variants[el] or {}
-    local avail = select(1, reaper.ImGui_GetContentRegionAvail(ctx)) or 0
+    local avail = select(1, ImGui.GetContentRegionAvail(ctx)) or 0
     local cols  = math.max(1, math.floor(avail / (assets.grid + 12)))
     if assets.gallery_original_sizes then cols = math.max(1, math.floor(avail / 180)) end
 
-    local tbl_flags = flag(reaper.ImGui_TableFlags_NoBordersInBody) | flag(reaper.ImGui_TableFlags_SizingStretchSame)
+    local tbl_flags = flag(ImGui.TableFlags_NoBordersInBody) | flag(ImGui.TableFlags_SizingStretchSame)
 
     local clicked_variant = nil
     local should_close = false
 
-    if reaper.ImGui_BeginTable(ctx, 'grid##' .. el, cols, tbl_flags) then
+    if ImGui.BeginTable(ctx, 'grid##' .. el, cols, tbl_flags) then
       for idx, v in ipairs(list) do
-        if (idx - 1) % cols == 0 then reaper.ImGui_TableNextRow(ctx) end
-        reaper.ImGui_TableNextColumn(ctx)
+        if (idx - 1) % cols == 0 then ImGui.TableNextRow(ctx) end
+        ImGui.TableNextColumn(ctx)
 
         if assets.gallery_original_sizes then
           cache:draw_original(ctx, v.path)
@@ -146,16 +149,16 @@ local function draw_element_card(ctx, core, el)
 
         tooltip(ctx, (v.name or "?") .. '.png')
 
-        if reaper.ImGui_IsItemClicked(ctx) then
+        if ImGui.IsItemClicked(ctx) then
           clicked_variant = v
           should_close = true
         end
 
-        reaper.ImGui_PushTextWrapPos(ctx, reaper.ImGui_GetCursorPosX(ctx) + assets.grid)
-        reaper.ImGui_Text(ctx, v.name or "?")
-        reaper.ImGui_PopTextWrapPos(ctx)
+        ImGui.PushTextWrapPos(ctx, ImGui.GetCursorPosX(ctx) + assets.grid)
+        ImGui.Text(ctx, v.name or "?")
+        ImGui.PopTextWrapPos(ctx)
       end
-      reaper.ImGui_EndTable(ctx)
+      ImGui.EndTable(ctx)
     end
 
     if clicked_variant then
@@ -163,25 +166,25 @@ local function draw_element_card(ctx, core, el)
       core.deps.assembler.save_selections(assets.selections)
     end
 
-    reaper.ImGui_Separator(ctx)
+    ImGui.Separator(ctx)
 
-    if reaper.ImGui_Button(ctx, 'Clear selection') then
+    if ImGui.Button(ctx, 'Clear selection') then
       assets.selections[el] = nil
       core.deps.assembler.save_selections(assets.selections)
       should_close = true
     end
 
-    reaper.ImGui_SameLine(ctx)
-    if reaper.ImGui_Button(ctx, 'Close') then
+    ImGui.SameLine(ctx)
+    if ImGui.Button(ctx, 'Close') then
       should_close = true
     end
 
     if should_close then
-      reaper.ImGui_CloseCurrentPopup(ctx)
+      ImGui.CloseCurrentPopup(ctx)
       close_gallery_popup(core)
     end
 
-    reaper.ImGui_EndPopup(ctx)
+    ImGui.EndPopup(ctx)
   else
     if active_popup == el then
       close_gallery_popup(core)
@@ -199,7 +202,7 @@ function M.draw(ctx, core)
   if cache and cache.begin_frame then cache:begin_frame() end
 
   -- toolbar
-  if reaper.ImGui_Button(ctx, 'Apply / Repack Theme') then
+  if ImGui.Button(ctx, 'Apply / Repack Theme') then
     core.try("apply_theme", function()
       local info = theme.get_theme_info()
       local status, dir = theme.get_status()
@@ -217,47 +220,47 @@ function M.draw(ctx, core)
     end)
   end
 
-  reaper.ImGui_SameLine(ctx)
-  if reaper.ImGui_Button(ctx, 'Rescan Assembler Folder') then
+  ImGui.SameLine(ctx)
+  if ImGui.Button(ctx, 'Rescan Assembler Folder') then
     refresh_variants(core) -- scans /Assembler/Assets/
   end
 
-  reaper.ImGui_SameLine(ctx)
-  reaper.ImGui_SetNextItemWidth(ctx, 160)
-  local ch, new_card = reaper.ImGui_SliderInt(ctx, 'Card size', assets.card, 64, 192)
+  ImGui.SameLine(ctx)
+  ImGui.SetNextItemWidth(ctx, 160)
+  local ch, new_card = ImGui.SliderInt(ctx, 'Card size', assets.card, 64, 192)
   if ch then
     assets.card = new_card
     if settings then settings:set('card_size', assets.card) end
   end
 
-  reaper.ImGui_SameLine(ctx)
-  local ch2, new_orig = reaper.ImGui_Checkbox(ctx, 'Original sizes', assets.show_original_sizes)
+  ImGui.SameLine(ctx)
+  local ch2, new_orig = ImGui.Checkbox(ctx, 'Original sizes', assets.show_original_sizes)
   if ch2 then
     assets.show_original_sizes = new_orig
     if settings then settings:set('show_original_sizes', assets.show_original_sizes) end
   end
 
-  reaper.ImGui_Separator(ctx)
+  ImGui.Separator(ctx)
 
   if #assets.elements == 0 then
-    reaper.ImGui_Text(ctx, 'No elements found in Assembler/Assets.')
-    reaper.ImGui_BulletText(ctx, 'Expected: <theme>/ui_img/Assembler/Assets/<element>/<variant>.png')
+    ImGui.Text(ctx, 'No elements found in Assembler/Assets.')
+    ImGui.BulletText(ctx, 'Expected: <theme>/ui_img/Assembler/Assets/<element>/<variant>.png')
     return
   end
 
-  local avail = select(1, reaper.ImGui_GetContentRegionAvail(ctx)) or 0
+  local avail = select(1, ImGui.GetContentRegionAvail(ctx)) or 0
   local cols = math.max(1, math.floor(avail / (assets.card + 24)))
   if assets.show_original_sizes then cols = math.max(1, math.floor(avail / 180)) end
 
-  local tbl_flags = flag(reaper.ImGui_TableFlags_NoBordersInBody) | flag(reaper.ImGui_TableFlags_SizingStretchSame)
+  local tbl_flags = flag(ImGui.TableFlags_NoBordersInBody) | flag(ImGui.TableFlags_SizingStretchSame)
 
-  if reaper.ImGui_BeginTable(ctx, 'cards', cols, tbl_flags) then
+  if ImGui.BeginTable(ctx, 'cards', cols, tbl_flags) then
     for i, el in ipairs(assets.elements) do
-      if (i - 1) % cols == 0 then reaper.ImGui_TableNextRow(ctx) end
-      reaper.ImGui_TableNextColumn(ctx)
+      if (i - 1) % cols == 0 then ImGui.TableNextRow(ctx) end
+      ImGui.TableNextColumn(ctx)
       draw_element_card(ctx, core, el)
     end
-    reaper.ImGui_EndTable(ctx)
+    ImGui.EndTable(ctx)
   end
 end
 

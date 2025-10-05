@@ -1,4 +1,7 @@
 -- core/settings.lua - debounced settings store in /cache/settings.json
+
+package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
+local ImGui = require 'imgui' '0.9'
 local json = require('json')
 
 local SEP = package.config:sub(1,1)

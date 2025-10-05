@@ -1,10 +1,10 @@
 -- Usage:
--- package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua'
+-- package.path = ImGui.GetBuiltinPath() .. '/?.lua'
 -- local ImGui = require 'imgui' 'API version (eg. 0.9)'
 
 local error,  pcall = error, pcall
-local unpack,  init = string.unpack, reaper.ImGui__init
-local setshim, shim = reaper.ImGui__setshim, reaper.ImGui__shim
+local unpack,  init = string.unpack, ImGui._init
+local setshim, shim = ImGui._setshim, ImGui._shim
 
 local function shimResult(level, ok, ...)
   if not ok then error(..., level) end

@@ -1,4 +1,8 @@
 -- tabs/debug_tab.lua – Debug tab with streamlined theme integration
+
+package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
+local ImGui = require 'imgui' '0.9'
+
 local lifecycle_ok, lifecycle = pcall(require, 'lifecycle')
 if not lifecycle_ok then
   reaper.ShowMessageBox('core/lifecycle.lua not found.', 'Debug', 0)
@@ -20,13 +24,13 @@ local M = {}
 local function flag(f) return (type(f)=="function") and f() or 0 end
 
 local function text_color(ctx, col_u32, s)
-  if reaper.ImGui_TextColored and pcall(reaper.ImGui_TextColored, ctx, col_u32, s) then return end
-  if reaper.ImGui_PushStyleColor and reaper.ImGui_Col_Text then
-    reaper.ImGui_PushStyleColor(ctx, reaper.ImGui_Col_Text(), col_u32)
-    reaper.ImGui_Text(ctx, s)
-    reaper.ImGui_PopStyleColor(ctx, 1)
+  if ImGui.TextColored and pcall(ImGui.TextColored, ctx, col_u32, s) then return end
+  if ImGui.PushStyleColor and ImGui.Col_Text then
+    ImGui.PushStyleColor(ctx, ImGui.Col_Text, col_u32)
+    ImGui.Text(ctx, s)
+    ImGui.PopStyleColor(ctx, 1)
   else
-    reaper.ImGui_Text(ctx, s)
+    ImGui.Text(ctx, s)
   end
 end
 
@@ -107,26 +111,26 @@ function M.create(theme_mod, settings)
 
     local changed
 
-    reaper.ImGui_SetNextItemWidth(ctx, 140)
-    changed, s.preview_px = reaper.ImGui_SliderInt(ctx, 'Preview size', s.preview_px, 48, 256)
+    ImGui.SetNextItemWidth(ctx, 140)
+    changed, s.preview_px = ImGui.SliderInt(ctx, 'Preview size', s.preview_px, 48, 256)
     if changed and settings then settings:set('preview_px', s.preview_px) end
 
-    reaper.ImGui_SameLine(ctx)
-    reaper.ImGui_SetNextItemWidth(ctx, 160)
+    ImGui.SameLine(ctx)
+    ImGui.SetNextItemWidth(ctx, 160)
     local new_ps
-    changed, new_ps = reaper.ImGui_SliderInt(ctx, 'Items per page', s.page_size, 24, 600)
+    changed, new_ps = ImGui.SliderInt(ctx, 'Items per page', s.page_size, 24, 600)
     local ps_changed
     s.page_size, ps_changed = set_if_changed(s.page_size, new_ps or s.page_size)
     if ps_changed and settings then settings:set('page_size', s.page_size) end
 
-    reaper.ImGui_SameLine(ctx)
-    local rec_changed; rec_changed, s.recursive = reaper.ImGui_Checkbox(ctx, 'Recursive', s.recursive)
+    ImGui.SameLine(ctx)
+    local rec_changed; rec_changed, s.recursive = ImGui.Checkbox(ctx, 'Recursive', s.recursive)
     if rec_changed and settings then settings:set('recursive', s.recursive) end
 
-    reaper.ImGui_SameLine(ctx)
-    reaper.ImGui_SetNextItemWidth(ctx, 200)
+    ImGui.SameLine(ctx)
+    ImGui.SetNextItemWidth(ctx, 200)
     local flt_changed
-    local new_filter; flt_changed, new_filter = reaper.ImGui_InputText(ctx, 'Filter', s.filter)
+    local new_filter; flt_changed, new_filter = ImGui.InputText(ctx, 'Filter', s.filter)
     local filter_changed
     s.filter, filter_changed = set_if_changed(s.filter, new_filter or s.filter)
     if filter_changed and settings then settings:set('filter', s.filter) end
@@ -140,30 +144,30 @@ function M.create(theme_mod, settings)
     local pages = math.max(1, math.ceil((shown>0 and shown or 1)/math.max(1, s.page_size)))
     if s.page_index > pages then s.page_index = pages end
 
-    reaper.ImGui_BulletText(ctx, ('Dir: %s'):format(s.img_dir or '—'))
-    reaper.ImGui_BulletText(ctx, ('Listed: %d / Total PNGs: %d — Page %d / %d'):format(
+    ImGui.BulletText(ctx, ('Dir: %s'):format(s.img_dir or '—'))
+    ImGui.BulletText(ctx, ('Listed: %d / Total PNGs: %d — Page %d / %d'):format(
       shown, s.total, s.page_index, pages
     ))
 
-    if reaper.ImGui_Button(ctx, '<< Prev') then
+    if ImGui.Button(ctx, '<< Prev') then
       s.page_index = math.max(1, s.page_index - 1)
       if settings then settings:set('page_index', s.page_index) end
       if thumbs then thumbs:clear() end
     end
-    reaper.ImGui_SameLine(ctx)
-    if reaper.ImGui_Button(ctx, 'Next >>') then
+    ImGui.SameLine(ctx)
+    if ImGui.Button(ctx, 'Next >>') then
       s.page_index = math.min(pages, s.page_index + 1)
       if settings then settings:set('page_index', s.page_index) end
       if thumbs then thumbs:clear() end
     end
 
-    reaper.ImGui_SameLine(ctx)
-    if reaper.ImGui_Button(ctx, 'Preload page') and shown>0 then
+    ImGui.SameLine(ctx)
+    if ImGui.Button(ctx, 'Preload page') and shown>0 then
       local a,b = page_bounds()
       for i=a,b do local p=s.list[i]; if p then s.want_preload[p]=true end end
     end
-    reaper.ImGui_SameLine(ctx)
-    if reaper.ImGui_Button(ctx, 'Unload page') and shown>0 then
+    ImGui.SameLine(ctx)
+    if ImGui.Button(ctx, 'Unload page') and shown>0 then
       s.want_preload = {}
       if thumbs then thumbs:clear() end
       collectgarbage('collect')
@@ -175,17 +179,17 @@ function M.create(theme_mod, settings)
     if shown == 0 then return end
 
     local cell  = math.max(48, s.preview_px)
-    local avail = select(1, reaper.ImGui_GetContentRegionAvail(ctx))
+    local avail = select(1, ImGui.GetContentRegionAvail(ctx))
     local cols  = math.max(1, math.floor(avail / (cell + 12)))
-    local tbl_flags = flag(reaper.ImGui_TableFlags_NoBordersInBody) | flag(reaper.ImGui_TableFlags_SizingStretchSame)
+    local tbl_flags = flag(ImGui.TableFlags_NoBordersInBody) | flag(ImGui.TableFlags_SizingStretchSame)
 
-    if reaper.ImGui_BeginTable(ctx, 'img_grid', cols, tbl_flags) then
+    if ImGui.BeginTable(ctx, 'img_grid', cols, tbl_flags) then
       local a,b = page_bounds()
       local idx = 0
       for i=a,b do
         local path = s.list[i]; if not path then break end
-        if idx % cols == 0 then reaper.ImGui_TableNextRow(ctx) end
-        reaper.ImGui_TableNextColumn(ctx)
+        if idx % cols == 0 then ImGui.TableNextRow(ctx) end
+        ImGui.TableNextColumn(ctx)
 
         if s.want_preload[path] then
           thumbs:draw_thumb(ctx, path, cell)
@@ -194,17 +198,17 @@ function M.create(theme_mod, settings)
           thumbs:draw_thumb(ctx, path, cell)
         end
 
-        if reaper.ImGui_IsItemHovered(ctx) then
+        if ImGui.IsItemHovered(ctx) then
           local name = path:match("[^\\/]+$") or path
-          reaper.ImGui_SetTooltip(ctx, name)
+          ImGui.SetTooltip(ctx, name)
         end
 
         local name = path:match("[^\\/]+$") or path
-        reaper.ImGui_Text(ctx, name)
+        ImGui.Text(ctx, name)
 
         idx = idx + 1
       end
-      reaper.ImGui_EndTable(ctx)
+      ImGui.EndTable(ctx)
     end
   end
 
@@ -213,24 +217,24 @@ function M.create(theme_mod, settings)
     if thumbs then thumbs:begin_frame() end
 
     local info = T.get_theme_info()
-    reaper.ImGui_Text(ctx, 'Theme:')
-    reaper.ImGui_SameLine(ctx); reaper.ImGui_Text(ctx, info.theme_name or 'Unknown')
-    reaper.ImGui_BulletText(ctx, ('Path: %s'):format(info.theme_path or '—'))
-    reaper.ImGui_BulletText(ctx, ('Type: %s'):format(info.theme_ext or '—'))
-    reaper.ImGui_BulletText(ctx, ('REAPER: %s'):format(info.reaper_ver or '—'))
+    ImGui.Text(ctx, 'Theme:')
+    ImGui.SameLine(ctx); ImGui.Text(ctx, info.theme_name or 'Unknown')
+    ImGui.BulletText(ctx, ('Path: %s'):format(info.theme_path or '—'))
+    ImGui.BulletText(ctx, ('Type: %s'):format(info.theme_ext or '—'))
+    ImGui.BulletText(ctx, ('REAPER: %s'):format(info.reaper_ver or '—'))
 
-    reaper.ImGui_Separator(ctx)
+    ImGui.Separator(ctx)
     
-    if reaper.ImGui_Button(ctx, 'Rescan Images##dbg') then
+    if ImGui.Button(ctx, 'Rescan Images##dbg') then
       if thumbs then thumbs:clear() end
       s.want_preload = {}
       s.img_dir = T.prepare_images(true)
       if s.img_dir then fetch_list() end
     end
     
-    reaper.ImGui_SameLine(ctx)
+    ImGui.SameLine(ctx)
     
-    if reaper.ImGui_Button(ctx, 'Reload Theme in REAPER##dbg') then
+    if ImGui.Button(ctx, 'Reload Theme in REAPER##dbg') then
       T.reload_theme_in_reaper()
       if thumbs then thumbs:clear() end
       s.want_preload = {}
@@ -239,7 +243,7 @@ function M.create(theme_mod, settings)
       if s.img_dir then fetch_list() end
     end
 
-    reaper.ImGui_Separator(ctx)
+    ImGui.Separator(ctx)
     toolbar(ctx)
     grid(ctx)
   end)
