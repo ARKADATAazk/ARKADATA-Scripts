@@ -1,4 +1,4 @@
--- ReArkitekt/gui/widgets/tiles/drop_indicator.lua
+-- ReArkitekt/gui/widgets/tiles/dnd.drop_indicator.lua
 -- Drop indicator for drag and drop reordering with mode-aware colors and orientation support
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path

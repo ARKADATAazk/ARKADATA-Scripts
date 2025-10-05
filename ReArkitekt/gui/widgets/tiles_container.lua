@@ -1,6 +1,6 @@
 -- ReArkitekt/gui/widgets/tiles_container.lua
 -- Visual container for tile grids with scrolling and borders
--- Now with scrollbar-aware width calculation to prevent jitter
+-- Enhanced with multi-scale grid/dot background patterns
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
@@ -29,7 +29,92 @@ local DEFAULTS = {
     track_scrollbar = true,
     height_threshold = 5,
   },
+  
+  background_pattern = {
+    enabled = true,
+    
+    primary = {
+      type = 'dots',
+      spacing = 100,
+      color = 0x40404060,
+      dot_size = 2.5,
+      line_thickness = 1.5,
+    },
+    
+    secondary = {
+      enabled = true,
+      type = 'dots',
+      spacing = 20,
+      color = 0x30303040,
+      dot_size = 1.5,
+      line_thickness = 0.5,
+    },
+  },
 }
+
+----------------------------------------------------------------
+-- Background Pattern Rendering
+----------------------------------------------------------------
+local function draw_grid_pattern(dl, x1, y1, x2, y2, spacing, color, thickness)
+  local start_x = x1 + (spacing - (x1 % spacing))
+  local start_y = y1 + (spacing - (y1 % spacing))
+  
+  for x = start_x, x2, spacing do
+    ImGui.DrawList_AddLine(dl, x, y1, x, y2, color, thickness)
+  end
+  
+  for y = start_y, y2, spacing do
+    ImGui.DrawList_AddLine(dl, x1, y, x2, y, color, thickness)
+  end
+end
+
+local function draw_dot_pattern(dl, x1, y1, x2, y2, spacing, color, dot_size)
+  local half_size = dot_size * 0.5
+  local start_x = x1 + (spacing - (x1 % spacing))
+  local start_y = y1 + (spacing - (y1 % spacing))
+  
+  for x = start_x, x2, spacing do
+    for y = start_y, y2, spacing do
+      ImGui.DrawList_AddCircleFilled(dl, x, y, half_size, color)
+    end
+  end
+end
+
+local function draw_background_pattern(dl, x1, y1, x2, y2, pattern_cfg)
+  if not pattern_cfg or not pattern_cfg.enabled then return end
+  
+  ImGui.DrawList_PushClipRect(dl, x1, y1, x2, y2, true)
+  
+  if pattern_cfg.secondary and pattern_cfg.secondary.enabled then
+    local sec = pattern_cfg.secondary
+    if sec.type == 'grid' then
+      draw_grid_pattern(dl, x1, y1, x2, y2,
+        sec.spacing or DEFAULTS.background_pattern.secondary.spacing,
+        sec.color or DEFAULTS.background_pattern.secondary.color,
+        sec.line_thickness or DEFAULTS.background_pattern.secondary.line_thickness)
+    elseif sec.type == 'dots' then
+      draw_dot_pattern(dl, x1, y1, x2, y2,
+        sec.spacing or DEFAULTS.background_pattern.secondary.spacing,
+        sec.color or DEFAULTS.background_pattern.secondary.color,
+        sec.dot_size or DEFAULTS.background_pattern.secondary.dot_size)
+    end
+  end
+  
+  local pri = pattern_cfg.primary
+  if pri.type == 'grid' then
+    draw_grid_pattern(dl, x1, y1, x2, y2,
+      pri.spacing or DEFAULTS.background_pattern.primary.spacing,
+      pri.color or DEFAULTS.background_pattern.primary.color,
+      pri.line_thickness or DEFAULTS.background_pattern.primary.line_thickness)
+  elseif pri.type == 'dots' then
+    draw_dot_pattern(dl, x1, y1, x2, y2,
+      pri.spacing or DEFAULTS.background_pattern.primary.spacing,
+      pri.color or DEFAULTS.background_pattern.primary.color,
+      pri.dot_size or DEFAULTS.background_pattern.primary.dot_size)
+  end
+  
+  ImGui.DrawList_PopClipRect(dl)
+end
 
 ----------------------------------------------------------------
 -- Container Widget
@@ -89,6 +174,8 @@ function Container:begin_draw(ctx)
     self.config.bg_color,
     self.config.rounding
   )
+  
+  draw_background_pattern(dl, x1, y1, x2, y2, self.config.background_pattern)
   
   ImGui.DrawList_AddRect(
     dl,

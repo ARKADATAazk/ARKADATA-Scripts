@@ -1,4 +1,4 @@
--- ReArkitekt/gui/systems/layout_grid.lua
+-- ReArkitekt/gui/widgets.grid.layout.lua
 -- Pure grid layout calculation - no ImGui dependencies
 -- Distributes extra width evenly across columns
 

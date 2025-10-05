@@ -4,13 +4,13 @@
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
 
-local LayoutGrid = require('ReArkitekt.gui.systems.layout_grid')
-local Motion     = require('ReArkitekt.gui.systems.motion')
+local LayoutGrid = require('ReArkitekt.gui.widgets.grid.layout')
+local Motion     = require('ReArkitekt.gui.fx.motion')
 local Selection  = require('ReArkitekt.gui.systems.selection')
 local SelRect    = require('ReArkitekt.gui.widgets.selection_rectangle')
 local Draw       = require('ReArkitekt.gui.draw')
-local GhostTiles = require('ReArkitekt.gui.widgets.tiles.ghost_tiles')
-local DropIndicator = require('ReArkitekt.gui.widgets.tiles.drop_indicator')
+local DragIndicator = require('ReArkitekt.gui.fx.dnd.drag_indicator')
+local DropIndicator = require('ReArkitekt.gui.fx.dnd.drop_indicator')
 local Rendering  = require('ReArkitekt.gui.widgets.grid.rendering')
 local Animation  = require('ReArkitekt.gui.widgets.grid.animation')
 local Input      = require('ReArkitekt.gui.widgets.grid.input')
@@ -84,7 +84,6 @@ local DEFAULTS = {
   },
 }
 
--- Re-export TileHelpers for backward compatibility
 M.TileHelpers = Rendering.TileHelpers
 
 local Grid = {}
@@ -102,22 +101,17 @@ function M.new(opts)
     key              = opts.key or function(item) return tostring(item) end,
     get_exclusion_zones = opts.get_exclusion_zones,
 
-    on_reorder       = opts.on_reorder,
+    behaviors        = opts.behaviors or {},
     render_tile      = opts.render_tile or function() end,
-    on_select        = opts.on_select,
-    on_right_click   = opts.on_right_click,
-    on_double_click  = opts.on_double_click,
-    on_click_empty   = opts.on_click_empty,
-    on_wheel_adjust  = opts.on_wheel_adjust,
-    on_delete        = opts.on_delete,
     render_overlays  = opts.render_overlays,
 
     external_drag_check = opts.external_drag_check,
     is_copy_mode_check = opts.is_copy_mode_check,
-    on_drag_start    = opts.on_drag_start,
-    on_external_drop = opts.on_external_drop,
     accept_external_drops = opts.accept_external_drops or false,
     render_drop_zones = opts.render_drop_zones or true,
+    on_external_drop = opts.on_external_drop,
+    on_destroy_complete = opts.on_destroy_complete,
+    on_click_empty   = opts.on_click_empty,
 
     config           = opts.config or DEFAULTS,
 
@@ -147,7 +141,6 @@ function M.new(opts)
     external_drop_target = nil,
     last_window_pos  = nil,
     previous_item_keys = {},
-    delete_key_pressed_last_frame = false,
     
     last_layout_cols = 1,
   }, Grid)
@@ -375,7 +368,7 @@ function Grid:_draw_drag_visuals(ctx, dl)
 
   if self.drag.ids and #self.drag.ids > 0 then
     local fg_dl = ImGui.GetForegroundDrawList(ctx)
-    GhostTiles.draw(ctx, fg_dl, mx, my, #self.drag.ids, cfg.ghost or DEFAULTS.ghost)
+    DragIndicator.draw(ctx, fg_dl, mx, my, #self.drag.ids, cfg.ghost or DEFAULTS.ghost)
   end
 end
 
@@ -437,8 +430,8 @@ function Grid:draw(ctx)
     return
   end
 
-  local keyboard_consumed = Input.handle_keyboard_input(self, ctx)
-  local wheel_consumed = Input.handle_wheel_input(self, ctx, items, DEFAULTS)
+  local keyboard_consumed = Input.handle_shortcuts(self, ctx)
+  local wheel_consumed = Input.handle_wheel_input(self, ctx, items)
   
   if wheel_consumed then
     local current_scroll_y = ImGui.GetScrollY(ctx)
@@ -530,14 +523,18 @@ function Grid:draw(ctx)
     if x1 then
       local rect_map = build_rect_map(rects, items, self.key)
       self.selection:apply_rect({x1, y1, x2, y2}, rect_map, self.sel_rect.mode)
-      if self.on_select then self.on_select(self.selection:selected_keys()) end
+      if self.behaviors and self.behaviors.on_select then 
+        self.behaviors.on_select(self.selection:selected_keys()) 
+      end
     end
   end
 
   if self.sel_rect:is_active() and ImGui.IsMouseReleased(ctx, 0) then
     if not self.sel_rect:did_drag() then
       self.selection:clear()
-      if self.on_select then self.on_select(self.selection:selected_keys()) end
+      if self.behaviors and self.behaviors.on_select then 
+        self.behaviors.on_select(self.selection:selected_keys()) 
+      end
     end
     self.sel_rect:clear()
   end
@@ -571,7 +568,7 @@ function Grid:draw(ctx)
   
   self.animator:render_destroy_effects(ctx, dl)
 
-  Input.check_start_drag(self, ctx, DEFAULTS)
+  Input.check_start_drag(self, ctx)
 
   if self.drag.active then
     self:_draw_drag_visuals(ctx, dl)
@@ -591,7 +588,7 @@ function Grid:draw(ctx)
   end
 
   if self.drag.active and ImGui.IsMouseReleased(ctx, 0) then
-    if self.drag.target_index and self.on_reorder then
+    if self.drag.target_index and self.behaviors and self.behaviors.reorder then
       local order = {}
       for _, item in ipairs(items) do order[#order+1] = self.key(item) end
       
@@ -620,7 +617,7 @@ function Grid:draw(ctx)
         new_order[#new_order + 1] = filtered_order[i]
       end
       
-      self.on_reorder(new_order)
+      self.behaviors.reorder(new_order)
     end
     self.drag.active = false
     self.drag.ids = nil
@@ -631,7 +628,9 @@ function Grid:draw(ctx)
   if not self.drag.active and ImGui.IsMouseReleased(ctx, 0) and not Input.is_external_drag_active(self) then
     if self.drag.pending_selection then
       self.selection:single(self.drag.pending_selection)
-      if self.on_select then self.on_select(self.selection:selected_keys()) end
+      if self.behaviors and self.behaviors.on_select then 
+        self.behaviors.on_select(self.selection:selected_keys()) 
+      end
     end
     
     self.drag.pressed_id = nil
@@ -666,7 +665,6 @@ function Grid:clear()
   self.external_drop_target = nil
   self.last_window_pos = nil
   self.previous_item_keys = {}
-  self.delete_key_pressed_last_frame = false
   self.last_layout_cols = 1
 end
 

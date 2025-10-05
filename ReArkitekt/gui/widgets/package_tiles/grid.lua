@@ -5,8 +5,8 @@ package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
 
 local Grid = require('ReArkitekt.gui.widgets.grid.core')
-local Motion = require('ReArkitekt.gui.systems.motion')
-local TileAnim = require('ReArkitekt.gui.systems.tile_animation')
+local Motion = require('ReArkitekt.gui.fx.motion')
+local TileAnim = require('ReArkitekt.gui.fx.tile_motion')
 local Renderer = require('ReArkitekt.gui.widgets.package_tiles.renderer')
 local Micromanage = require('ReArkitekt.gui.widgets.package_tiles.micromanage')
 
@@ -65,28 +65,76 @@ function M.create(pkg, settings, theme)
       return cb_rect and {cb_rect} or nil
     end,
     
-    on_reorder = function(new_keys)
-      pkg.order = new_keys
-      if settings then settings:set('pkg_order', pkg.order) end
-    end,
-    
-    on_select = function(selected_keys) end,
-    
-    on_right_click = function(key, selected_keys)
-      if #selected_keys > 1 then
-        local new_status = not pkg.active[key]
+    behaviors = {
+      delete = function(selected_keys)
+        if #selected_keys == 0 then return end
+        for _, id in ipairs(selected_keys) do
+          pkg:remove(id)
+        end
+        if settings then settings:set('pkg_active', pkg.active) end
+      end,
+      
+      toggle = function(selected_keys)
+        if #selected_keys == 0 then return end
+        local first_key = selected_keys[1]
+        local new_status = not pkg.active[first_key]
         for _, id in ipairs(selected_keys) do
           pkg.active[id] = new_status
         end
-      else
-        pkg:toggle(key)
-      end
-      if settings then settings:set('pkg_active', pkg.active) end
-    end,
-    
-    on_double_click = function(key)
-      Micromanage.open(key)
-    end,
+        if settings then settings:set('pkg_active', pkg.active) end
+      end,
+      
+      select_all = function()
+        for _, P in ipairs(pkg:visible()) do
+          grid.selection.selected[P.id] = true
+        end
+      end,
+      
+      deselect_all = function()
+        grid.selection:clear()
+      end,
+      
+      invert_selection = function()
+        for _, P in ipairs(pkg:visible()) do
+          grid.selection:toggle(P.id)
+        end
+      end,
+      
+      right_click = function(key, selected_keys)
+        if #selected_keys > 1 then
+          local new_status = not pkg.active[key]
+          for _, id in ipairs(selected_keys) do
+            pkg.active[id] = new_status
+          end
+        else
+          pkg:toggle(key)
+        end
+        if settings then settings:set('pkg_active', pkg.active) end
+      end,
+      
+      double_click = function(key)
+        Micromanage.open(key)
+      end,
+      
+      alt_click = function(keys_to_delete)
+        if #keys_to_delete == 0 then return end
+        for _, id in ipairs(keys_to_delete) do
+          pkg:remove(id)
+        end
+        grid.selection:clear()
+      end,
+      
+      reorder = function(new_keys)
+        pkg.order = new_keys
+        if settings then settings:set('pkg_order', pkg.order) end
+      end,
+      
+      on_select = function(selected_keys)
+      end,
+      
+      drag_start = function(drag_ids)
+      end,
+    },
     
     render_tile = function(ctx, rect, P, state)
       draw_package_tile(ctx, pkg, theme, P, rect, state, settings, custom_state)

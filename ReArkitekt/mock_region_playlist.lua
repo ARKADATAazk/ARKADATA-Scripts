@@ -19,9 +19,9 @@ addpath(join(HERE,  "ReArkitekt/?/?.lua"))
 
 local Shell          = require("ReArkitekt.app.shell")
 local StatusBar      = require("ReArkitekt.gui.widgets.status_bar")
-local RegionTiles    = require("ReArkitekt.gui.widgets.region_tiles")
+local RegionTiles    = require("ReArkitekt.gui.widgets.region_tiles.coordinator")
 local Draw           = require("ReArkitekt.gui.draw")
-local Colors         = require("ReArkitekt.gui.colors")
+local Colors         = require("ReArkitekt.core.colors")
 
 local SettingsOK, Settings = pcall(require, "ReArkitekt.core.settings")
 local StyleOK,    Style    = pcall(require, "ReArkitekt.gui.style")
@@ -82,20 +82,14 @@ local app_state = {
   layout_mode = settings and settings:get('layout_mode') or 'horizontal',
   region_index = {},
   pool_order = {},
-  pending_spawn_keys = {},
-  pending_select_keys = {},
-  pending_destroy_keys = {},
-  pending_delete_keys = {},
+  pending_spawn = {},
+  pending_select = {},
+  pending_destroy = {},
 }
 
 for _, region in ipairs(mock_regions) do
   app_state.region_index[region.rid] = region
   app_state.pool_order[#app_state.pool_order + 1] = region.rid
-end
-
-local function toggle_layout_mode()
-  app_state.layout_mode = (app_state.layout_mode == 'horizontal') and 'vertical' or 'horizontal'
-  if settings then settings:set('layout_mode', app_state.layout_mode) end
 end
 
 local function get_active_playlist()
@@ -121,14 +115,16 @@ local function get_filtered_pool_regions()
   return result
 end
 
-local original_active_min_col_w = nil
-
 local region_tiles = RegionTiles.create({
   get_region_by_rid = function(rid)
     return app_state.region_index[rid]
   end,
   
   allow_pool_reorder = true,
+  
+  config = {
+    layout_mode = app_state.layout_mode,
+  },
   
   on_playlist_changed = function(new_id)
     app_state.active_playlist = new_id
@@ -181,7 +177,9 @@ local region_tiles = RegionTiles.create({
     
     if settings then settings:set('playlists', playlists) end
     
-    app_state.pending_destroy_keys = item_keys
+    for _, key in ipairs(item_keys) do
+      app_state.pending_destroy[#app_state.pending_destroy + 1] = key
+    end
   end,
   
   on_destroy_complete = function(key)
@@ -232,8 +230,10 @@ local region_tiles = RegionTiles.create({
     
     if settings then settings:set('playlists', playlists) end
     
-    app_state.pending_spawn_keys = new_keys
-    app_state.pending_select_keys = new_keys
+    for _, key in ipairs(new_keys) do
+      app_state.pending_spawn[#app_state.pending_spawn + 1] = key
+      app_state.pending_select[#app_state.pending_select + 1] = key
+    end
   end,
   
   on_pool_to_active = function(rid, insert_index)
@@ -308,18 +308,12 @@ local region_tiles = RegionTiles.create({
     pl.items[#pl.items + 1] = new_item
     if settings then settings:set('playlists', playlists) end
     
-    app_state.pending_spawn_keys = {new_item.key}
-    app_state.pending_select_keys = {new_item.key}
+    app_state.pending_spawn[#app_state.pending_spawn + 1] = new_item.key
+    app_state.pending_select[#app_state.pending_select + 1] = new_item.key
   end,
   
   settings = settings,
 })
-
-original_active_min_col_w = region_tiles.active_grid.min_col_w_fn
-
-region_tiles.active_grid.min_col_w_fn = function()
-  return (app_state.layout_mode == 'vertical') and 9999 or original_active_min_col_w()
-end
 
 local app_status = "ready"
 
@@ -356,7 +350,7 @@ local LAYOUT_BUTTON_CONFIG = {
   animation_speed = 12.0,
 }
 
-local layout_button_animator = require('ReArkitekt.gui.systems.tile_animation').new(LAYOUT_BUTTON_CONFIG.animation_speed)
+local layout_button_animator = require('ReArkitekt.gui.fx.tile_motion').new(LAYOUT_BUTTON_CONFIG.animation_speed)
 
 local function draw_layout_toggle_button(ctx)
   local dl = ImGui.GetWindowDrawList(ctx)
@@ -420,7 +414,9 @@ local function draw_layout_toggle_button(ctx)
   ImGui.InvisibleButton(ctx, "##layout_toggle", btn_w, btn_h)
   
   if ImGui.IsItemClicked(ctx, 0) then
-    toggle_layout_mode()
+    app_state.layout_mode = (app_state.layout_mode == 'horizontal') and 'vertical' or 'horizontal'
+    region_tiles:set_layout_mode(app_state.layout_mode)
+    if settings then settings:set('layout_mode', app_state.layout_mode) end
   end
   
   if ImGui.IsItemHovered(ctx) then
@@ -432,53 +428,34 @@ local function draw_layout_toggle_button(ctx)
 end
 
 local function draw(ctx, state)
-  region_tiles:update_animations(0.016)
-  layout_button_animator:update(0.016)
-  
-  if #app_state.pending_spawn_keys > 0 then
-    region_tiles.active_grid:mark_spawned(app_state.pending_spawn_keys)
-    app_state.pending_spawn_keys = {}
+  if #app_state.pending_spawn > 0 then
+    region_tiles.active_grid:mark_spawned(app_state.pending_spawn)
+    app_state.pending_spawn = {}
   end
   
-  if #app_state.pending_select_keys > 0 then
+  if #app_state.pending_select > 0 then
     region_tiles.pool_grid.selection:clear()
     region_tiles.active_grid.selection:clear()
     
-    for _, key in ipairs(app_state.pending_select_keys) do
+    for _, key in ipairs(app_state.pending_select) do
       region_tiles.active_grid.selection.selected[key] = true
     end
-    region_tiles.active_grid.selection.last_clicked = app_state.pending_select_keys[#app_state.pending_select_keys]
+    region_tiles.active_grid.selection.last_clicked = app_state.pending_select[#app_state.pending_select]
     
     if region_tiles.active_grid.on_select then
       region_tiles.active_grid.on_select(region_tiles.active_grid.selection:selected_keys())
     end
     
-    app_state.pending_select_keys = {}
+    app_state.pending_select = {}
   end
   
-  if #app_state.pending_destroy_keys > 0 then
-    region_tiles.active_grid:mark_destroyed(app_state.pending_destroy_keys)
-    app_state.pending_destroy_keys = {}
+  if #app_state.pending_destroy > 0 then
+    region_tiles.active_grid:mark_destroyed(app_state.pending_destroy)
+    app_state.pending_destroy = {}
   end
   
-  if #app_state.pending_delete_keys > 0 then
-    local pl = get_active_playlist()
-    local keys_to_delete = {}
-    for _, key in ipairs(app_state.pending_delete_keys) do
-      keys_to_delete[key] = true
-    end
-    
-    local new_items = {}
-    for _, item in ipairs(pl.items) do
-      if not keys_to_delete[item.key] then
-        new_items[#new_items + 1] = item
-      end
-    end
-    pl.items = new_items
-    
-    if settings then settings:set('playlists', playlists) end
-    app_state.pending_delete_keys = {}
-  end
+  region_tiles:update_animations(0.016)
+  layout_button_animator:update(0.016)
   
   local avail_w, avail_h = ImGui.GetContentRegionAvail(ctx)
   local status_bar_height = status_bar and status_bar.height or 0

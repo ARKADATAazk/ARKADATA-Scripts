@@ -5,7 +5,7 @@ package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
 
 local Draw = require('ReArkitekt.gui.draw')
-local Colors = require('ReArkitekt.gui.colors')
+local Colors = require('ReArkitekt.core.colors')
 local Effects = require('ReArkitekt.gui.effects')
 
 local M = {}

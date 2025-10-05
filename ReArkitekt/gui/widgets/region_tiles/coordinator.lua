@@ -5,11 +5,11 @@ package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.10'
 
 local Draw = require('ReArkitekt.gui.draw')
-local Colors = require('ReArkitekt.gui.colors')
-local TileAnim = require('ReArkitekt.gui.systems.tile_animation')
-local GhostTiles = require('ReArkitekt.gui.widgets.tiles.ghost_tiles')
-local ActiveTile = require('ReArkitekt.gui.widgets.tiles.active_tile')
-local PoolTile = require('ReArkitekt.gui.widgets.tiles.pool_tile')
+local Colors = require('ReArkitekt.core.colors')
+local TileAnim = require('ReArkitekt.gui.fx.tile_motion')
+local DragIndicator = require('ReArkitekt.gui.fx.dnd.drag_indicator')
+local ActiveTile = require('ReArkitekt.gui.widgets.region_tiles.renderers.active')
+local PoolTile = require('ReArkitekt.gui.widgets.region_tiles.renderers.pool')
 local HeightStabilizer = require('ReArkitekt.gui.systems.height_stabilizer')
 local Selector = require('ReArkitekt.gui.widgets.region_tiles.selector')
 local ActiveGrid = require('ReArkitekt.gui.widgets.region_tiles.active_grid')
@@ -17,117 +17,146 @@ local PoolGrid = require('ReArkitekt.gui.widgets.region_tiles.pool_grid')
 
 local M = {}
 
-local TILE_CONFIG = {
-  border_thickness = 0.5,
-  rounding = 6,
-}
-
-local RESPONSIVE_CONFIG = {
-  enabled = true,
-  min_tile_height = 20,
-  base_tile_height_active = 72,
-  base_tile_height_pool = 72,
-  scrollbar_buffer = 24,
-  height_hysteresis = 12,
-  stable_frames_required = 2,
-  round_to_multiple = 2,
-  gap_scaling = {
-    enabled = true,
-    min_gap = 2,
-    max_gap = 12,
-  },
-}
-
-local TILE_HOVER_CONFIG = {
-  animation_speed_hover = 12.0,
-  hover_brightness_factor = 1.5,
-  hover_border_lerp = 0.5,
-  base_fill_desaturation = 0.4,
-  base_fill_brightness = 0.4,
-  base_fill_alpha = 0x66,
-}
-
-local DIM_CONFIG = {
-  fill_color = 0x00000088,
-  stroke_color = 0xFFFFFF33,
-  stroke_thickness = 1.5,
-  rounding = 6,
-}
-
-local DROP_CONFIG = {
-  move_mode = {
-    line = { width = 2, color = 0x42E896FF, glow_width = 12, glow_color = 0x42E89633 },
-    caps = { width = 8, height = 3, color = 0x42E896FF, rounding = 0, glow_size = 3, glow_color = 0x42E89644 },
-  },
-  copy_mode = {
-    line = { width = 2, color = 0x9C87E8FF, glow_width = 12, glow_color = 0x9C87E833 },
-    caps = { width = 8, height = 3, color = 0x9C87E8FF, rounding = 0, glow_size = 3, glow_color = 0x9C87E844 },
-  },
-  pulse_speed = 2.5,
-}
-
-local GHOST_CONFIG = {
-  tile = {
-    width = 60,
-    height = 40,
-    base_fill = 0x1A1A1AFF,
-    base_stroke = 0x42E896FF,
-    stroke_thickness = 1.5,
-    rounding = 4,
-    global_opacity = 0.70,
-  },
-  stack = {
-    max_visible = 3,
-    offset_x = 3,
-    offset_y = 3,
-    scale_factor = 0.94,
-    opacity_falloff = 0.70,
-  },
-  badge = {
-    bg = 0x1A1A1AEE,
-    text = 0xFFFFFFFF,
-    border_color = 0x00000099,
-    border_thickness = 1,
+local DEFAULTS = {
+  layout_mode = 'horizontal',
+  
+  tile_config = {
+    border_thickness = 0.5,
     rounding = 6,
-    padding_x = 6,
-    padding_y = 3,
-    offset_x = 35,
-    offset_y = -35,
-    min_width = 20,
-    min_height = 18,
-    shadow = {
+  },
+  
+  container_config = {
+    bg_color = 0x0F0F0FFF,
+    border_color = 0x000000DD,
+    border_thickness = 1,
+    rounding = 8,
+    padding = 8,
+  },
+  
+  responsive_config = {
+    enabled = true,
+    min_tile_height = 20,
+    base_tile_height_active = 72,
+    base_tile_height_pool = 72,
+    scrollbar_buffer = 24,
+    height_hysteresis = 12,
+    stable_frames_required = 2,
+    round_to_multiple = 2,
+    gap_scaling = {
       enabled = true,
-      color = 0x00000099,
-      offset = 2,
+      min_gap = 2,
+      max_gap = 12,
     },
   },
-  copy_mode = {
-    stroke_color = 0x9C87E8FF,
-    glow_color = 0x9C87E833,
-    badge_accent = 0x9C87E8FF,
-    indicator_text = "+",
-    indicator_color = 0x9C87E8FF,
+  
+  hover_config = {
+    animation_speed_hover = 12.0,
+    hover_brightness_factor = 1.5,
+    hover_border_lerp = 0.5,
+    base_fill_desaturation = 0.4,
+    base_fill_brightness = 0.4,
+    base_fill_alpha = 0x66,
   },
-  move_mode = {
-    stroke_color = 0x42E896FF,
-    glow_color = 0x42E89633,
-    badge_accent = 0x42E896FF,
+  
+  dim_config = {
+    fill_color = 0x00000088,
+    stroke_color = 0xFFFFFF33,
+    stroke_thickness = 1.5,
+    rounding = 6,
   },
-  delete_mode = {
-    stroke_color = 0xE84A4AFF,
-    glow_color = 0xE84A4A33,
-    badge_accent = 0xE84A4AFF,
-    indicator_text = "-",
-    indicator_color = 0xE84A4AFF,
+  
+  drop_config = {
+    move_mode = {
+      line = { width = 2, color = 0x42E896FF, glow_width = 12, glow_color = 0x42E89633 },
+      caps = { width = 8, height = 3, color = 0x42E896FF, rounding = 0, glow_size = 3, glow_color = 0x42E89644 },
+    },
+    copy_mode = {
+      line = { width = 2, color = 0x9C87E8FF, glow_width = 12, glow_color = 0x9C87E833 },
+      caps = { width = 8, height = 3, color = 0x9C87E8FF, rounding = 0, glow_size = 3, glow_color = 0x9C87E844 },
+    },
+    pulse_speed = 2.5,
+  },
+  
+  ghost_config = {
+    tile = {
+      width = 60,
+      height = 40,
+      base_fill = 0x1A1A1AFF,
+      base_stroke = 0x42E896FF,
+      stroke_thickness = 1.5,
+      rounding = 4,
+      global_opacity = 0.70,
+    },
+    stack = {
+      max_visible = 3,
+      offset_x = 3,
+      offset_y = 3,
+      scale_factor = 0.94,
+      opacity_falloff = 0.70,
+    },
+    badge = {
+      bg = 0x1A1A1AEE,
+      text = 0xFFFFFFFF,
+      border_color = 0x00000099,
+      border_thickness = 1,
+      rounding = 6,
+      padding_x = 6,
+      padding_y = 3,
+      offset_x = 35,
+      offset_y = -35,
+      min_width = 20,
+      min_height = 18,
+      shadow = {
+        enabled = true,
+        color = 0x00000099,
+        offset = 2,
+      },
+    },
+    copy_mode = {
+      stroke_color = 0x9C87E8FF,
+      glow_color = 0x9C87E833,
+      badge_accent = 0x9C87E8FF,
+      indicator_text = "+",
+      indicator_color = 0x9C87E8FF,
+    },
+    move_mode = {
+      stroke_color = 0x42E896FF,
+      glow_color = 0x42E89633,
+      badge_accent = 0x42E896FF,
+    },
+    delete_mode = {
+      stroke_color = 0xE84A4AFF,
+      glow_color = 0xE84A4A33,
+      badge_accent = 0xE84A4AFF,
+      indicator_text = "-",
+      indicator_color = 0xE84A4AFF,
+    },
+  },
+  
+  wheel_config = {
+    step = 1,
   },
 }
 
-local WHEEL_CONFIG = {
-  step = 1,
-}
+local function merge_config(defaults, custom)
+  if not custom then return defaults end
+  local result = {}
+  for k, v in pairs(defaults) do
+    if custom[k] ~= nil then
+      if type(v) == "table" and type(custom[k]) == "table" then
+        result[k] = merge_config(v, custom[k])
+      else
+        result[k] = custom[k]
+      end
+    else
+      result[k] = v
+    end
+  end
+  return result
+end
 
-local function calculate_scaled_gap(tile_height, base_gap, base_height, min_height)
-  local gap_config = RESPONSIVE_CONFIG.gap_scaling
+local function calculate_scaled_gap(tile_height, base_gap, base_height, min_height, responsive_config)
+  local gap_config = responsive_config.gap_scaling
   if not gap_config or not gap_config.enabled then
     return base_gap
   end
@@ -145,12 +174,12 @@ local function calculate_scaled_gap(tile_height, base_gap, base_height, min_heig
   return math.max(min_gap, math.floor(scaled_gap))
 end
 
-local function calculate_responsive_tile_height(item_count, avail_width, avail_height, base_gap, min_col_w, base_height, min_height)
-  if not RESPONSIVE_CONFIG.enabled or item_count == 0 then 
+local function calculate_responsive_tile_height(item_count, avail_width, avail_height, base_gap, min_col_w, base_height, min_height, responsive_config)
+  if not responsive_config.enabled or item_count == 0 then 
     return base_height, base_gap
   end
   
-  local scrollbar_buffer = RESPONSIVE_CONFIG.scrollbar_buffer or 24
+  local scrollbar_buffer = responsive_config.scrollbar_buffer or 24
   local safe_width = avail_width - scrollbar_buffer
   
   local cols = math.max(1, math.floor((safe_width + base_gap) / (min_col_w + base_gap)))
@@ -170,10 +199,10 @@ local function calculate_responsive_tile_height(item_count, avail_width, avail_h
   local scaled_height = math.floor(available_for_tiles / rows)
   local final_height = math.max(min_height, scaled_height)
   
-  local round_to = RESPONSIVE_CONFIG.round_to_multiple or 2
+  local round_to = responsive_config.round_to_multiple or 2
   final_height = math.floor((final_height + round_to - 1) / round_to) * round_to
   
-  local final_gap = calculate_scaled_gap(final_height, base_gap, base_height, min_height)
+  local final_gap = calculate_scaled_gap(final_height, base_gap, base_height, min_height, responsive_config)
   
   return final_height, final_gap
 end
@@ -183,6 +212,8 @@ RegionTiles.__index = RegionTiles
 
 function M.create(opts)
   opts = opts or {}
+  
+  local config = merge_config(DEFAULTS, opts.config or {})
   
   local rt = setmetatable({
     get_region_by_rid = opts.get_region_by_rid,
@@ -203,11 +234,16 @@ function M.create(opts)
     
     allow_pool_reorder = opts.allow_pool_reorder ~= false,
     
-    hover_config = TILE_HOVER_CONFIG,
+    config = config,
+    layout_mode = config.layout_mode,
+    hover_config = config.hover_config,
+    responsive_config = config.responsive_config,
+    container_config = config.container_config,
+    wheel_config = config.wheel_config,
     
     selector = Selector.new(),
-    active_animator = TileAnim.new(TILE_HOVER_CONFIG.animation_speed_hover),
-    pool_animator = TileAnim.new(TILE_HOVER_CONFIG.animation_speed_hover),
+    active_animator = TileAnim.new(config.hover_config.animation_speed_hover),
+    pool_animator = TileAnim.new(config.hover_config.animation_speed_hover),
     
     drag_state = {
       source = nil,
@@ -225,39 +261,53 @@ function M.create(opts)
     wheel_consumed_this_frame = false,
     
     active_height_stabilizer = HeightStabilizer.new({
-      stable_frames_required = RESPONSIVE_CONFIG.stable_frames_required,
-      height_hysteresis = RESPONSIVE_CONFIG.height_hysteresis,
+      stable_frames_required = config.responsive_config.stable_frames_required,
+      height_hysteresis = config.responsive_config.height_hysteresis,
     }),
     pool_height_stabilizer = HeightStabilizer.new({
-      stable_frames_required = RESPONSIVE_CONFIG.stable_frames_required,
-      height_hysteresis = RESPONSIVE_CONFIG.height_hysteresis,
+      stable_frames_required = config.responsive_config.stable_frames_required,
+      height_hysteresis = config.responsive_config.height_hysteresis,
     }),
     
-    current_active_tile_height = RESPONSIVE_CONFIG.base_tile_height_active,
-    current_pool_tile_height = RESPONSIVE_CONFIG.base_tile_height_pool,
+    current_active_tile_height = config.responsive_config.base_tile_height_active,
+    current_pool_tile_height = config.responsive_config.base_tile_height_pool,
+    
+    _original_active_min_col_w = nil,
   }, RegionTiles)
   
   local grid_config = {
-    base_tile_height_active = RESPONSIVE_CONFIG.base_tile_height_active,
-    tile_config = TILE_CONFIG,
-    dim_config = DIM_CONFIG,
-    drop_config = DROP_CONFIG,
-    ghost_config = GHOST_CONFIG,
+    base_tile_height_active = config.responsive_config.base_tile_height_active,
+    tile_config = config.tile_config,
+    dim_config = config.dim_config,
+    drop_config = config.drop_config,
+    ghost_config = config.ghost_config,
   }
   
   rt.active_grid = ActiveGrid.create_active_grid(rt, grid_config)
+  rt._original_active_min_col_w = rt.active_grid.min_col_w_fn
   
   local pool_config = {
-    base_tile_height_pool = RESPONSIVE_CONFIG.base_tile_height_pool,
-    tile_config = TILE_CONFIG,
-    dim_config = DIM_CONFIG,
-    drop_config = DROP_CONFIG,
-    ghost_config = GHOST_CONFIG,
+    base_tile_height_pool = config.responsive_config.base_tile_height_pool,
+    tile_config = config.tile_config,
+    dim_config = config.dim_config,
+    drop_config = config.drop_config,
+    ghost_config = config.ghost_config,
   }
   
   rt.pool_grid = PoolGrid.create_pool_grid(rt, pool_config)
   
+  rt:set_layout_mode(rt.layout_mode)
+  
   return rt
+end
+
+function RegionTiles:set_layout_mode(mode)
+  self.layout_mode = mode
+  if mode == 'vertical' then
+    self.active_grid.min_col_w_fn = function() return 9999 end
+  else
+    self.active_grid.min_col_w_fn = self._original_active_min_col_w
+  end
 end
 
 function RegionTiles:_find_hovered_tile(ctx, items)
@@ -363,16 +413,17 @@ function RegionTiles:draw_active(ctx, playlist, height)
   local container_y2 = cursor_y + height
   
   local dl = ImGui.GetWindowDrawList(ctx)
+  local cc = self.container_config
   
   ImGui.DrawList_AddRectFilled(dl, container_x1, container_y1, container_x2, container_y2,
-                                0x0F0F0FFF, ActiveTile.CONFIG.rounding)
+                                cc.bg_color, cc.rounding)
   ImGui.DrawList_AddRect(dl, container_x1 + 0.5, container_y1 + 0.5, container_x2 - 0.5, container_y2 - 0.5,
-                        0x000000DD, ActiveTile.CONFIG.rounding, 0, 1)
+                        cc.border_color, cc.rounding, 0, cc.border_thickness)
   
-  ImGui.SetCursorScreenPos(ctx, cursor_x + 8, cursor_y + 8)
+  ImGui.SetCursorScreenPos(ctx, cursor_x + cc.padding, cursor_y + cc.padding)
   
-  local child_w = avail_w - 16
-  local child_h = height - 16
+  local child_w = avail_w - (cc.padding * 2)
+  local child_h = height - (cc.padding * 2)
   
   self.active_grid.get_items = function() return playlist.items end
   
@@ -382,8 +433,9 @@ function RegionTiles:draw_active(ctx, playlist, height)
     child_h,
     ActiveTile.CONFIG.gap,
     ActiveTile.CONFIG.tile_width,
-    RESPONSIVE_CONFIG.base_tile_height_active,
-    RESPONSIVE_CONFIG.min_tile_height
+    self.responsive_config.base_tile_height_active,
+    self.responsive_config.min_tile_height,
+    self.responsive_config
   )
   
   local responsive_height = self.active_height_stabilizer:update(raw_height)
@@ -394,8 +446,9 @@ function RegionTiles:draw_active(ctx, playlist, height)
   local final_gap = calculate_scaled_gap(
     responsive_height,
     ActiveTile.CONFIG.gap,
-    RESPONSIVE_CONFIG.base_tile_height_active,
-    RESPONSIVE_CONFIG.min_tile_height
+    self.responsive_config.base_tile_height_active,
+    self.responsive_config.min_tile_height,
+    self.responsive_config
   )
   self.active_grid.gap = final_gap
   
@@ -424,7 +477,7 @@ function RegionTiles:draw_active(ctx, playlist, height)
       local item, key, is_selected = self:_find_hovered_tile(ctx, playlist.items)
       
       if item and key and self.on_repeat_adjust then
-        local delta = (wheel_y > 0) and WHEEL_CONFIG.step or -WHEEL_CONFIG.step
+        local delta = (wheel_y > 0) and self.wheel_config.step or -self.wheel_config.step
         local shift_held = ImGui.IsKeyDown(ctx, ImGui.Key_LeftShift) or ImGui.IsKeyDown(ctx, ImGui.Key_RightShift)
         
         local keys_to_adjust = {}
@@ -482,16 +535,17 @@ function RegionTiles:draw_pool(ctx, regions, height)
   local container_y2 = cursor_y + height
   
   local dl = ImGui.GetWindowDrawList(ctx)
+  local cc = self.container_config
   
   ImGui.DrawList_AddRectFilled(dl, container_x1, container_y1, container_x2, container_y2,
-                                0x1C1C1CFF, 8)
+                                cc.bg_color, cc.rounding)
   ImGui.DrawList_AddRect(dl, container_x1 + 0.5, container_y1 + 0.5, container_x2 - 0.5, container_y2 - 0.5,
-                        0x000000DD, 8, 0, 1)
+                        cc.border_color, cc.rounding, 0, cc.border_thickness)
   
-  ImGui.SetCursorScreenPos(ctx, cursor_x + 8, cursor_y + 8)
+  ImGui.SetCursorScreenPos(ctx, cursor_x + cc.padding, cursor_y + cc.padding)
   
-  local child_w = avail_w - 16
-  local child_h = height - 16
+  local child_w = avail_w - (cc.padding * 2)
+  local child_h = height - (cc.padding * 2)
   
   self.pool_grid.get_items = function() return regions end
   
@@ -501,8 +555,9 @@ function RegionTiles:draw_pool(ctx, regions, height)
     child_h,
     PoolTile.CONFIG.gap,
     PoolTile.CONFIG.tile_width,
-    RESPONSIVE_CONFIG.base_tile_height_pool,
-    RESPONSIVE_CONFIG.min_tile_height
+    self.responsive_config.base_tile_height_pool,
+    self.responsive_config.min_tile_height,
+    self.responsive_config
   )
   
   local responsive_height = self.pool_height_stabilizer:update(raw_height)
@@ -513,8 +568,9 @@ function RegionTiles:draw_pool(ctx, regions, height)
   local final_gap = calculate_scaled_gap(
     responsive_height,
     PoolTile.CONFIG.gap,
-    RESPONSIVE_CONFIG.base_tile_height_pool,
-    RESPONSIVE_CONFIG.min_tile_height
+    self.responsive_config.base_tile_height_pool,
+    self.responsive_config.min_tile_height,
+    self.responsive_config
   )
   self.pool_grid.gap = final_gap
   
@@ -574,7 +630,7 @@ function RegionTiles:draw_ghosts(ctx)
   
   self.drag_state.is_copy_mode = is_copy_mode
   
-  GhostTiles.draw(ctx, fg_dl, mx, my, count, GHOST_CONFIG, colors, is_copy_mode, is_delete_mode)
+  DragIndicator.draw(ctx, fg_dl, mx, my, count, self.config.ghost_config, colors, is_copy_mode, is_delete_mode)
 end
 
 return M

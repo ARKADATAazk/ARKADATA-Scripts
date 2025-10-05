@@ -15,7 +15,7 @@ function A.selection.new()
 end
 
 -- Layout grid math
-A.layout = require('ReArkitekt.gui.systems.layout_grid')
+A.layout = require('ReArkitekt.gui.widgets.grid.layout')
 
 -- Reorder helper
 A.reorder = require('ReArkitekt.gui.systems.reorder')

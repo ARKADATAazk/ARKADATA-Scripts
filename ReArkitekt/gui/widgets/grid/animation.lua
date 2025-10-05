@@ -2,8 +2,8 @@
 -- Animation coordination for grid spawn/destroy effects
 -- Thin wrapper around spawn_anim and destroy_anim systems
 
-local SpawnAnim = require('ReArkitekt.gui.systems.spawn_animation')
-local DestroyAnim = require('ReArkitekt.gui.systems.destroy_animation')
+local SpawnAnim = require('ReArkitekt.gui.fx.animations.spawn')
+local DestroyAnim = require('ReArkitekt.gui.fx.animations.destroy')
 
 local M = {}
 

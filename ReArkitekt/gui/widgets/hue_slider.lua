@@ -16,7 +16,7 @@ do
     palette = Style.palette
   end
   
-  local ok2, C = pcall(require, "ReArkitekt.gui.colors")
+  local ok2, C = pcall(require, "ReArkitekt.core.colors")
   if ok2 and type(C) == "table" then
     Colors = C
   end

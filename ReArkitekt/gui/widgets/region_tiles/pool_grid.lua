@@ -2,7 +2,7 @@
 -- Pool grid configuration for region tiles
 
 local Grid = require('ReArkitekt.gui.widgets.grid.core')
-local PoolTile = require('ReArkitekt.gui.widgets.tiles.pool_tile')
+local PoolTile = require('ReArkitekt.gui.widgets.region_tiles.renderers.pool')
 
 local M = {}
 
@@ -36,41 +36,46 @@ function M.create_pool_grid(rt, config)
       return rt.drag_state.is_copy_mode
     end,
     
-    on_drag_start = function(item_keys)
-      local rids = {}
-      for _, key in ipairs(item_keys) do
-        local rid = tonumber(key:match("pool_(%d+)"))
-        if rid then
-          rids[#rids + 1] = rid
+    behaviors = {
+      drag_start = function(item_keys)
+        local rids = {}
+        for _, key in ipairs(item_keys) do
+          local rid = tonumber(key:match("pool_(%d+)"))
+          if rid then
+            rids[#rids + 1] = rid
+          end
         end
-      end
-      rt.drag_state.source = 'pool'
-      rt.drag_state.data = rids
-      rt.drag_state.ctrl_held = false
-    end,
-    
-    on_reorder = function(new_order)
-      if not rt.allow_pool_reorder or not rt.on_pool_reorder then return end
+        rt.drag_state.source = 'pool'
+        rt.drag_state.data = rids
+        rt.drag_state.ctrl_held = false
+      end,
       
-      local rids = {}
-      for _, key in ipairs(new_order) do
-        local rid = tonumber(key:match("pool_(%d+)"))
-        if rid then
-          rids[#rids + 1] = rid
+      reorder = function(new_order)
+        if not rt.allow_pool_reorder or not rt.on_pool_reorder then return end
+        
+        local rids = {}
+        for _, key in ipairs(new_order) do
+          local rid = tonumber(key:match("pool_(%d+)"))
+          if rid then
+            rids[#rids + 1] = rid
+          end
         end
-      end
+        
+        rt.on_pool_reorder(rids)
+      end,
       
-      rt.on_pool_reorder(rids)
-    end,
+      double_click = function(key)
+        local rid = tonumber(key:match("pool_(%d+)"))
+        if rid and rt.on_pool_double_click then
+          rt.on_pool_double_click(rid)
+        end
+      end,
+      
+      on_select = function(selected_keys)
+      end,
+    },
     
     accept_external_drops = false,
-    
-    on_double_click = function(key)
-      local rid = tonumber(key:match("pool_(%d+)"))
-      if rid and rt.on_pool_double_click then
-        rt.on_pool_double_click(rid)
-      end
-    end,
     
     render_tile = function(ctx, rect, region, state)
       local tile_height = rect[4] - rect[2]

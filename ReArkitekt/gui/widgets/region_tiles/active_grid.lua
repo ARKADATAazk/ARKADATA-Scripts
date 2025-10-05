@@ -2,7 +2,7 @@
 -- Active grid configuration for region tiles
 
 local Grid = require('ReArkitekt.gui.widgets.grid.core')
-local ActiveTile = require('ReArkitekt.gui.widgets.tiles.active_tile')
+local ActiveTile = require('ReArkitekt.gui.widgets.region_tiles.renderers.active')
 
 local M = {}
 
@@ -36,11 +36,85 @@ function M.create_active_grid(rt, config)
       return rt.drag_state.is_copy_mode
     end,
     
-    on_drag_start = function(item_keys)
-      rt.drag_state.source = 'active'
-      rt.drag_state.data = item_keys
-      rt.drag_state.ctrl_held = false
-    end,
+    behaviors = {
+      drag_start = function(item_keys)
+        rt.drag_state.source = 'active'
+        rt.drag_state.data = item_keys
+        rt.drag_state.ctrl_held = false
+      end,
+      
+      right_click = function(key, selected_keys)
+        if not rt.on_active_toggle_enabled then return end
+        
+        if #selected_keys > 1 then
+          local playlist_items = rt.active_grid.get_items()
+          local item_map = {}
+          for _, item in ipairs(playlist_items) do
+            item_map[item.key] = item
+          end
+          
+          local clicked_item = item_map[key]
+          if clicked_item then
+            local new_state = not (clicked_item.enabled ~= false)
+            for _, sel_key in ipairs(selected_keys) do
+              rt.on_active_toggle_enabled(sel_key, new_state)
+            end
+          end
+        else
+          local playlist_items = rt.active_grid.get_items()
+          for _, item in ipairs(playlist_items) do
+            if item.key == key then
+              local new_state = not (item.enabled ~= false)
+              rt.on_active_toggle_enabled(key, new_state)
+              break
+            end
+          end
+        end
+      end,
+      
+      delete = function(item_keys)
+        if rt.on_active_delete then
+          rt.on_active_delete(item_keys)
+        end
+      end,
+      
+      reorder = function(new_order)
+        if rt.drag_state.ctrl_held and rt.on_active_copy then
+          local playlist_items = rt.active_grid.get_items()
+          local items_by_key = {}
+          for _, item in ipairs(playlist_items) do
+            items_by_key[item.key] = item
+          end
+          
+          local dragged_items = {}
+          for _, key in ipairs(rt.drag_state.data or {}) do
+            if items_by_key[key] then
+              dragged_items[#dragged_items + 1] = items_by_key[key]
+            end
+          end
+          
+          rt.on_active_copy(dragged_items, rt.active_grid.drag.target_index)
+        elseif rt.on_active_reorder then
+          local playlist_items = rt.active_grid.get_items()
+          local items_by_key = {}
+          for _, item in ipairs(playlist_items) do
+            items_by_key[item.key] = item
+          end
+          
+          local new_items = {}
+          for _, key in ipairs(new_order) do
+            if items_by_key[key] then
+              new_items[#new_items + 1] = items_by_key[key]
+            end
+          end
+          
+          rt.on_active_reorder(new_items)
+        end
+      end,
+      
+      on_select = function(selected_keys)
+      end,
+    },
     
     accept_external_drops = true,
     
@@ -79,8 +153,8 @@ function M.create_active_grid(rt, config)
           
           rt.active_grid.selection.last_clicked = spawned_keys[#spawned_keys]
           
-          if rt.active_grid.on_select then
-            rt.active_grid.on_select(rt.active_grid.selection:selected_keys())
+          if rt.active_grid.behaviors and rt.active_grid.behaviors.on_select then
+            rt.active_grid.behaviors.on_select(rt.active_grid.selection:selected_keys())
           end
         end
       end
@@ -88,75 +162,6 @@ function M.create_active_grid(rt, config)
       rt.drag_state.data = nil
       rt.drag_state.ctrl_held = false
       rt.drag_state.is_copy_mode = false
-    end,
-    
-    on_reorder = function(new_order)
-      if rt.drag_state.ctrl_held and rt.on_active_copy then
-        local playlist_items = rt.active_grid.get_items()
-        local items_by_key = {}
-        for _, item in ipairs(playlist_items) do
-          items_by_key[item.key] = item
-        end
-        
-        local dragged_items = {}
-        for _, key in ipairs(rt.drag_state.data or {}) do
-          if items_by_key[key] then
-            dragged_items[#dragged_items + 1] = items_by_key[key]
-          end
-        end
-        
-        rt.on_active_copy(dragged_items, rt.active_grid.drag.target_index)
-      elseif rt.on_active_reorder then
-        local playlist_items = rt.active_grid.get_items()
-        local items_by_key = {}
-        for _, item in ipairs(playlist_items) do
-          items_by_key[item.key] = item
-        end
-        
-        local new_items = {}
-        for _, key in ipairs(new_order) do
-          if items_by_key[key] then
-            new_items[#new_items + 1] = items_by_key[key]
-          end
-        end
-        
-        rt.on_active_reorder(new_items)
-      end
-    end,
-    
-    on_right_click = function(key, selected_keys)
-      if rt.on_active_toggle_enabled then
-        if #selected_keys > 1 then
-          local playlist_items = rt.active_grid.get_items()
-          local item_map = {}
-          for _, item in ipairs(playlist_items) do
-            item_map[item.key] = item
-          end
-          
-          local clicked_item = item_map[key]
-          if clicked_item then
-            local new_state = not (clicked_item.enabled ~= false)
-            for _, sel_key in ipairs(selected_keys) do
-              rt.on_active_toggle_enabled(sel_key, new_state)
-            end
-          end
-        else
-          local playlist_items = rt.active_grid.get_items()
-          for _, item in ipairs(playlist_items) do
-            if item.key == key then
-              local new_state = not (item.enabled ~= false)
-              rt.on_active_toggle_enabled(key, new_state)
-              break
-            end
-          end
-        end
-      end
-    end,
-    
-    on_delete = function(item_keys)
-      if rt.on_active_delete then
-        rt.on_active_delete(item_keys)
-      end
     end,
     
     on_destroy_complete = function(key)

@@ -5,8 +5,8 @@ package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.10'
 
 local Draw = require('ReArkitekt.gui.draw')
-local Colors = require('ReArkitekt.gui.colors')
-local TileAnim = require('ReArkitekt.gui.systems.tile_animation')
+local Colors = require('ReArkitekt.core.colors')
+local TileAnim = require('ReArkitekt.gui.fx.tile_motion')
 
 local M = {}
 
