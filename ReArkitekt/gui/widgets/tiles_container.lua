@@ -34,7 +34,7 @@ local DEFAULTS = {
     enabled = true,
     
     primary = {
-      type = 'dots',
+      type = 'grid',
       spacing = 100,
       color = 0x40404060,
       dot_size = 2.5,
@@ -43,7 +43,7 @@ local DEFAULTS = {
     
     secondary = {
       enabled = true,
-      type = 'dots',
+      type = 'grid',
       spacing = 20,
       color = 0x30303040,
       dot_size = 1.5,

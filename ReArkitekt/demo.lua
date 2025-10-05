@@ -18,7 +18,8 @@ addpath(join(HERE,  "ReArkitekt/?/?.lua"))
 local Shell          = require("ReArkitekt.app.shell")
 local Menutabs       = require("ReArkitekt.gui.widgets.menutabs")
 local StatusBar      = require("ReArkitekt.gui.widgets.status_bar")
-local GridPackages   = require("ReArkitekt.gui.widgets.package_tiles")
+local PackageGrid    = require("ReArkitekt.gui.widgets.package_tiles.grid")
+local Micromanage    = require("ReArkitekt.gui.widgets.package_tiles.micromanage")
 local TilesContainer = require("ReArkitekt.gui.widgets.tiles_container")
 local SelRect        = require("ReArkitekt.gui.widgets.selection_rectangle")
 
@@ -127,7 +128,7 @@ local theme = {
 }
 
 local sel_rect = SelRect.new()
-local grid = GridPackages.create(pkg, settings, theme)
+local grid = PackageGrid.create(pkg, settings, theme)
 
 local container = TilesContainer.new({
   id = "packages_container",
@@ -162,7 +163,7 @@ local function get_app_status()
       text = "READY",
       buttons = nil,
       right_buttons = {
-        { label = "★", width = 30 },
+        { label = "â˜…", width = 30 },
       }
     },
   }
@@ -224,7 +225,7 @@ local function draw_packages(ctx)
   end
   container:end_draw(ctx)
   
-  GridPackages.draw_micromanage_window(ctx, pkg, settings)
+  Micromanage.draw_window(ctx, pkg, settings)
 end
 
 local function draw_settings(ctx)
@@ -250,7 +251,9 @@ local function draw_about(ctx)
   ImGui.TextWrapped(ctx, "This demo uses the modular colorblocks widget system:")
   ImGui.Dummy(ctx, 1, 10)
   ImGui.BulletText(ctx, "colorblocks.lua - Reusable grid widget")
-  ImGui.BulletText(ctx, "package_tiles.lua - Package-specific renderer")
+  ImGui.BulletText(ctx, "package_tiles/grid.lua - Package grid logic")
+  ImGui.BulletText(ctx, "package_tiles/renderer.lua - Tile rendering")
+  ImGui.BulletText(ctx, "package_tiles/micromanage.lua - Asset management")
   ImGui.BulletText(ctx, "tiles_container.lua - Visual container with scrolling")
   ImGui.BulletText(ctx, "selection_rectangle.lua - Standalone selection widget")
   ImGui.BulletText(ctx, "window.lua - Window with content padding")
