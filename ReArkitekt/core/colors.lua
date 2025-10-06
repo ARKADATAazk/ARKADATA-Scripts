@@ -365,4 +365,64 @@ function M.flashy_palette(base_color)
   })
 end
 
+-- === Hue-preserving helpers for tile text ===================================
+local function _rgb_to_hsv(r,g,b)
+  r,g,b = r/255, g/255, b/255
+  local maxv, minv = math.max(r,g,b), math.min(r,g,b)
+  local d = maxv - minv
+  local h = 0
+  if d ~= 0 then
+    if maxv == r then h = ((g-b)/d) % 6
+    elseif maxv == g then h = (b-r)/d + 2
+    else h = (r-g)/d + 4 end
+    h = h / 6
+  end
+  local s = (maxv == 0) and 0 or (d/maxv)
+  return h, s, maxv
+end
+
+local function _hsv_to_rgb(h,s,v)
+  local i = math.floor(h*6)
+  local f = h*6 - i
+  local p = v*(1-s)
+  local q = v*(1-f*s)
+  local t = v*(1-(1-f)*s)
+  local r,g,b =
+    (i%6==0 and v) or (i%6==1 and q) or (i%6==2 and p) or (i%6==3 and p) or (i%6==4 and t) or v,
+    (i%6==0 and t) or (i%6==1 and v) or (i%6==2 and v) or (i%6==3 and q) or (i%6==4 and p) or p,
+    (i%6==0 and p) or (i%6==1 and p) or (i%6==2 and t) or (i%6==3 and v) or (i%6==4 and v) or q
+  return math.floor(r*255+0.5), math.floor(g*255+0.5), math.floor(b*255+0.5)
+end
+
+--- Keep hue, scale saturation/value (alpha optional)
+function M.same_hue_variant(col, s_mult, v_mult, new_a)
+  local r = (col >> 24) & 0xFF
+  local g = (col >> 16) & 0xFF
+  local b = (col >>  8) & 0xFF
+  local a =  col        & 0xFF
+  local h,s,v = _rgb_to_hsv(r,g,b)
+  s = math.max(0, math.min(1, s * (s_mult or 1)))
+  v = math.max(0, math.min(1, v * (v_mult or 1)))  -- FIXED: removed /255
+  local rr,gg,bb = _hsv_to_rgb(h,s,v)
+  return (rr<<24)|(gg<<16)|(bb<<8)|(new_a or a)
+end
+
+--- Colors for "index • name" split on tiles
+function M.tile_text_colors(base_color)
+  -- Accent number: same hue, +sat, +value
+  local accent = M.same_hue_variant(base_color, 1.25, 1.15, 0xFF)
+  -- Name: neutral, soft white tuned for your shell
+  local name   = 0xDDE3E9FF
+  return accent, name
+end
+
+--- Secondary/metric text (length) derived from name
+function M.tile_meta_color(name_color, alpha)
+  alpha = alpha or 0xBB
+  return M.with_alpha(name_color, alpha)
+end
+
+
+
+
 return M

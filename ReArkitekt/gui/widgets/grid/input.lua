@@ -10,7 +10,7 @@ local M = {}
 
 M.SHORTCUT_REGISTRY = {
   { key = ImGui.Key_Delete, name = 'delete' },
-  { key = ImGui.Key_Space, name = 'toggle' },
+  { key = ImGui.Key_Space, name = 'play' },
   { key = ImGui.Key_A, ctrl = true, name = 'select_all' },
   { key = ImGui.Key_D, ctrl = true, name = 'deselect_all' },
   { key = ImGui.Key_I, ctrl = true, name = 'invert_selection' },

@@ -1,47 +1,20 @@
--- ReArkitekt/gui/systems/motion.lua
--- Animation and motion tracking system with staggered delays and magnetic snapping
--- Handles smooth transitions between values and rectangles
+-- ReArkitekt/gui/fx/animation/rect_track.lua
+-- Multi-rectangle animation tracker with staggered delays and magnetic snapping
+-- Usage:
+--   local tracker = RectTrack.new(14.0)
+--   tracker:to(item_id, {x1, y1, x2, y2})
+--   tracker:to_with_delay(item_id, rect, 0.05)
+--   tracker:update(dt)
+--   local current_rect = tracker:get(item_id)
+
+local Math = require('ReArkitekt.core.math')
 
 local M = {}
-
-local function lerp(a, b, t)
-  return a + (b - a) * math.min(1.0, t)
-end
-
-local Track = {}
-Track.__index = Track
-
-function M.Track(initial_value, speed)
-  return setmetatable({
-    current = initial_value or 0,
-    target = initial_value or 0,
-    speed = speed or 14.0,
-  }, Track)
-end
-
-function Track:to(target)
-  self.target = target
-end
-
-function Track:update(dt)
-  dt = dt or 0.016
-  self.current = lerp(self.current, self.target, self.speed * dt)
-  return self.current
-end
-
-function Track:get()
-  return self.current
-end
-
-function Track:teleport(value)
-  self.current = value
-  self.target = value
-end
 
 local RectTrack = {}
 RectTrack.__index = RectTrack
 
-function M.RectTrack(speed, snap_epsilon, magnetic_threshold, magnetic_multiplier)
+function M.new(speed, snap_epsilon, magnetic_threshold, magnetic_multiplier)
   return setmetatable({
     rects = {},
     speed = speed or 14.0,
@@ -108,7 +81,7 @@ function RectTrack:update(dt)
       end
       
       for i = 1, 4 do
-        r.current[i] = lerp(r.current[i], r.target[i], effective_speed * dt)
+        r.current[i] = Math.lerp(r.current[i], r.target[i], effective_speed * dt)
         
         if math.abs(r.current[i] - r.target[i]) < self.snap_eps then
           r.current[i] = r.target[i]
@@ -155,23 +128,8 @@ function RectTrack:clear()
   self.rects = {}
 end
 
-function M.color_lerp(c1, c2, t)
-  local r1 = (c1 >> 24) & 0xFF
-  local g1 = (c1 >> 16) & 0xFF
-  local b1 = (c1 >> 8) & 0xFF
-  local a1 = c1 & 0xFF
-  
-  local r2 = (c2 >> 24) & 0xFF
-  local g2 = (c2 >> 16) & 0xFF
-  local b2 = (c2 >> 8) & 0xFF
-  local a2 = c2 & 0xFF
-  
-  local r = math.floor(lerp(r1, r2, t))
-  local g = math.floor(lerp(g1, g2, t))
-  local b = math.floor(lerp(b1, b2, t))
-  local a = math.floor(lerp(a1, a2, t))
-  
-  return (r << 24) | (g << 16) | (b << 8) | a
+function RectTrack:remove(id)
+  self.rects[id] = nil
 end
 
 return M

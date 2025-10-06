@@ -1,19 +1,17 @@
--- ReArkitekt/gui/systems/tile_animation.lua
--- Per-tile animation state for smooth hover/active/selection transitions
--- Manages multiple animation tracks per tile (hover, active, etc.)
+-- ReArkitekt/gui/fx/tile_motion.lua
+-- Per-tile animation state for smooth hover/active/selection transitions (refactored)
+-- Manages multiple animation tracks per tile using extracted Track class
+
+local Track = require('ReArkitekt.gui.fx.animation.track')
 
 local M = {}
-
-local function lerp(a, b, t)
-  return a + (b - a) * math.min(1.0, t)
-end
 
 local TileAnimator = {}
 TileAnimator.__index = TileAnimator
 
 function M.new(default_speed)
   return setmetatable({
-    animations = {},  -- tile_id -> { track_name -> {current, target, speed} }
+    tracks = {},
     default_speed = default_speed or 12.0,
   }, TileAnimator)
 end
@@ -21,44 +19,39 @@ end
 function TileAnimator:track(tile_id, track_name, target, speed)
   speed = speed or self.default_speed
   
-  if not self.animations[tile_id] then
-    self.animations[tile_id] = {}
+  if not self.tracks[tile_id] then
+    self.tracks[tile_id] = {}
   end
   
-  if not self.animations[tile_id][track_name] then
-    self.animations[tile_id][track_name] = {
-      current = target,
-      target = target,
-      speed = speed,
-    }
+  if not self.tracks[tile_id][track_name] then
+    self.tracks[tile_id][track_name] = Track.new(target, speed)
   else
-    self.animations[tile_id][track_name].target = target
-    self.animations[tile_id][track_name].speed = speed
+    local t = self.tracks[tile_id][track_name]
+    t:to(target)
+    t:set_speed(speed)
   end
 end
 
 function TileAnimator:update(dt)
-  dt = dt or 0.016
-  
-  for tile_id, tracks in pairs(self.animations) do
-    for track_name, anim in pairs(tracks) do
-      anim.current = lerp(anim.current, anim.target, anim.speed * dt)
+  for tile_id, tracks in pairs(self.tracks) do
+    for track_name, track in pairs(tracks) do
+      track:update(dt)
     end
   end
 end
 
 function TileAnimator:get(tile_id, track_name)
-  if not self.animations[tile_id] then return 0 end
-  if not self.animations[tile_id][track_name] then return 0 end
-  return self.animations[tile_id][track_name].current
+  if not self.tracks[tile_id] then return 0 end
+  if not self.tracks[tile_id][track_name] then return 0 end
+  return self.tracks[tile_id][track_name]:get()
 end
 
 function TileAnimator:clear()
-  self.animations = {}
+  self.tracks = {}
 end
 
 function TileAnimator:remove_tile(tile_id)
-  self.animations[tile_id] = nil
+  self.tracks[tile_id] = nil
 end
 
 return M

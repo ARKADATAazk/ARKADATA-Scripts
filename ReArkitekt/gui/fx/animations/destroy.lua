@@ -1,8 +1,9 @@
--- ReArkitekt/gui/systems/destroy_animation.lua
--- Destroy animation: instant red flash then smooth dissolve
+-- ReArkitekt/gui/fx/animations/destroy.lua
+-- Destroy animation: instant red flash then smooth dissolve (refactored)
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
+local Easing = require('ReArkitekt.gui.fx.easing')
 
 local M = {}
 
@@ -53,16 +54,12 @@ function DestroyAnim:update(dt)
   end
 end
 
-local function ease_out_quad(t)
-  return 1 - (1 - t) * (1 - t)
-end
-
 function DestroyAnim:get_factor(key)
   local anim = self.destroying[key]
   if not anim then return 0 end
   
   local t = math.min(1, anim.elapsed / self.duration)
-  return ease_out_quad(t)
+  return Easing.ease_out_quad(t)
 end
 
 function DestroyAnim:render(ctx, dl, key, base_rect, base_color, rounding)
@@ -103,13 +100,13 @@ function DestroyAnim:render(ctx, dl, key, base_rect, base_color, rounding)
   local r = math.floor(r1 + (r2 - r1) * red_factor)
   local g = math.floor(g1 + (g2 - g1) * red_factor)
   local b = math.floor(b1 + (b2 - b1) * red_factor)
-  local a = math.floor(a1 * (1 - ease_out_quad(t) * 0.9))
+  local a = math.floor(a1 * (1 - Easing.ease_out_quad(t) * 0.9))
   
   local flash_color = (r << 24) | (g << 16) | (b << 8) | a
   
   ImGui.DrawList_AddRectFilled(dl, nx1, ny1, nx2, ny2, flash_color, rounding)
   
-  local blur_intensity = ease_out_quad(t)
+  local blur_intensity = Easing.ease_out_quad(t)
   local blur_layers = math.floor(blur_intensity * 3) + 1
   for i = 1, blur_layers do
     local offset = i * 1.5 * blur_intensity
@@ -122,7 +119,7 @@ function DestroyAnim:render(ctx, dl, key, base_rect, base_color, rounding)
       blur_color, rounding + offset * 0.3)
   end
   
-  local cross_alpha = math.floor(255 * (1 - ease_out_quad(t)))
+  local cross_alpha = math.floor(255 * (1 - Easing.ease_out_quad(t)))
   local cross_color = 0xFF444400 | cross_alpha
   local cross_thickness = 2.5
   

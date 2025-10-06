@@ -5,7 +5,7 @@ package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
 
 local Grid = require('ReArkitekt.gui.widgets.grid.core')
-local Motion = require('ReArkitekt.gui.fx.motion')
+local Colors = require('ReArkitekt.core.colors')
 local TileAnim = require('ReArkitekt.gui.fx.tile_motion')
 local Renderer = require('ReArkitekt.gui.widgets.package_tiles.renderer')
 local Micromanage = require('ReArkitekt.gui.widgets.package_tiles.micromanage')
@@ -32,8 +32,8 @@ local function draw_package_tile(ctx, pkg, theme, P, rect, state, settings, cust
   local hover_factor = custom_state.animator:get(P.id, 'hover')
   local active_factor = custom_state.animator:get(P.id, 'active')
   
-  local bg_active = Motion.color_lerp(Renderer.CONFIG.colors.bg.inactive, Renderer.CONFIG.colors.bg.active, active_factor)
-  local bg_final = Motion.color_lerp(bg_active, Renderer.CONFIG.colors.bg.hover_tint, hover_factor * Renderer.CONFIG.colors.bg.hover_influence)
+  local bg_active = Colors.lerp(Renderer.CONFIG.colors.bg.inactive, Renderer.CONFIG.colors.bg.active, active_factor)
+  local bg_final = Colors.lerp(bg_active, Renderer.CONFIG.colors.bg.hover_tint, hover_factor * Renderer.CONFIG.colors.bg.hover_influence)
   
   local base_color = get_tile_base_color(pkg, P)
   

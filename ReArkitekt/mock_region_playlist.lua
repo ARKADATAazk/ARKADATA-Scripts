@@ -1,6 +1,18 @@
 -- ReArkitekt/mock_region_playlist.lua
 -- Region Playlist Demo - Horizontal/Vertical layout toggle
 
+-- GRID APPEARANCE SETTINGS
+local GRID_ENABLED = true
+local GRID_PRIMARY_SPACING = 50
+local GRID_PRIMARY_COLOR = 0x14141490
+local GRID_PRIMARY_THICKNESS = 1.5
+local GRID_SECONDARY_ENABLED = true
+local GRID_SECONDARY_SPACING = 5
+local GRID_SECONDARY_COLOR = 0x14141420
+local GRID_SECONDARY_THICKNESS = 0.5
+local CONTAINER_BG_COLOR = 0x1A1A1AFF
+local CONTAINER_BORDER_COLOR = 0x000000DD
+
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.10'
 
@@ -124,6 +136,33 @@ local region_tiles = RegionTiles.create({
   
   config = {
     layout_mode = app_state.layout_mode,
+    
+    container = {
+      bg_color = CONTAINER_BG_COLOR,
+      border_color = CONTAINER_BORDER_COLOR,
+      border_thickness = 1,
+      rounding = 8,
+      padding = 8,
+      
+      background_pattern = {
+        enabled = GRID_ENABLED,
+        
+        primary = {
+          type = 'grid',
+          spacing = GRID_PRIMARY_SPACING,
+          color = GRID_PRIMARY_COLOR,
+          line_thickness = GRID_PRIMARY_THICKNESS,
+        },
+        
+        secondary = {
+          enabled = GRID_SECONDARY_ENABLED,
+          type = 'grid',
+          spacing = GRID_SECONDARY_SPACING,
+          color = GRID_SECONDARY_COLOR,
+          line_thickness = GRID_SECONDARY_THICKNESS,
+        },
+      },
+    },
   },
   
   on_playlist_changed = function(new_id)
@@ -434,16 +473,25 @@ local function draw(ctx, state)
   end
   
   if #app_state.pending_select > 0 then
-    region_tiles.pool_grid.selection:clear()
-    region_tiles.active_grid.selection:clear()
+    if region_tiles.pool_grid and region_tiles.pool_grid.selection then
+      region_tiles.pool_grid.selection:clear()
+    end
+    if region_tiles.active_grid and region_tiles.active_grid.selection then
+      region_tiles.active_grid.selection:clear()
+    end
     
     for _, key in ipairs(app_state.pending_select) do
-      region_tiles.active_grid.selection.selected[key] = true
+      if region_tiles.active_grid.selection then
+        region_tiles.active_grid.selection.selected[key] = true
+      end
     end
-    region_tiles.active_grid.selection.last_clicked = app_state.pending_select[#app_state.pending_select]
     
-    if region_tiles.active_grid.on_select then
-      region_tiles.active_grid.on_select(region_tiles.active_grid.selection:selected_keys())
+    if region_tiles.active_grid.selection then
+      region_tiles.active_grid.selection.last_clicked = app_state.pending_select[#app_state.pending_select]
+    end
+    
+    if region_tiles.active_grid.behaviors and region_tiles.active_grid.behaviors.on_select and region_tiles.active_grid.selection then
+      region_tiles.active_grid.behaviors.on_select(region_tiles.active_grid.selection:selected_keys())
     end
     
     app_state.pending_select = {}

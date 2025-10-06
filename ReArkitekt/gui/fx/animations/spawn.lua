@@ -1,15 +1,9 @@
--- ReArkitekt/gui/systems/spawn_animation.lua
--- Spawn animation that affects layout - tiles push each other as they expand
+-- ReArkitekt/gui/fx/animations/spawn.lua
+-- Spawn animation that affects layout - tiles push each other as they expand (refactored)
+
+local Easing = require('ReArkitekt.gui.fx.easing')
 
 local M = {}
-
-local function smoothstep(t)
-  return t * t * (3.0 - 2.0 * t)
-end
-
-local function ease_out_sine(t)
-  return math.sin((t * math.pi) / 2.0)
-end
 
 local SpawnTracker = {}
 SpawnTracker.__index = SpawnTracker
@@ -42,7 +36,7 @@ function SpawnTracker:get_width_factor(id)
   local elapsed = now - spawn.start_time
   local t = math.min(1.0, elapsed / self.duration)
   
-  t = smoothstep(t)
+  t = Easing.smoothstep(t)
   
   if t >= 1.0 then
     self.spawning[id] = nil

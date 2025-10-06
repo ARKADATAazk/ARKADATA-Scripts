@@ -1,11 +1,13 @@
 -- ReArkitekt/gui/widgets/grid/core.lua
 -- Main grid orchestrator - composes rendering, animation, and input modules
+-- REFACTORED: Now uses dnd_state and drop_zones modules
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
 
 local LayoutGrid = require('ReArkitekt.gui.widgets.grid.layout')
-local Motion     = require('ReArkitekt.gui.fx.motion')
+local RectTrack = require('ReArkitekt.gui.fx.animation.rect_track')
+local Colors = require('ReArkitekt.core.colors')
 local Selection  = require('ReArkitekt.gui.systems.selection')
 local SelRect    = require('ReArkitekt.gui.widgets.selection_rectangle')
 local Draw       = require('ReArkitekt.gui.draw')
@@ -14,6 +16,8 @@ local DropIndicator = require('ReArkitekt.gui.fx.dnd.drop_indicator')
 local Rendering  = require('ReArkitekt.gui.widgets.grid.rendering')
 local Animation  = require('ReArkitekt.gui.widgets.grid.animation')
 local Input      = require('ReArkitekt.gui.widgets.grid.input')
+local DnDState   = require('ReArkitekt.gui.widgets.grid.dnd_state')
+local DropZones  = require('ReArkitekt.gui.widgets.grid.drop_zones')
 
 local M = {}
 
@@ -116,7 +120,7 @@ function M.new(opts)
     config           = opts.config or DEFAULTS,
 
     selection        = Selection.new(),
-    rect_track       = Motion.RectTrack(
+    rect_track       = RectTrack.new(
       opts.layout_speed or DEFAULTS.layout.speed, 
       opts.layout_snap or DEFAULTS.layout.snap_epsilon
     ),
@@ -129,15 +133,9 @@ function M.new(opts)
 
     hover_id         = nil,
     current_rects    = {},
-    drag = {
-      pressed_id           = nil,
-      pressed_was_selected = false,
-      press_pos            = nil,
-      active               = false,
-      ids                  = nil,
-      target_index         = nil,
-      pending_selection    = nil,
-    },
+    drag             = DnDState.new({
+      threshold = (opts.config and opts.config.drag and opts.config.drag.threshold) or DEFAULTS.drag.threshold
+    }),
     external_drop_target = nil,
     last_window_pos  = nil,
     previous_item_keys = {},
@@ -150,167 +148,8 @@ function M.new(opts)
   return grid
 end
 
-local function build_rect_map(rects, items, key_fn)
-  local map = {}
-  for i, item in ipairs(items) do
-    local key = key_fn(item)
-    if rects[i] then map[key] = rects[i] end
-  end
-  return map
-end
-
 function Grid:_find_drop_target(ctx, mx, my, dragged_set, items)
-  local non_dragged_items = {}
-  for i, item in ipairs(items) do
-    local key = self.key(item)
-    if not dragged_set[key] then
-      non_dragged_items[#non_dragged_items + 1] = {
-        item = item,
-        key = key,
-        original_index = i
-      }
-    end
-  end
-  
-  if #non_dragged_items == 0 then
-    return 1, nil, nil, nil
-  end
-  
-  local is_single_column = (self.last_layout_cols == 1)
-  local drop_zones = {}
-  
-  if is_single_column then
-    for i, entry in ipairs(non_dragged_items) do
-      local rect = self.rect_track:get(entry.key)
-      if rect then
-        local midy = (rect[2] + rect[4]) * 0.5
-        
-        if i == 1 then
-          drop_zones[#drop_zones + 1] = {
-            x1 = rect[1],
-            x2 = rect[3],
-            y1 = rect[2] - 1000,
-            y2 = midy,
-            index = 1,
-            between_y = rect[2],
-            orientation = 'horizontal',
-          }
-        end
-        
-        local next_entry = non_dragged_items[i + 1]
-        if next_entry then
-          local next_rect = self.rect_track:get(next_entry.key)
-          if next_rect then
-            local between_y = (rect[4] + next_rect[2]) * 0.5
-            drop_zones[#drop_zones + 1] = {
-              x1 = math.min(rect[1], next_rect[1]),
-              x2 = math.max(rect[3], next_rect[3]),
-              y1 = midy,
-              y2 = (next_rect[2] + next_rect[4]) * 0.5,
-              index = i + 1,
-              between_y = between_y,
-              orientation = 'horizontal',
-            }
-          end
-        else
-          drop_zones[#drop_zones + 1] = {
-            x1 = rect[1],
-            x2 = rect[3],
-            y1 = midy,
-            y2 = rect[4] + 1000,
-            index = i + 1,
-            between_y = rect[4],
-            orientation = 'horizontal',
-          }
-        end
-      end
-    end
-  else
-    for i, entry in ipairs(non_dragged_items) do
-      local rect = self.rect_track:get(entry.key)
-      if rect then
-        local midx = (rect[1] + rect[3]) * 0.5
-        
-        if i == 1 then
-          drop_zones[#drop_zones + 1] = {
-            x1 = rect[1] - 1000,
-            x2 = midx,
-            y1 = rect[2],
-            y2 = rect[4],
-            index = 1,
-            between_x = rect[1],
-            orientation = 'vertical',
-          }
-        end
-        
-        local next_entry = non_dragged_items[i + 1]
-        if next_entry then
-          local next_rect = self.rect_track:get(next_entry.key)
-          
-          if next_rect then
-            local next_midx = (next_rect[1] + next_rect[3]) * 0.5
-            local between_x = (rect[3] + next_rect[1]) * 0.5
-            
-            local same_row = not (rect[4] < next_rect[2] or next_rect[4] < rect[2])
-            
-            if same_row then
-              drop_zones[#drop_zones + 1] = {
-                x1 = midx,
-                x2 = next_midx,
-                y1 = math.min(rect[2], next_rect[2]),
-                y2 = math.max(rect[4], next_rect[4]),
-                index = i + 1,
-                between_x = between_x,
-                orientation = 'vertical',
-              }
-            else
-              drop_zones[#drop_zones + 1] = {
-                x1 = midx,
-                x2 = rect[3] + 1000,
-                y1 = rect[2],
-                y2 = rect[4],
-                index = i + 1,
-                between_x = rect[3],
-                orientation = 'vertical',
-              }
-              
-              drop_zones[#drop_zones + 1] = {
-                x1 = next_rect[1] - 1000,
-                x2 = next_midx,
-                y1 = next_rect[2],
-                y2 = next_rect[4],
-                index = i + 1,
-                between_x = next_rect[1],
-                orientation = 'vertical',
-              }
-            end
-          end
-        else
-          drop_zones[#drop_zones + 1] = {
-            x1 = midx,
-            x2 = rect[3] + 1000,
-            y1 = rect[2],
-            y2 = rect[4],
-            index = i + 1,
-            between_x = rect[3],
-            orientation = 'vertical',
-          }
-        end
-      end
-    end
-  end
-  
-  for _, zone in ipairs(drop_zones) do
-    if mx >= zone.x1 and mx <= zone.x2 and my >= zone.y1 and my <= zone.y2 then
-      if zone.orientation == 'horizontal' then
-        return zone.index, zone.between_y, zone.x1, zone.x2, zone.orientation
-      else
-        return zone.index, zone.between_x, zone.y1, zone.y2, zone.orientation
-      end
-    end
-  end
-  
-  return nil, nil, nil, nil, nil
+  return DropZones.find_drop_target(mx, my, items, self.key, dragged_set, self.rect_track, self.last_layout_cols == 1)
 end
 
 function Grid:_update_external_drop_target(ctx)
@@ -339,16 +178,15 @@ end
 
 function Grid:_draw_drag_visuals(ctx, dl)
   local mx, my = ImGui.GetMousePos(ctx)
-  local dragged_set = {}
-  for _, id in ipairs(self.drag.ids or {}) do dragged_set[id] = true end
+  local dragged_set = DropZones.build_dragged_set(self.drag:get_dragged_ids())
 
   local items = self.get_items()
   local target_index, coord, alt1, alt2, orientation = self:_find_drop_target(ctx, mx, my, dragged_set, items)
-  self.drag.target_index = target_index
+  self.drag:set_target(target_index)
 
   local cfg = self.config
   
-  for _, id in ipairs(self.drag.ids or {}) do
+  for _, id in ipairs(self.drag:get_dragged_ids()) do
     local r = self.rect_track:get(id)
     if r then
       local dim_fill = (cfg.dim and cfg.dim.fill_color) or DEFAULTS.dim.fill_color
@@ -366,9 +204,9 @@ function Grid:_draw_drag_visuals(ctx, dl)
     DropIndicator.draw(ctx, dl, cfg.drop or DEFAULTS.drop, is_copy_mode, orientation, coord, alt1, alt2)
   end
 
-  if self.drag.ids and #self.drag.ids > 0 then
+  if #self.drag:get_dragged_ids() > 0 then
     local fg_dl = ImGui.GetForegroundDrawList(ctx)
-    DragIndicator.draw(ctx, fg_dl, mx, my, #self.drag.ids, cfg.ghost or DEFAULTS.ghost)
+    DragIndicator.draw(ctx, fg_dl, mx, my, #self.drag:get_dragged_ids(), cfg.ghost or DEFAULTS.ghost)
   end
 end
 
@@ -521,7 +359,10 @@ function Grid:draw(ctx)
 
     local x1, y1, x2, y2 = self.sel_rect:aabb()
     if x1 then
-      local rect_map = build_rect_map(rects, items, self.key)
+      local rect_map = {}
+      for i, item in ipairs(items) do
+        rect_map[self.key(item)] = rects[i]
+      end
       self.selection:apply_rect({x1, y1, x2, y2}, rect_map, self.sel_rect.mode)
       if self.behaviors and self.behaviors.on_select then 
         self.behaviors.on_select(self.selection:selected_keys()) 
@@ -570,7 +411,7 @@ function Grid:draw(ctx)
 
   Input.check_start_drag(self, ctx)
 
-  if self.drag.active then
+  if self.drag:is_active() then
     self:_draw_drag_visuals(ctx, dl)
   end
 
@@ -587,13 +428,12 @@ function Grid:draw(ctx)
     end
   end
 
-  if self.drag.active and ImGui.IsMouseReleased(ctx, 0) then
-    if self.drag.target_index and self.behaviors and self.behaviors.reorder then
+  if self.drag:is_active() and ImGui.IsMouseReleased(ctx, 0) then
+    if self.drag:get_target_index() and self.behaviors and self.behaviors.reorder then
       local order = {}
       for _, item in ipairs(items) do order[#order+1] = self.key(item) end
       
-      local dragged_set = {}
-      for _, id in ipairs(self.drag.ids) do dragged_set[id] = true end
+      local dragged_set = DropZones.build_dragged_set(self.drag:get_dragged_ids())
       
       local filtered_order = {}
       for _, id in ipairs(order) do
@@ -603,13 +443,13 @@ function Grid:draw(ctx)
       end
       
       local new_order = {}
-      local insert_pos = math.min(self.drag.target_index, #filtered_order + 1)
+      local insert_pos = math.min(self.drag:get_target_index(), #filtered_order + 1)
       
       for i = 1, insert_pos - 1 do
         new_order[#new_order + 1] = filtered_order[i]
       end
       
-      for _, id in ipairs(self.drag.ids) do
+      for _, id in ipairs(self.drag:get_dragged_ids()) do
         new_order[#new_order + 1] = id
       end
       
@@ -619,24 +459,25 @@ function Grid:draw(ctx)
       
       self.behaviors.reorder(new_order)
     end
-    self.drag.active = false
-    self.drag.ids = nil
-    self.drag.target_index = nil
-    self.drag.pending_selection = nil
+    
+    local pending = self.drag:release()
+    if pending and not Input.is_external_drag_active(self) then
+      self.selection:single(pending)
+      if self.behaviors and self.behaviors.on_select then 
+        self.behaviors.on_select(self.selection:selected_keys()) 
+      end
+    end
   end
 
-  if not self.drag.active and ImGui.IsMouseReleased(ctx, 0) and not Input.is_external_drag_active(self) then
-    if self.drag.pending_selection then
-      self.selection:single(self.drag.pending_selection)
+  if not self.drag:is_active() and ImGui.IsMouseReleased(ctx, 0) and not Input.is_external_drag_active(self) then
+    if self.drag:has_pending_selection() then
+      self.selection:single(self.drag:get_pending_selection())
       if self.behaviors and self.behaviors.on_select then 
         self.behaviors.on_select(self.selection:selected_keys()) 
       end
     end
     
-    self.drag.pressed_id = nil
-    self.drag.pressed_was_selected = false
-    self.drag.press_pos = nil
-    self.drag.pending_selection = nil
+    self.drag:release()
   end
 
   self:_draw_marquee(ctx, dl)
@@ -653,15 +494,7 @@ function Grid:clear()
   self.animator:clear()
   self.hover_id = nil
   self.current_rects = {}
-  self.drag = {
-    pressed_id           = nil,
-    pressed_was_selected = false,
-    press_pos            = nil,
-    active               = false,
-    ids                  = nil,
-    target_index         = nil,
-    pending_selection    = nil,
-  }
+  self.drag:clear()
   self.external_drop_target = nil
   self.last_window_pos = nil
   self.previous_item_keys = {}

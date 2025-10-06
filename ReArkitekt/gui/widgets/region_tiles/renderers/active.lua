@@ -1,12 +1,13 @@
 -- ReArkitekt/gui/widgets/region_tiles/renderers/active.lua
--- Active sequence tile rendering with responsive element hiding (using new color system)
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.10'
 
 local Draw = require('ReArkitekt.gui.draw')
 local Colors = require('ReArkitekt.core.colors')
-local Grid = require('ReArkitekt.gui.widgets.grid.core')
+local TileFX = require('ReArkitekt.gui.fx.tile_fx')
+local TileFXConfig = require('ReArkitekt.gui.fx.tile_fx_config')
+local MarchingAnts = require('ReArkitekt.gui.fx.marching_ants')
 local TileUtil = require('ReArkitekt.gui.systems.tile_utilities')
 
 local M = {}
@@ -17,16 +18,19 @@ M.CONFIG = {
   gap = 12,
   bg_base = 0x1A1A1AFF,
   rounding = 6,
-  text_color = 0xFFFFFFFF,
+  text_color_neutral = 0xDDE3E9FF,
   badge_rounding = 4,
   badge_padding_x = 6,
   badge_padding_y = 3,
   badge_margin = 6,
-  badge_bg_color = 0x000000CC,
+  badge_bg = 0x14181CFF,
+  badge_border_alpha = 0x33,
+  badge_font_scale = 0.88,
   length_margin = 6,
   length_padding_x = 4,
   length_padding_y = 2,
-  length_font_size = 0.85,
+  length_font_size = 0.82,
+  length_offset_x = 3,
   spawn = {
     enabled = true,
     duration = 0.28,
@@ -43,12 +47,11 @@ M.CONFIG = {
   },
 }
 
-function M.render(ctx, rect, item, state, get_region_by_rid, animator, on_repeat_cycle, hover_config, tile_height, border_thickness)
+function M.render(ctx, rect, item, state, get_region_by_rid, animator, on_repeat_cycle, hover_config, tile_height, border_thickness, playback_manager)
   local dl = ImGui.GetWindowDrawList(ctx)
   local x1, y1, x2, y2 = rect[1], rect[2], rect[3], rect[4]
   
   local actual_height = tile_height or (y2 - y1)
-  local thickness = border_thickness or 0.5
   
   local region = get_region_by_rid(item.rid)
   if not region then return end
@@ -66,18 +69,33 @@ function M.render(ctx, rect, item, state, get_region_by_rid, animator, on_repeat
     base_color = Colors.adjust_brightness(base_color, M.CONFIG.disabled.brightness)
   end
   
-  local palette = Colors.derive_palette_adaptive(base_color, 'auto')
+  local fx_config = TileFXConfig.get()
+  fx_config.rounding = M.CONFIG.rounding
+  fx_config.border_thickness = border_thickness or 1.0
   
-  local bg_color = Grid.TileHelpers.compute_fill_color(base_color, hover_factor, hover_config)
-  local border_color = Grid.TileHelpers.compute_border_color(
-    base_color, state.hover, false, hover_factor, 
-    hover_config and hover_config.hover_border_lerp or 0.5
-  )
+  local playback_progress = 0
+  local playback_fade = 0
+  if playback_manager then
+    playback_progress = playback_manager:get_progress(item.key)
+    playback_fade = playback_manager:get_fade_alpha(item.key)
+  end
   
-  Grid.TileHelpers.render_hover_shadow(dl, x1, y1, x2, y2, state.selected and 0 or hover_factor, M.CONFIG.rounding)
+  TileFX.render_complete(dl, x1, y1, x2, y2, base_color, fx_config, state.selected, hover_factor, playback_progress, playback_fade)
   
-  ImGui.DrawList_AddRectFilled(dl, x1, y1, x2, y2, bg_color, M.CONFIG.rounding)
-  Grid.TileHelpers.render_border(dl, x1, y1, x2, y2, state.selected, base_color, border_color, thickness, M.CONFIG.rounding)
+  if state.selected and fx_config.ants_enabled then
+    local ants_color = Colors.same_hue_variant(base_color, 
+      fx_config.border_saturation, 
+      fx_config.border_brightness, 
+      fx_config.ants_alpha or 0xFF)
+    
+    local inset = fx_config.ants_inset or 0.5
+    MarchingAnts.draw(dl, x1 + inset, y1 + inset, x2 - inset, y2 - inset, ants_color, 
+      fx_config.ants_thickness,
+      M.CONFIG.rounding,
+      fx_config.ants_dash,
+      fx_config.ants_gap,
+      fx_config.ants_speed)
+  end
   
   local show_text = actual_height >= M.CONFIG.responsive.hide_text_below
   local show_badge = actual_height >= M.CONFIG.responsive.hide_badge_below
@@ -86,34 +104,55 @@ function M.render(ctx, rect, item, state, get_region_by_rid, animator, on_repeat
   local height_factor = math.min(1.0, math.max(0.0, (actual_height - 20) / (72 - 20)))
   
   if show_text then
-    local text_color = is_enabled 
-      and palette.border 
-      or Colors.with_alpha(palette.border, M.CONFIG.disabled.text_alpha)
+    local accent_color = Colors.same_hue_variant(base_color, fx_config.index_saturation, fx_config.index_brightness, 0xFF)
+    local name_color = Colors.adjust_brightness(fx_config.name_base_color, fx_config.name_brightness)
     
-    local display_name = region.name
-    if state.index then
-      display_name = string.format("#%d - %s", state.index, region.name)
+    if not is_enabled then
+      accent_color = Colors.with_alpha(accent_color, M.CONFIG.disabled.text_alpha)
+      name_color = Colors.with_alpha(name_color, M.CONFIG.disabled.text_alpha)
     end
     
-    local text_w, text_h = ImGui.CalcTextSize(ctx, display_name)
+    local index_str = state.index and string.format("#%d", state.index) or ""
+    local name_str = region.name or "Unknown"
     
     local text_x, text_y
     if actual_height <= 25 then
       local scaled_padding_x = 2 + (4 * height_factor)
       text_x = x1 + scaled_padding_x + 2
-      text_y = y1 + (actual_height - text_h) / 2 - 1
+      text_y = y1 + (actual_height - ImGui.CalcTextSize(ctx, index_str)) / 2 - 1
     else
       text_x = x1 + 6
       text_y = y1 + 6
     end
     
-    Draw.text(dl, text_x, text_y, text_color, display_name)
+    if index_str ~= "" then
+      Draw.text(dl, text_x, text_y, accent_color, index_str)
+      local index_w = ImGui.CalcTextSize(ctx, index_str)
+      
+      local separator = " "
+      local sep_w = ImGui.CalcTextSize(ctx, separator)
+      local separator_color = Colors.same_hue_variant(base_color, 
+        fx_config.separator_saturation, 
+        fx_config.separator_brightness, 
+        fx_config.separator_alpha)
+      if not is_enabled then
+        separator_color = Colors.with_alpha(separator_color, M.CONFIG.disabled.text_alpha)
+      end
+      Draw.text(dl, text_x + index_w, text_y, separator_color, separator)
+      
+      Draw.text(dl, text_x + index_w + sep_w, text_y, name_color, name_str)
+    else
+      Draw.text(dl, text_x, text_y, name_color, name_str)
+    end
   end
   
   if show_badge then
     local reps = item.reps or 1
     local badge_text = (reps == 0) and "∞" or ("×" .. reps)
+    
     local bw, bh = ImGui.CalcTextSize(ctx, badge_text)
+    bw = bw * M.CONFIG.badge_font_scale
+    bh = bh * M.CONFIG.badge_font_scale
     
     local scaled_badge_padding_x = M.CONFIG.badge_padding_x * (0.5 + 0.5 * height_factor)
     local scaled_badge_padding_y = M.CONFIG.badge_padding_y * (0.5 + 0.5 * height_factor)
@@ -124,14 +163,20 @@ function M.render(ctx, rect, item, state, get_region_by_rid, animator, on_repeat
     local badge_x2 = badge_x + bw + scaled_badge_padding_x * 2
     local badge_y2 = badge_y + bh + scaled_badge_padding_y * 2
     
-    local badge_bg = M.CONFIG.badge_bg_color
-    local badge_text_color = is_enabled 
-      and base_color 
-      or Colors.with_alpha(base_color, M.CONFIG.disabled.text_alpha)
+    local badge_bg = M.CONFIG.badge_bg
+    local badge_border_color = Colors.with_alpha(base_color, M.CONFIG.badge_border_alpha)
     
-    ImGui.DrawList_AddRectFilled(dl, badge_x, badge_y, badge_x2, badge_y2,
-                                  badge_bg, M.CONFIG.badge_rounding)
-    Draw.centered_text(ctx, badge_text, badge_x, badge_y, badge_x2, badge_y2, badge_text_color)
+    ImGui.DrawList_AddRectFilled(dl, badge_x, badge_y, badge_x2, badge_y2, badge_bg, M.CONFIG.badge_rounding)
+    ImGui.DrawList_AddRect(dl, badge_x, badge_y, badge_x2, badge_y2, badge_border_color, M.CONFIG.badge_rounding, 0, 0.5)
+    
+    local badge_text_color = 0xFFFFFFDD
+    if not is_enabled then
+      badge_text_color = Colors.with_alpha(badge_text_color, M.CONFIG.disabled.text_alpha)
+    end
+    
+    local text_x = badge_x + scaled_badge_padding_x
+    local text_y = badge_y + scaled_badge_padding_y
+    Draw.text(dl, text_x, text_y, badge_text_color, badge_text)
     
     ImGui.SetCursorScreenPos(ctx, badge_x, badge_y)
     ImGui.InvisibleButton(ctx, "##badge_" .. item.key, badge_x2 - badge_x, badge_y2 - badge_y)
@@ -155,17 +200,21 @@ function M.render(ctx, rect, item, state, get_region_by_rid, animator, on_repeat
     local scaled_length_padding_y = M.CONFIG.length_padding_y * (0.5 + 0.5 * height_factor)
     local scaled_length_margin = M.CONFIG.length_margin * (0.3 + 0.7 * height_factor)
     
-    local length_x = x2 - length_w - scaled_length_padding_x * 2 - scaled_length_margin
+    local length_x = x2 - length_w - scaled_length_padding_x * 2 - scaled_length_margin - M.CONFIG.length_offset_x
     local length_y = y2 - length_h - scaled_length_padding_y * 2 - scaled_length_margin
     
     local length_text_x = length_x + scaled_length_padding_x
     local length_text_y = length_y + scaled_length_padding_y
     
-    local length_text_color = is_enabled 
-      and Colors.with_alpha(palette.border, 0x99) 
-      or Colors.with_alpha(palette.border, 0x44)
+    local length_color = Colors.same_hue_variant(base_color, 
+      fx_config.duration_saturation, 
+      fx_config.duration_brightness, 
+      fx_config.duration_alpha)
+    if not is_enabled then
+      length_color = Colors.with_alpha(length_color, M.CONFIG.disabled.text_alpha)
+    end
     
-    Draw.text(dl, length_text_x, length_text_y, length_text_color, length_str)
+    Draw.text(dl, length_text_x, length_text_y, length_color, length_str)
   end
 end
 

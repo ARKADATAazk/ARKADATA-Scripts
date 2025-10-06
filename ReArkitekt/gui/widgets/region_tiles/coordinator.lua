@@ -1,19 +1,24 @@
 -- ReArkitekt/gui/widgets/region_tiles/coordinator.lua
 -- Region Playlist coordinator - manages active sequence + pool grids with responsive heights
+-- REFACTORED: Now uses GridBridge, factories, ResponsiveGrid, and TilesContainer
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.10'
 
 local Draw = require('ReArkitekt.gui.draw')
 local Colors = require('ReArkitekt.core.colors')
+local PlaybackManager = require('ReArkitekt.gui.systems.playback_manager')
 local TileAnim = require('ReArkitekt.gui.fx.tile_motion')
 local DragIndicator = require('ReArkitekt.gui.fx.dnd.drag_indicator')
 local ActiveTile = require('ReArkitekt.gui.widgets.region_tiles.renderers.active')
 local PoolTile = require('ReArkitekt.gui.widgets.region_tiles.renderers.pool')
 local HeightStabilizer = require('ReArkitekt.gui.systems.height_stabilizer')
 local Selector = require('ReArkitekt.gui.widgets.region_tiles.selector')
-local ActiveGrid = require('ReArkitekt.gui.widgets.region_tiles.active_grid')
-local PoolGrid = require('ReArkitekt.gui.widgets.region_tiles.pool_grid')
+local ActiveGridFactory = require('ReArkitekt.gui.widgets.region_tiles.active_grid_factory')
+local PoolGridFactory = require('ReArkitekt.gui.widgets.region_tiles.pool_grid_factory')
+local GridBridge = require('ReArkitekt.gui.widgets.grid.grid_bridge')
+local ResponsiveGrid = require('ReArkitekt.gui.systems.responsive_grid')
+local TilesContainer = require('ReArkitekt.gui.widgets.tiles_container')
 
 local M = {}
 
@@ -25,12 +30,45 @@ local DEFAULTS = {
     rounding = 6,
   },
   
-  container_config = {
+  container = {
     bg_color = 0x0F0F0FFF,
     border_color = 0x000000DD,
     border_thickness = 1,
     rounding = 8,
     padding = 8,
+    
+    scroll = {
+      flags = 0,
+      custom_scrollbar = false,
+      bg_color = 0x00000000,
+    },
+    
+    anti_jitter = {
+      enabled = true,
+      track_scrollbar = true,
+      height_threshold = 5,
+    },
+    
+    background_pattern = {
+      enabled = false,
+      
+      primary = {
+        type = 'grid',
+        spacing = 100,
+        color = 0x40404060,
+        dot_size = 2.5,
+        line_thickness = 1.5,
+      },
+      
+      secondary = {
+        enabled = true,
+        type = 'grid',
+        spacing = 20,
+        color = 0x30303040,
+        dot_size = 1.5,
+        line_thickness = 0.5,
+      },
+    },
   },
   
   responsive_config = {
@@ -155,58 +193,6 @@ local function merge_config(defaults, custom)
   return result
 end
 
-local function calculate_scaled_gap(tile_height, base_gap, base_height, min_height, responsive_config)
-  local gap_config = responsive_config.gap_scaling
-  if not gap_config or not gap_config.enabled then
-    return base_gap
-  end
-  
-  local min_gap = gap_config.min_gap or 2
-  local max_gap = gap_config.max_gap or base_gap
-  
-  local height_range = base_height - min_height
-  if height_range <= 0 then return base_gap end
-  
-  local height_factor = (tile_height - min_height) / height_range
-  height_factor = math.min(1.0, math.max(0.0, height_factor))
-  
-  local scaled_gap = min_gap + (max_gap - min_gap) * height_factor
-  return math.max(min_gap, math.floor(scaled_gap))
-end
-
-local function calculate_responsive_tile_height(item_count, avail_width, avail_height, base_gap, min_col_w, base_height, min_height, responsive_config)
-  if not responsive_config.enabled or item_count == 0 then 
-    return base_height, base_gap
-  end
-  
-  local scrollbar_buffer = responsive_config.scrollbar_buffer or 24
-  local safe_width = avail_width - scrollbar_buffer
-  
-  local cols = math.max(1, math.floor((safe_width + base_gap) / (min_col_w + base_gap)))
-  local rows = math.ceil(item_count / cols)
-  
-  local total_gap_height = (rows + 1) * base_gap
-  local available_for_tiles = avail_height - total_gap_height
-  
-  if available_for_tiles <= 0 then return base_height, base_gap end
-  
-  local needed_height = rows * base_height
-  
-  if needed_height <= available_for_tiles then
-    return base_height, base_gap
-  end
-  
-  local scaled_height = math.floor(available_for_tiles / rows)
-  local final_height = math.max(min_height, scaled_height)
-  
-  local round_to = responsive_config.round_to_multiple or 2
-  final_height = math.floor((final_height + round_to - 1) / round_to) * round_to
-  
-  local final_gap = calculate_scaled_gap(final_height, base_gap, base_height, min_height, responsive_config)
-  
-  return final_height, final_gap
-end
-
 local RegionTiles = {}
 RegionTiles.__index = RegionTiles
 
@@ -238,25 +224,26 @@ function M.create(opts)
     layout_mode = config.layout_mode,
     hover_config = config.hover_config,
     responsive_config = config.responsive_config,
-    container_config = config.container_config,
+    container_config = config.container,
     wheel_config = config.wheel_config,
     
     selector = Selector.new(),
     active_animator = TileAnim.new(config.hover_config.animation_speed_hover),
     pool_animator = TileAnim.new(config.hover_config.animation_speed_hover),
-    
-    drag_state = {
-      source = nil,
-      data = nil,
-      ctrl_held = false,
-      is_copy_mode = false,
-    },
+
+    playback_manager = PlaybackManager.new({
+      default_duration = 15.0,
+    }),
     
     active_bounds = nil,
     pool_bounds = nil,
     
     active_grid = nil,
     pool_grid = nil,
+    bridge = nil,
+    
+    active_container = nil,
+    pool_container = nil,
     
     wheel_consumed_this_frame = false,
     
@@ -273,28 +260,121 @@ function M.create(opts)
     current_pool_tile_height = config.responsive_config.base_tile_height_pool,
     
     _original_active_min_col_w = nil,
+    _imgui_ctx = nil,
   }, RegionTiles)
   
-  local grid_config = {
-    base_tile_height_active = config.responsive_config.base_tile_height_active,
-    tile_config = config.tile_config,
-    dim_config = config.dim_config,
-    drop_config = config.drop_config,
-    ghost_config = config.ghost_config,
-  }
-  
-  rt.active_grid = ActiveGrid.create_active_grid(rt, grid_config)
+  rt.active_grid = ActiveGridFactory.create(rt, config)
   rt._original_active_min_col_w = rt.active_grid.min_col_w_fn
   
-  local pool_config = {
-    base_tile_height_pool = config.responsive_config.base_tile_height_pool,
-    tile_config = config.tile_config,
-    dim_config = config.dim_config,
-    drop_config = config.drop_config,
-    ghost_config = config.ghost_config,
-  }
+  rt.pool_grid = PoolGridFactory.create(rt, config)
   
-  rt.pool_grid = PoolGrid.create_pool_grid(rt, pool_config)
+  rt.active_container = TilesContainer.new({
+    id = "active_tiles_container",
+    config = config.container,
+  })
+  
+  rt.pool_container = TilesContainer.new({
+    id = "pool_tiles_container",
+    config = config.container,
+  })
+  
+  rt.bridge = GridBridge.new({
+    copy_mode_detector = function(source, target, payload)
+      if source == 'pool' and target == 'active' then
+        return true
+      end
+      
+      if source == 'active' and target == 'active' then
+        if rt._imgui_ctx then
+          local ctrl = ImGui.IsKeyDown(rt._imgui_ctx, ImGui.Key_LeftCtrl) or 
+                      ImGui.IsKeyDown(rt._imgui_ctx, ImGui.Key_RightCtrl)
+          return ctrl
+        end
+      end
+      
+      return false
+    end,
+    
+    delete_mode_detector = function(ctx, source, target, payload)
+      if source == 'active' and target ~= 'active' then
+        return not rt.bridge:is_mouse_over_grid(ctx, 'active')
+      end
+      return false
+    end,
+    
+    on_cross_grid_drop = function(drop_info)
+      if drop_info.source_grid == 'pool' and drop_info.target_grid == 'active' then
+        if rt.on_pool_to_active then
+          local spawned_keys = {}
+          local insert_index = drop_info.insert_index
+          
+          for _, rid in ipairs(drop_info.payload) do
+            local new_key = rt.on_pool_to_active(rid, insert_index)
+            if new_key then
+              spawned_keys[#spawned_keys + 1] = new_key
+            end
+            insert_index = insert_index + 1
+          end
+          
+          if #spawned_keys > 0 then
+            if rt.pool_grid and rt.pool_grid.selection then
+              rt.pool_grid.selection:clear()
+            end
+            if rt.active_grid and rt.active_grid.selection then
+              rt.active_grid.selection:clear()
+            end
+            
+            rt.active_grid:mark_spawned(spawned_keys)
+            
+            for _, key in ipairs(spawned_keys) do
+              if rt.active_grid.selection then
+                rt.active_grid.selection.selected[key] = true
+              end
+            end
+            
+            if rt.active_grid.selection then
+              rt.active_grid.selection.last_clicked = spawned_keys[#spawned_keys]
+            end
+            
+            if rt.active_grid.behaviors and rt.active_grid.behaviors.on_select and rt.active_grid.selection then
+              rt.active_grid.behaviors.on_select(rt.active_grid.selection:selected_keys())
+            end
+          end
+        end
+      end
+    end,
+    
+    on_drag_canceled = function(cancel_info)
+      if cancel_info.source_grid == 'active' and rt.on_active_remove then
+        for _, key in ipairs(cancel_info.payload or {}) do
+          rt.on_active_remove(key)
+        end
+      end
+    end,
+  })
+  
+  rt.bridge:register_grid('active', rt.active_grid, {
+    accepts_drops_from = {'pool'},
+    on_drag_start = function(item_keys)
+    end,
+  })
+  
+  rt.bridge:register_grid('pool', rt.pool_grid, {
+    accepts_drops_from = {},
+    on_drag_start = function(item_keys)
+      local rids = {}
+      for _, key in ipairs(item_keys) do
+        local rid = tonumber(key:match("pool_(%d+)"))
+        if rid then
+          rids[#rids + 1] = rid
+        end
+      end
+      
+      if rt.bridge then
+        rt.bridge:start_drag('pool', rids)
+      end
+    end,
+  })
   
   rt:set_layout_mode(rt.layout_mode)
   
@@ -355,8 +435,13 @@ end
 function RegionTiles:_get_drag_colors()
   local colors = {}
   
-  if self.drag_state.source == 'active' then
-    local data = self.drag_state.data
+  if not self.bridge:is_drag_active() then return nil end
+  
+  local source = self.bridge:get_source_grid()
+  local payload = self.bridge:get_drag_payload()
+  
+  if source == 'active' then
+    local data = payload and payload.data or {}
     if type(data) == 'table' then
       local playlist_items = self.active_grid.get_items()
       for _, key in ipairs(data) do
@@ -371,8 +456,8 @@ function RegionTiles:_get_drag_colors()
         end
       end
     end
-  elseif self.drag_state.source == 'pool' then
-    local rids = self.drag_state.data
+  elseif source == 'pool' then
+    local rids = payload and payload.data or {}
     if type(rids) == 'table' then
       for _, rid in ipairs(rids) do
         local region = self.get_region_by_rid(rid)
@@ -402,233 +487,164 @@ function RegionTiles:draw_selector(ctx, playlists, active_id, height)
 end
 
 function RegionTiles:draw_active(ctx, playlist, height)
+  self._imgui_ctx = ctx
+  
   local cursor_x, cursor_y = ImGui.GetCursorScreenPos(ctx)
   local avail_w, _ = ImGui.GetContentRegionAvail(ctx)
   
   self.active_bounds = {cursor_x, cursor_y, cursor_x + avail_w, cursor_y + height}
+  self.bridge:update_bounds('active', cursor_x, cursor_y, cursor_x + avail_w, cursor_y + height)
   
-  local container_x1 = cursor_x
-  local container_y1 = cursor_y
-  local container_x2 = cursor_x + avail_w
-  local container_y2 = cursor_y + height
+  self.active_container.width = avail_w
+  self.active_container.height = height
   
-  local dl = ImGui.GetWindowDrawList(ctx)
-  local cc = self.container_config
+  if not self.active_container:begin_draw(ctx) then
+    self.active_container:end_draw(ctx)
+    return
+  end
   
-  ImGui.DrawList_AddRectFilled(dl, container_x1, container_y1, container_x2, container_y2,
-                                cc.bg_color, cc.rounding)
-  ImGui.DrawList_AddRect(dl, container_x1 + 0.5, container_y1 + 0.5, container_x2 - 0.5, container_y2 - 0.5,
-                        cc.border_color, cc.rounding, 0, cc.border_thickness)
-  
-  ImGui.SetCursorScreenPos(ctx, cursor_x + cc.padding, cursor_y + cc.padding)
-  
-  local child_w = avail_w - (cc.padding * 2)
-  local child_h = height - (cc.padding * 2)
+  local child_w = avail_w - (self.container_config.padding * 2)
+  local child_h = height - (self.container_config.padding * 2)
   
   self.active_grid.get_items = function() return playlist.items end
   
-  local raw_height, raw_gap = calculate_responsive_tile_height(
-    #playlist.items,
-    child_w,
-    child_h,
-    ActiveTile.CONFIG.gap,
-    ActiveTile.CONFIG.tile_width,
-    self.responsive_config.base_tile_height_active,
-    self.responsive_config.min_tile_height,
-    self.responsive_config
-  )
+  local raw_height, raw_gap = ResponsiveGrid.calculate_responsive_tile_height({
+    item_count = #playlist.items,
+    avail_width = child_w,
+    avail_height = child_h,
+    base_gap = ActiveTile.CONFIG.gap,
+    min_col_width = ActiveTile.CONFIG.tile_width,
+    base_tile_height = self.responsive_config.base_tile_height_active,
+    min_tile_height = self.responsive_config.min_tile_height,
+    responsive_config = self.responsive_config,
+  })
   
   local responsive_height = self.active_height_stabilizer:update(raw_height)
   
   self.current_active_tile_height = responsive_height
   self.active_grid.fixed_tile_h = responsive_height
+  self.active_grid.gap = raw_gap
   
-  local final_gap = calculate_scaled_gap(
-    responsive_height,
-    ActiveTile.CONFIG.gap,
-    self.responsive_config.base_tile_height_active,
-    self.responsive_config.min_tile_height,
-    self.responsive_config
-  )
-  self.active_grid.gap = final_gap
+  local wheel_y = ImGui.GetMouseWheel(ctx)
   
-  local child_flags = ImGui.ChildFlags_None
-  local window_flags = ImGui.WindowFlags_NoScrollWithMouse
-  
-  if ImGui.BeginChild(ctx, "##active_container", child_w, child_h, child_flags, window_flags) then
-    local ctrl_held = ImGui.IsKeyDown(ctx, ImGui.Key_LeftCtrl) or ImGui.IsKeyDown(ctx, ImGui.Key_RightCtrl)
-    self.drag_state.ctrl_held = ctrl_held and self.drag_state.source == 'active'
+  if wheel_y ~= 0 then
+    local item, key, is_selected = self:_find_hovered_tile(ctx, playlist.items)
     
-    local mx, my = ImGui.GetMousePos(ctx)
-    local is_over_active = mx >= self.active_bounds[1] and mx < self.active_bounds[3] and
-                           my >= self.active_bounds[2] and my < self.active_bounds[4]
-    
-    if self.drag_state.source == 'pool' then
-      self.drag_state.is_copy_mode = is_over_active
-    elseif self.drag_state.source == 'active' then
-      self.drag_state.is_copy_mode = self.drag_state.ctrl_held
-    else
-      self.drag_state.is_copy_mode = false
-    end
-    
-    local wheel_y = ImGui.GetMouseWheel(ctx)
-    
-    if wheel_y ~= 0 then
-      local item, key, is_selected = self:_find_hovered_tile(ctx, playlist.items)
+    if item and key and self.on_repeat_adjust then
+      local delta = (wheel_y > 0) and self.wheel_config.step or -self.wheel_config.step
+      local shift_held = ImGui.IsKeyDown(ctx, ImGui.Key_LeftShift) or ImGui.IsKeyDown(ctx, ImGui.Key_RightShift)
       
-      if item and key and self.on_repeat_adjust then
-        local delta = (wheel_y > 0) and self.wheel_config.step or -self.wheel_config.step
-        local shift_held = ImGui.IsKeyDown(ctx, ImGui.Key_LeftShift) or ImGui.IsKeyDown(ctx, ImGui.Key_RightShift)
-        
-        local keys_to_adjust = {}
-        if is_selected and self.active_grid.selection:count() > 0 then
-          keys_to_adjust = self.active_grid.selection:selected_keys()
-        else
-          keys_to_adjust = {key}
-        end
-        
-        if shift_held and self.on_repeat_sync then
-          local target_reps = item.reps or 1
-          self.on_repeat_sync(keys_to_adjust, target_reps)
-        end
-        
-        self.on_repeat_adjust(keys_to_adjust, delta)
-        self.wheel_consumed_this_frame = true
+      local keys_to_adjust = {}
+      if is_selected and self.active_grid.selection:count() > 0 then
+        keys_to_adjust = self.active_grid.selection:selected_keys()
       else
-        local current_scroll = ImGui.GetScrollY(ctx)
-        local scroll_delta = wheel_y * -20
-        ImGui.SetScrollY(ctx, current_scroll + scroll_delta)
+        keys_to_adjust = {key}
       end
+      
+      if shift_held and self.on_repeat_sync then
+        local target_reps = item.reps or 1
+        self.on_repeat_sync(keys_to_adjust, target_reps)
+      end
+      
+      self.on_repeat_adjust(keys_to_adjust, delta)
+      self.wheel_consumed_this_frame = true
     end
-    
-    self.active_grid:draw(ctx)
   end
-  ImGui.EndChild(ctx)
   
-  if self.drag_state.source == 'active' and ImGui.IsMouseReleased(ctx, 0) then
-    local mx, my = ImGui.GetMousePos(ctx)
-    local in_active = mx >= self.active_bounds[1] and mx < self.active_bounds[3] and
-                      my >= self.active_bounds[2] and my < self.active_bounds[4]
-    
-    if not in_active and not self.drag_state.ctrl_held and self.on_active_remove then
-      for _, key in ipairs(self.drag_state.data) do
-        self.on_active_remove(key)
-      end
+  self.active_grid:draw(ctx)
+  
+  self.active_container:end_draw(ctx)
+  
+  if self.bridge:is_drag_active() and self.bridge:get_source_grid() == 'active' and ImGui.IsMouseReleased(ctx, 0) then
+    if not self.bridge:is_mouse_over_grid(ctx, 'active') then
+      self.bridge:cancel_drag()
+    else
+      self.bridge:clear_drag()
     end
-    
-    self.drag_state.source = nil
-    self.drag_state.data = nil
-    self.drag_state.ctrl_held = false
-    self.drag_state.is_copy_mode = false
   end
 end
 
 function RegionTiles:draw_pool(ctx, regions, height)
+  self._imgui_ctx = ctx
+  
   local cursor_x, cursor_y = ImGui.GetCursorScreenPos(ctx)
   local avail_w, _ = ImGui.GetContentRegionAvail(ctx)
   
   self.pool_bounds = {cursor_x, cursor_y, cursor_x + avail_w, cursor_y + height}
+  self.bridge:update_bounds('pool', cursor_x, cursor_y, cursor_x + avail_w, cursor_y + height)
   
-  local container_x1 = cursor_x
-  local container_y1 = cursor_y
-  local container_x2 = cursor_x + avail_w
-  local container_y2 = cursor_y + height
+  self.pool_container.width = avail_w
+  self.pool_container.height = height
   
-  local dl = ImGui.GetWindowDrawList(ctx)
-  local cc = self.container_config
+  if not self.pool_container:begin_draw(ctx) then
+    self.pool_container:end_draw(ctx)
+    return
+  end
   
-  ImGui.DrawList_AddRectFilled(dl, container_x1, container_y1, container_x2, container_y2,
-                                cc.bg_color, cc.rounding)
-  ImGui.DrawList_AddRect(dl, container_x1 + 0.5, container_y1 + 0.5, container_x2 - 0.5, container_y2 - 0.5,
-                        cc.border_color, cc.rounding, 0, cc.border_thickness)
-  
-  ImGui.SetCursorScreenPos(ctx, cursor_x + cc.padding, cursor_y + cc.padding)
-  
-  local child_w = avail_w - (cc.padding * 2)
-  local child_h = height - (cc.padding * 2)
+  local child_w = avail_w - (self.container_config.padding * 2)
+  local child_h = height - (self.container_config.padding * 2)
   
   self.pool_grid.get_items = function() return regions end
   
-  local raw_height, raw_gap = calculate_responsive_tile_height(
-    #regions,
-    child_w,
-    child_h,
-    PoolTile.CONFIG.gap,
-    PoolTile.CONFIG.tile_width,
-    self.responsive_config.base_tile_height_pool,
-    self.responsive_config.min_tile_height,
-    self.responsive_config
-  )
+  local raw_height, raw_gap = ResponsiveGrid.calculate_responsive_tile_height({
+    item_count = #regions,
+    avail_width = child_w,
+    avail_height = child_h,
+    base_gap = PoolTile.CONFIG.gap,
+    min_col_width = PoolTile.CONFIG.tile_width,
+    base_tile_height = self.responsive_config.base_tile_height_pool,
+    min_tile_height = self.responsive_config.min_tile_height,
+    responsive_config = self.responsive_config,
+  })
   
   local responsive_height = self.pool_height_stabilizer:update(raw_height)
   
   self.current_pool_tile_height = responsive_height
   self.pool_grid.fixed_tile_h = responsive_height
+  self.pool_grid.gap = raw_gap
   
-  local final_gap = calculate_scaled_gap(
-    responsive_height,
-    PoolTile.CONFIG.gap,
-    self.responsive_config.base_tile_height_pool,
-    self.responsive_config.min_tile_height,
-    self.responsive_config
-  )
-  self.pool_grid.gap = final_gap
+  self.pool_grid:draw(ctx)
   
-  if ImGui.BeginChild(ctx, "##pool_container", child_w, child_h, ImGui.ChildFlags_None, 0) then
-    self.pool_grid:draw(ctx)
-  end
-  ImGui.EndChild(ctx)
+  self.pool_container:end_draw(ctx)
   
-  if self.drag_state.source == 'pool' and ImGui.IsMouseReleased(ctx, 0) then
-    local mx, my = ImGui.GetMousePos(ctx)
-    local in_active = false
-    
-    if self.active_bounds then
-      in_active = mx >= self.active_bounds[1] and mx < self.active_bounds[3] and
-                  my >= self.active_bounds[2] and my < self.active_bounds[4]
-    end
-    
-    if not in_active then
-      self.drag_state.source = nil
-      self.drag_state.data = nil
-      self.drag_state.ctrl_held = false
-      self.drag_state.is_copy_mode = false
+  if self.bridge:is_drag_active() and self.bridge:get_source_grid() == 'pool' and ImGui.IsMouseReleased(ctx, 0) then
+    if not self.bridge:is_mouse_over_grid(ctx, 'active') then
+      self.bridge:clear_drag()
     end
   end
 end
 
 function RegionTiles:draw_ghosts(ctx)
-  if self.drag_state.source == nil then return end
+  if not self.bridge:is_drag_active() then return nil end
   
   local mx, my = ImGui.GetMousePos(ctx)
-  local count = 1
-  if type(self.drag_state.data) == 'table' then
-    count = #self.drag_state.data
-  end
+  local count = self.bridge:get_drag_count()
   
   local colors = self:_get_drag_colors()
   local fg_dl = ImGui.GetForegroundDrawList(ctx)
   
-  local is_over_active = false
-  if self.active_bounds then
-    is_over_active = mx >= self.active_bounds[1] and mx < self.active_bounds[3] and
-                     my >= self.active_bounds[2] and my < self.active_bounds[4]
+  local is_over_active = self.bridge:is_mouse_over_grid(ctx, 'active')
+  local is_over_pool = self.bridge:is_mouse_over_grid(ctx, 'pool')
+  
+  local target_grid = nil
+  if is_over_active then
+    target_grid = 'active'
+  elseif is_over_pool then
+    target_grid = 'pool'
   end
   
   local is_copy_mode = false
   local is_delete_mode = false
   
-  if self.drag_state.source == 'pool' then
-    is_copy_mode = is_over_active
-  elseif self.drag_state.source == 'active' then
-    if self.drag_state.ctrl_held then
-      is_copy_mode = true
-    elseif not is_over_active then
+  if target_grid then
+    is_copy_mode = self.bridge:compute_copy_mode(target_grid)
+    is_delete_mode = self.bridge:compute_delete_mode(ctx, target_grid)
+  else
+    local source = self.bridge:get_source_grid()
+    if source == 'active' then
       is_delete_mode = true
     end
   end
-  
-  self.drag_state.is_copy_mode = is_copy_mode
   
   DragIndicator.draw(ctx, fg_dl, mx, my, count, self.config.ghost_config, colors, is_copy_mode, is_delete_mode)
 end
