@@ -1,6 +1,6 @@
 -- ReArkitekt/gui/widgets/grid/grid_bridge.lua
 -- Coordinates drag-and-drop between multiple grid instances
--- Enables multi-grid workflows without coupling grid implementations
+-- FIXED: Proper payload preparation in registration flow
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.10'
@@ -49,12 +49,12 @@ function GridBridge:register_grid(id, grid, opts)
   if grid.behaviors then
     local original_drag_start = grid.behaviors.drag_start
     grid.behaviors.drag_start = function(item_keys)
-      bridge:start_drag(id, item_keys)
-      if original_drag_start then
-        original_drag_start(item_keys)
-      end
       if opts.on_drag_start then
         opts.on_drag_start(item_keys)
+      end
+      
+      if original_drag_start then
+        original_drag_start(item_keys)
       end
     end
   end

@@ -1,6 +1,6 @@
 -- ReArkitekt/gui/widgets/region_tiles/coordinator.lua
 -- Region Playlist coordinator - manages active sequence + pool grids with responsive heights
--- REFACTORED: Now uses GridBridge, factories, ResponsiveGrid, and TilesContainer
+-- FIXED: Drop indicators now respect grid boundaries and only show in appropriate grids
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.10'
@@ -67,6 +67,51 @@ local DEFAULTS = {
         color = 0x30303040,
         dot_size = 1.5,
         line_thickness = 0.5,
+      },
+    },
+    
+    header = {
+      enabled = false,
+      height = 36,
+      bg_color = 0x252525FF,
+      border_color = 0x00000066,
+      padding_x = 12,
+      padding_y = 8,
+      spacing = 8,
+      
+      search = {
+        enabled = true,
+        placeholder = "Search...",
+        width_ratio = 0.5,
+        min_width = 150,
+        bg_color = 0x1A1A1AFF,
+        bg_hover_color = 0x202020FF,
+        bg_active_color = 0x242424FF,
+        text_color = 0xCCCCCCFF,
+        placeholder_color = 0x666666FF,
+        border_color = 0x404040FF,
+        border_active_color = 0x5A5A5AFF,
+        rounding = 4,
+        fade_speed = 8.0,
+      },
+      
+      sort_buttons = {
+        enabled = true,
+        size = 24,
+        spacing = 4,
+        bg_color = 0x2A2A2AFF,
+        bg_hover_color = 0x333333FF,
+        bg_active_color = 0x3A3A3AFF,
+        text_color = 0xAAAAAAFF,
+        text_hover_color = 0xEEEEEEFF,
+        border_color = 0x404040FF,
+        rounding = 3,
+        
+        buttons = {
+          { id = "color", label = "C", tooltip = "Sort by Color" },
+          { id = "index", label = "#", tooltip = "Sort by Index" },
+          { id = "alpha", label = "A", tooltip = "Sort Alphabetically" },
+        },
       },
     },
   },
@@ -216,6 +261,8 @@ function M.create(opts)
     on_repeat_adjust = opts.on_repeat_adjust,
     on_repeat_sync = opts.on_repeat_sync,
     on_pool_double_click = opts.on_pool_double_click,
+    on_pool_search = opts.on_pool_search,
+    on_pool_sort = opts.on_pool_sort,
     settings = opts.settings,
     
     allow_pool_reorder = opts.allow_pool_reorder ~= false,
@@ -268,14 +315,45 @@ function M.create(opts)
   
   rt.pool_grid = PoolGridFactory.create(rt, config)
   
+  local function shallow_copy_config(cfg)
+    local copy = {}
+    for k, v in pairs(cfg) do
+      if type(v) == "table" then
+        copy[k] = {}
+        for k2, v2 in pairs(v) do
+          copy[k][k2] = v2
+        end
+      else
+        copy[k] = v
+      end
+    end
+    return copy
+  end
+  
+  local active_container_config = shallow_copy_config(config.container)
+  if active_container_config.header then
+    active_container_config.header = shallow_copy_config(active_container_config.header)
+    active_container_config.header.enabled = false
+  end
+  
   rt.active_container = TilesContainer.new({
     id = "active_tiles_container",
-    config = config.container,
+    config = active_container_config,
   })
   
   rt.pool_container = TilesContainer.new({
     id = "pool_tiles_container",
     config = config.container,
+    on_search_changed = function(text)
+      if rt.on_pool_search then
+        rt.on_pool_search(text)
+      end
+    end,
+    on_sort_changed = function(mode)
+      if rt.on_pool_sort then
+        rt.on_pool_sort(mode)
+      end
+    end,
   })
   
   rt.bridge = GridBridge.new({
@@ -345,10 +423,8 @@ function M.create(opts)
     end,
     
     on_drag_canceled = function(cancel_info)
-      if cancel_info.source_grid == 'active' and rt.on_active_remove then
-        for _, key in ipairs(cancel_info.payload or {}) do
-          rt.on_active_remove(key)
-        end
+      if cancel_info.source_grid == 'active' and rt.active_grid and rt.active_grid.behaviors and rt.active_grid.behaviors.delete then
+        rt.active_grid.behaviors.delete(cancel_info.payload or {})
       end
     end,
   })
@@ -356,6 +432,7 @@ function M.create(opts)
   rt.bridge:register_grid('active', rt.active_grid, {
     accepts_drops_from = {'pool'},
     on_drag_start = function(item_keys)
+      rt.bridge:start_drag('active', item_keys)
     end,
   })
   
@@ -370,9 +447,7 @@ function M.create(opts)
         end
       end
       
-      if rt.bridge then
-        rt.bridge:start_drag('pool', rids)
-      end
+      rt.bridge:start_drag('pool', rids)
     end,
   })
   
@@ -581,8 +656,13 @@ function RegionTiles:draw_pool(ctx, regions, height)
     return
   end
   
+  local header_height = 0
+  if self.container_config.header and self.container_config.header.enabled then
+    header_height = self.container_config.header.height or 36
+  end
+  
   local child_w = avail_w - (self.container_config.padding * 2)
-  local child_h = height - (self.container_config.padding * 2)
+  local child_h = (height - header_height) - (self.container_config.padding * 2)
   
   self.pool_grid.get_items = function() return regions end
   
@@ -647,6 +727,22 @@ function RegionTiles:draw_ghosts(ctx)
   end
   
   DragIndicator.draw(ctx, fg_dl, mx, my, count, self.config.ghost_config, colors, is_copy_mode, is_delete_mode)
+end
+
+function RegionTiles:get_pool_search_text()
+  return self.pool_container:get_search_text()
+end
+
+function RegionTiles:set_pool_search_text(text)
+  self.pool_container:set_search_text(text)
+end
+
+function RegionTiles:get_pool_sort_mode()
+  return self.pool_container:get_sort_mode()
+end
+
+function RegionTiles:set_pool_sort_mode(mode)
+  self.pool_container:set_sort_mode(mode)
 end
 
 return M

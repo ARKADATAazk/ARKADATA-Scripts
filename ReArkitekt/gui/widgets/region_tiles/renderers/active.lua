@@ -38,7 +38,8 @@ M.CONFIG = {
   disabled = {
     desaturate = 0.8,
     brightness = 0.4,
-    text_alpha = 0x66,
+    min_alpha = 0x33,
+    fade_speed = 20.0,
   },
   responsive = {
     hide_length_below = 35,
@@ -60,13 +61,16 @@ function M.render(ctx, rect, item, state, get_region_by_rid, animator, on_repeat
   
   local animation_speed = hover_config and hover_config.animation_speed_hover or 12.0
   animator:track(item.key, 'hover', state.hover and 1.0 or 0.0, animation_speed)
+  animator:track(item.key, 'enabled', is_enabled and 1.0 or 0.0, M.CONFIG.disabled.fade_speed)
+  
   local hover_factor = animator:get(item.key, 'hover')
+  local enabled_factor = animator:get(item.key, 'enabled')
   
   local base_color = region.color or M.CONFIG.bg_base
   
-  if not is_enabled then
-    base_color = Colors.desaturate(base_color, M.CONFIG.disabled.desaturate)
-    base_color = Colors.adjust_brightness(base_color, M.CONFIG.disabled.brightness)
+  if enabled_factor < 1.0 then
+    base_color = Colors.desaturate(base_color, M.CONFIG.disabled.desaturate * (1.0 - enabled_factor))
+    base_color = Colors.adjust_brightness(base_color, 1.0 - (1.0 - M.CONFIG.disabled.brightness) * (1.0 - enabled_factor))
   end
   
   local fx_config = TileFXConfig.get()
@@ -103,14 +107,14 @@ function M.render(ctx, rect, item, state, get_region_by_rid, animator, on_repeat
   
   local height_factor = math.min(1.0, math.max(0.0, (actual_height - 20) / (72 - 20)))
   
+  local text_alpha = math.floor(0xFF * enabled_factor + M.CONFIG.disabled.min_alpha * (1.0 - enabled_factor))
+  
   if show_text then
     local accent_color = Colors.same_hue_variant(base_color, fx_config.index_saturation, fx_config.index_brightness, 0xFF)
     local name_color = Colors.adjust_brightness(fx_config.name_base_color, fx_config.name_brightness)
     
-    if not is_enabled then
-      accent_color = Colors.with_alpha(accent_color, M.CONFIG.disabled.text_alpha)
-      name_color = Colors.with_alpha(name_color, M.CONFIG.disabled.text_alpha)
-    end
+    accent_color = Colors.with_alpha(accent_color, text_alpha)
+    name_color = Colors.with_alpha(name_color, text_alpha)
     
     local index_str = state.index and string.format("#%d", state.index) or ""
     local name_str = region.name or "Unknown"
@@ -135,9 +139,7 @@ function M.render(ctx, rect, item, state, get_region_by_rid, animator, on_repeat
         fx_config.separator_saturation, 
         fx_config.separator_brightness, 
         fx_config.separator_alpha)
-      if not is_enabled then
-        separator_color = Colors.with_alpha(separator_color, M.CONFIG.disabled.text_alpha)
-      end
+      separator_color = Colors.with_alpha(separator_color, text_alpha)
       Draw.text(dl, text_x + index_w, text_y, separator_color, separator)
       
       Draw.text(dl, text_x + index_w + sep_w, text_y, name_color, name_str)
@@ -166,13 +168,13 @@ function M.render(ctx, rect, item, state, get_region_by_rid, animator, on_repeat
     local badge_bg = M.CONFIG.badge_bg
     local badge_border_color = Colors.with_alpha(base_color, M.CONFIG.badge_border_alpha)
     
+    local badge_bg_alpha = math.floor(((badge_bg & 0xFF) * enabled_factor) + (M.CONFIG.disabled.min_alpha * (1.0 - enabled_factor)))
+    badge_bg = (badge_bg & 0xFFFFFF00) | badge_bg_alpha
+    
     ImGui.DrawList_AddRectFilled(dl, badge_x, badge_y, badge_x2, badge_y2, badge_bg, M.CONFIG.badge_rounding)
     ImGui.DrawList_AddRect(dl, badge_x, badge_y, badge_x2, badge_y2, badge_border_color, M.CONFIG.badge_rounding, 0, 0.5)
     
-    local badge_text_color = 0xFFFFFFDD
-    if not is_enabled then
-      badge_text_color = Colors.with_alpha(badge_text_color, M.CONFIG.disabled.text_alpha)
-    end
+    local badge_text_color = Colors.with_alpha(0xFFFFFFDD, text_alpha)
     
     local text_x = badge_x + scaled_badge_padding_x
     local text_y = badge_y + scaled_badge_padding_y
@@ -210,9 +212,7 @@ function M.render(ctx, rect, item, state, get_region_by_rid, animator, on_repeat
       fx_config.duration_saturation, 
       fx_config.duration_brightness, 
       fx_config.duration_alpha)
-    if not is_enabled then
-      length_color = Colors.with_alpha(length_color, M.CONFIG.disabled.text_alpha)
-    end
+    length_color = Colors.with_alpha(length_color, text_alpha)
     
     Draw.text(dl, length_text_x, length_text_y, length_color, length_str)
   end

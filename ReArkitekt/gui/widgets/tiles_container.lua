@@ -1,6 +1,6 @@
 -- ReArkitekt/gui/widgets/tiles_container.lua
--- Visual container for tile grids with scrolling and borders
--- Enhanced with multi-scale grid/dot background patterns
+-- Visual container for tile grids with scrolling, borders, and interactive header
+-- Enhanced with multi-scale grid/dot background patterns and search/sort controls
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
@@ -48,6 +48,61 @@ local DEFAULTS = {
       color = 0x30303040,
       dot_size = 1.5,
       line_thickness = 0.5,
+    },
+  },
+  
+  header = {
+    enabled = true,
+    height = 36,
+    bg_color = 0x0F0F0FFF,
+    border_color = 0x000000DD,
+    padding_x = 12,
+    padding_y = 8,
+    spacing = 8,
+    
+    search = {
+      enabled = true,
+      placeholder = "Search...",
+      width_ratio = 0.5,
+      min_width = 150,
+      bg_color = 0x141414FF,
+      bg_hover_color = 0x1A1A1AFF,
+      bg_active_color = 0x242424FF,
+      text_color = 0xFFFFFFFF,
+      placeholder_color = 0x666666FF,
+      border_color = 0x333333FF,
+      border_active_color = 0x41E0A3FF,
+      rounding = 3,
+      fade_speed = 8.0,
+    },
+    
+    sort_buttons = {
+      enabled = true,
+      size = 24,
+      spacing = 4,
+      bg_color = 0x1A1A1AFF,
+      bg_hover_color = 0x262626FF,
+      bg_active_color = 0x41E0A366,
+      text_color = 0x999999FF,
+      text_hover_color = 0xFFFFFFFF,
+      text_active_color = 0x41E0A3FF,
+      border_color = 0x333333FF,
+      border_active_color = 0x41E0A3FF,
+      rounding = 3,
+      
+      buttons = {
+        { id = "color", label = "C", tooltip = "Sort by Color" },
+        { id = "index", label = "#", tooltip = "Sort by Index" },
+        { id = "alpha", label = "A", tooltip = "Sort Alphabetically" },
+      },
+    },
+    
+    info_display = {
+      enabled = false,
+      show_count = true,
+      show_filtered_count = true,
+      text_color = 0x999999FF,
+      highlight_color = 0x41E0A3FF,
     },
   },
 }
@@ -117,6 +172,141 @@ local function draw_background_pattern(dl, x1, y1, x2, y2, pattern_cfg)
 end
 
 ----------------------------------------------------------------
+-- Header Components
+----------------------------------------------------------------
+local function draw_search_bar(ctx, dl, x, y, width, height, state, cfg)
+  local search_cfg = cfg.search
+  if not search_cfg or not search_cfg.enabled then return x + width end
+  
+  local is_hovered = ImGui.IsMouseHoveringRect(ctx, x, y, x + width, y + height)
+  local is_focused = state.search_focused
+  
+  state.search_alpha = state.search_alpha or 0.3
+  local target_alpha = (is_focused or is_hovered or #state.search_text > 0) and 1.0 or 0.3
+  local alpha_delta = (target_alpha - state.search_alpha) * search_cfg.fade_speed * ImGui.GetDeltaTime(ctx)
+  state.search_alpha = math.max(0.3, math.min(1.0, state.search_alpha + alpha_delta))
+  
+  local bg_color = search_cfg.bg_color
+  if is_focused then
+    bg_color = search_cfg.bg_active_color
+  elseif is_hovered then
+    bg_color = search_cfg.bg_hover_color
+  end
+  
+  local alpha_byte = math.floor(state.search_alpha * 255)
+  bg_color = (bg_color & 0xFFFFFF00) | alpha_byte
+  
+  ImGui.DrawList_AddRectFilled(dl, x, y, x + width, y + height, bg_color, search_cfg.rounding)
+  
+  local border_color = is_focused and search_cfg.border_active_color or search_cfg.border_color
+  border_color = (border_color & 0xFFFFFF00) | alpha_byte
+  ImGui.DrawList_AddRect(dl, x, y, x + width, y + height, border_color, search_cfg.rounding, 0, 1)
+  
+  ImGui.SetCursorScreenPos(ctx, x + 8, y + (height - ImGui.GetTextLineHeight(ctx)) * 0.5)
+  ImGui.PushItemWidth(ctx, width - 16)
+  
+  ImGui.PushStyleColor(ctx, ImGui.Col_FrameBg, 0x00000000)
+  ImGui.PushStyleColor(ctx, ImGui.Col_FrameBgHovered, 0x00000000)
+  ImGui.PushStyleColor(ctx, ImGui.Col_FrameBgActive, 0x00000000)
+  ImGui.PushStyleColor(ctx, ImGui.Col_Border, 0x00000000)
+  
+  local text_color = search_cfg.text_color
+  text_color = (text_color & 0xFFFFFF00) | alpha_byte
+  ImGui.PushStyleColor(ctx, ImGui.Col_Text, text_color)
+  
+  local changed, new_text = ImGui.InputTextWithHint(ctx, "##search_" .. state.id, 
+    search_cfg.placeholder, state.search_text, ImGui.InputTextFlags_None)
+  
+  if changed then
+    state.search_text = new_text
+    if state.on_search_changed then
+      state.on_search_changed(new_text)
+    end
+  end
+  
+  state.search_focused = ImGui.IsItemActive(ctx)
+  
+  ImGui.PopStyleColor(ctx, 5)
+  ImGui.PopItemWidth(ctx)
+  
+  return x + width
+end
+
+local function draw_sort_button(ctx, dl, x, y, size, button_def, state, cfg)
+  local btn_cfg = cfg.sort_buttons
+  local button_id = button_def.id
+  local is_hovered = ImGui.IsMouseHoveringRect(ctx, x, y, x + size, y + size)
+  local is_active = state.sort_mode == button_id
+  
+  local bg_color = is_active and btn_cfg.bg_active_color or 
+                   (is_hovered and btn_cfg.bg_hover_color or btn_cfg.bg_color)
+  
+  ImGui.DrawList_AddRectFilled(dl, x, y, x + size, y + size, bg_color, btn_cfg.rounding)
+  ImGui.DrawList_AddRect(dl, x, y, x + size, y + size, btn_cfg.border_color, btn_cfg.rounding, 0, 1)
+  
+  local text_color = is_hovered and btn_cfg.text_hover_color or btn_cfg.text_color
+  local text_w, text_h = ImGui.CalcTextSize(ctx, button_def.label)
+  local text_x = x + (size - text_w) * 0.5
+  local text_y = y + (size - text_h) * 0.5
+  
+  ImGui.DrawList_AddText(dl, text_x, text_y, text_color, button_def.label)
+  
+  if is_hovered then
+    ImGui.SetTooltip(ctx, button_def.tooltip)
+    
+    if ImGui.IsMouseClicked(ctx, ImGui.MouseButton_Left) then
+      state.sort_mode = button_id
+      if state.on_sort_changed then
+        state.on_sort_changed(button_id)
+      end
+    end
+  end
+  
+  return x + size
+end
+
+local function draw_header(ctx, dl, x, y, width, height, state, cfg)
+  local header_cfg = cfg.header
+  if not header_cfg or not header_cfg.enabled then return 0 end
+  
+  ImGui.DrawList_AddRectFilled(dl, x, y, x + width, y + height, 
+    header_cfg.bg_color, 0)
+  
+  ImGui.DrawList_AddLine(dl, x, y + height, x + width, y + height, 
+    header_cfg.border_color, 1)
+  
+  local cursor_x = x + header_cfg.padding_x
+  local cursor_y = y + header_cfg.padding_y
+  local content_height = height - (header_cfg.padding_y * 2)
+  
+  if header_cfg.search and header_cfg.search.enabled then
+    local search_width = math.max(
+      header_cfg.search.min_width,
+      width * header_cfg.search.width_ratio
+    )
+    
+    cursor_x = draw_search_bar(ctx, dl, cursor_x, cursor_y, 
+      search_width, content_height, state, header_cfg)
+    cursor_x = cursor_x + header_cfg.spacing
+  end
+  
+  if header_cfg.sort_buttons and header_cfg.sort_buttons.enabled then
+    local btn_cfg = header_cfg.sort_buttons
+    local button_y = cursor_y + (content_height - btn_cfg.size) * 0.5
+    
+    for i, button_def in ipairs(btn_cfg.buttons) do
+      if i > 1 then
+        cursor_x = cursor_x + btn_cfg.spacing
+      end
+      cursor_x = draw_sort_button(ctx, dl, cursor_x, button_y, 
+        btn_cfg.size, button_def, state, header_cfg)
+    end
+  end
+  
+  return height
+end
+
+----------------------------------------------------------------
 -- Container Widget
 ----------------------------------------------------------------
 local Container = {}
@@ -131,6 +321,14 @@ function M.new(opts)
     
     width = opts.width,
     height = opts.height,
+    
+    search_text = "",
+    search_focused = false,
+    search_alpha = 0.3,
+    sort_mode = nil,
+    
+    on_search_changed = opts.on_search_changed,
+    on_sort_changed = opts.on_sort_changed,
     
     had_scrollbar_last_frame = false,
     last_content_height = 0,
@@ -175,7 +373,16 @@ function Container:begin_draw(ctx)
     self.config.rounding
   )
   
-  draw_background_pattern(dl, x1, y1, x2, y2, self.config.background_pattern)
+  local header_cfg = self.config.header or DEFAULTS.header
+  local header_height = 0
+  
+  if header_cfg.enabled then
+    header_height = draw_header(ctx, dl, x1, y1, w, header_cfg.height, self, self.config)
+  end
+  
+  local content_y1 = y1 + header_height
+  
+  draw_background_pattern(dl, x1, content_y1, x2, y2, self.config.background_pattern)
   
   ImGui.DrawList_AddRect(
     dl,
@@ -187,10 +394,10 @@ function Container:begin_draw(ctx)
     self.config.border_thickness
   )
   
-  ImGui.SetCursorScreenPos(ctx, x1 + self.config.padding, y1 + self.config.padding)
+  ImGui.SetCursorScreenPos(ctx, x1 + self.config.padding, content_y1 + self.config.padding)
   
   local child_w = w - (self.config.padding * 2)
-  local child_h = h - (self.config.padding * 2)
+  local child_h = (h - header_height) - (self.config.padding * 2)
   
   self.actual_child_height = child_h
   
@@ -223,12 +430,32 @@ end
 function Container:reset()
   self.had_scrollbar_last_frame = false
   self.last_content_height = 0
+  self.search_text = ""
+  self.search_focused = false
+  self.search_alpha = 0.3
+  self.sort_mode = nil
+end
+
+function Container:get_search_text()
+  return self.search_text
+end
+
+function Container:get_sort_mode()
+  return self.sort_mode
+end
+
+function Container:set_search_text(text)
+  self.search_text = text or ""
+end
+
+function Container:set_sort_mode(mode)
+  self.sort_mode = mode
 end
 
 ----------------------------------------------------------------
 -- Simple wrapper function for convenience
 ----------------------------------------------------------------
-function M.draw(ctx, id, width, height, content_fn, config)
+function M.draw(ctx, id, width, height, content_fn, config, on_search_changed, on_sort_changed)
   config = config or DEFAULTS
   
   local container = M.new({
@@ -236,6 +463,8 @@ function M.draw(ctx, id, width, height, content_fn, config)
     width = width,
     height = height,
     config = config,
+    on_search_changed = on_search_changed,
+    on_sort_changed = on_sort_changed,
   })
   
   if container:begin_draw(ctx) then
@@ -244,6 +473,8 @@ function M.draw(ctx, id, width, height, content_fn, config)
     end
   end
   container:end_draw(ctx)
+  
+  return container
 end
 
 return M

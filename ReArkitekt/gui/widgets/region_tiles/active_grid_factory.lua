@@ -7,6 +7,30 @@ local ActiveTile = require('ReArkitekt.gui.widgets.region_tiles.renderers.active
 
 local M = {}
 
+local function handle_unified_delete(rt, item_keys)
+  if not item_keys or #item_keys == 0 then return end
+  
+  -- Mark items for destroy animation
+  if rt.active_grid then
+    rt.active_grid:mark_destroyed(item_keys)
+  end
+  
+  -- Clear selection for deleted items
+  if rt.active_grid and rt.active_grid.selection then
+    for _, key in ipairs(item_keys) do
+      rt.active_grid.selection.selected[key] = nil
+    end
+    if rt.active_grid.behaviors and rt.active_grid.behaviors.on_select then
+      rt.active_grid.behaviors.on_select(rt.active_grid.selection:selected_keys())
+    end
+  end
+  
+  -- Call the application's delete handler
+  if rt.on_active_delete then
+    rt.on_active_delete(item_keys)
+  end
+end
+
 local function create_behaviors(rt)
   return {
     drag_start = function(item_keys)
@@ -44,9 +68,11 @@ local function create_behaviors(rt)
     end,
     
     delete = function(item_keys)
-      if rt.on_active_delete then
-        rt.on_active_delete(item_keys)
-      end
+      handle_unified_delete(rt, item_keys)
+    end,
+    
+    alt_click = function(item_keys)
+      handle_unified_delete(rt, item_keys)
     end,
     
     play = function(selected_keys)

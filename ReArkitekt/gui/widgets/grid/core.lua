@@ -1,6 +1,6 @@
 -- ReArkitekt/gui/widgets/grid/core.lua
 -- Main grid orchestrator - composes rendering, animation, and input modules
--- REFACTORED: Now uses dnd_state and drop_zones modules
+-- FIXED: Drop indicator now respects grid boundaries and positions correctly in vertical mode
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
@@ -141,6 +141,7 @@ function M.new(opts)
     previous_item_keys = {},
     
     last_layout_cols = 1,
+    grid_bounds = nil,
   }, Grid)
 
   grid.animator:set_rect_track(grid.rect_track)
@@ -148,15 +149,23 @@ function M.new(opts)
   return grid
 end
 
+function Grid:_is_mouse_in_bounds(ctx)
+  if not self.grid_bounds then return false end
+  local mx, my = ImGui.GetMousePos(ctx)
+  return mx >= self.grid_bounds[1] and mx < self.grid_bounds[3] and
+         my >= self.grid_bounds[2] and my < self.grid_bounds[4]
+end
+
 function Grid:_find_drop_target(ctx, mx, my, dragged_set, items)
-  return DropZones.find_drop_target(mx, my, items, self.key, dragged_set, self.rect_track, self.last_layout_cols == 1)
+  return DropZones.find_drop_target(mx, my, items, self.key, dragged_set, self.rect_track, self.last_layout_cols == 1, self.grid_bounds)
 end
 
 function Grid:_update_external_drop_target(ctx)
-  if not self.accept_external_drops or not Input.is_external_drag_active(self) then
-    self.external_drop_target = nil
-    return
-  end
+  self.external_drop_target = nil
+  
+  if not self.accept_external_drops then return end
+  if not Input.is_external_drag_active(self) then return end
+  if not self:_is_mouse_in_bounds(ctx) then return end
 
   local mx, my = ImGui.GetMousePos(ctx)
   local items = self.get_items()
@@ -171,8 +180,6 @@ function Grid:_update_external_drop_target(ctx)
       alt2 = alt2,
       orientation = orientation,
     }
-  else
-    self.external_drop_target = nil
   end
 end
 
@@ -201,7 +208,11 @@ function Grid:_draw_drag_visuals(ctx, dl)
 
   if target_index and coord and alt1 and alt2 and orientation and self.render_drop_zones then
     local is_copy_mode = self.is_copy_mode_check and self.is_copy_mode_check() or false
-    DropIndicator.draw(ctx, dl, cfg.drop or DEFAULTS.drop, is_copy_mode, orientation, coord, alt1, alt2)
+    if orientation == 'horizontal' then
+      DropIndicator.draw(ctx, dl, cfg.drop or DEFAULTS.drop, is_copy_mode, orientation, alt1, alt2, coord)
+    else
+      DropIndicator.draw(ctx, dl, cfg.drop or DEFAULTS.drop, is_copy_mode, orientation, coord, alt1, alt2)
+    end
   end
 
   if #self.drag:get_dragged_ids() > 0 then
@@ -213,17 +224,32 @@ end
 function Grid:_draw_external_drop_visuals(ctx, dl)
   if not self.external_drop_target or not self.render_drop_zones then return end
   
+  if not self:_is_mouse_in_bounds(ctx) then return end
+  
   local cfg = self.config
   local is_copy_mode = self.is_copy_mode_check and self.is_copy_mode_check() or false
-  DropIndicator.draw(
-    ctx, dl,
-    cfg.drop or DEFAULTS.drop,
-    is_copy_mode,
-    self.external_drop_target.orientation,
-    self.external_drop_target.coord,
-    self.external_drop_target.alt1,
-    self.external_drop_target.alt2
-  )
+  
+  if self.external_drop_target.orientation == 'horizontal' then
+    DropIndicator.draw(
+      ctx, dl,
+      cfg.drop or DEFAULTS.drop,
+      is_copy_mode,
+      self.external_drop_target.orientation,
+      self.external_drop_target.alt1,
+      self.external_drop_target.alt2,
+      self.external_drop_target.coord
+    )
+  else
+    DropIndicator.draw(
+      ctx, dl,
+      cfg.drop or DEFAULTS.drop,
+      is_copy_mode,
+      self.external_drop_target.orientation,
+      self.external_drop_target.coord,
+      self.external_drop_target.alt1,
+      self.external_drop_target.alt2
+    )
+  end
 end
 
 function Grid:_draw_marquee(ctx, dl)
@@ -263,8 +289,29 @@ end
 
 function Grid:draw(ctx)
   local items = self.get_items()
+  
+  local avail_w, avail_h = ImGui.GetContentRegionAvail(ctx)
+  local origin_x, origin_y = ImGui.GetCursorScreenPos(ctx)
+  
+  self.grid_bounds = {origin_x, origin_y, origin_x + avail_w, origin_y + avail_h}
+  
   if #items == 0 then
-    ImGui.Text(ctx, "No items")
+    ImGui.InvisibleButton(ctx, "##grid_empty_" .. self.id, avail_w, avail_h)
+    
+    self:_update_external_drop_target(ctx)
+    
+    if Input.is_external_drag_active(self) then
+      local dl = ImGui.GetWindowDrawList(ctx)
+      self:_draw_external_drop_visuals(ctx, dl)
+      
+      if self.accept_external_drops and ImGui.IsMouseReleased(ctx, 0) then
+        if self.external_drop_target and self.on_external_drop then
+          self.on_external_drop(self.external_drop_target.index)
+        end
+        self.external_drop_target = nil
+      end
+    end
+    
     return
   end
 
@@ -277,9 +324,6 @@ function Grid:draw(ctx)
   end
 
   self.current_rects = {}
-
-  local avail_w, avail_h = ImGui.GetContentRegionAvail(ctx)
-  local origin_x, origin_y = ImGui.GetCursorScreenPos(ctx)
 
   local min_col_w = self.min_col_w_fn()
   local cols, rows, rects = LayoutGrid.calculate(avail_w, min_col_w, self.gap, #items, origin_x, origin_y, self.fixed_tile_h)
@@ -499,6 +543,7 @@ function Grid:clear()
   self.last_window_pos = nil
   self.previous_item_keys = {}
   self.last_layout_cols = 1
+  self.grid_bounds = nil
 end
 
 return M
