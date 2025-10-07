@@ -1,7 +1,6 @@
 -- ReArkitekt/mock_region_playlist.lua
--- Region Playlist Demo - Horizontal/Vertical layout toggle
+-- Region Playlist Demo - Horizontal/Vertical layout toggle with integrated search/sort
 
--- GRID APPEARANCE SETTINGS
 local GRID_ENABLED = true
 local GRID_PRIMARY_SPACING = 50
 local GRID_PRIMARY_COLOR = 0x14141490
@@ -91,6 +90,7 @@ local playlists = {
 local app_state = {
   active_playlist = settings and settings:get('active_playlist') or "Main",
   search_filter = settings and settings:get('pool_search') or "",
+  sort_mode = settings and settings:get('pool_sort') or nil,
   layout_mode = settings and settings:get('layout_mode') or 'horizontal',
   region_index = {},
   pool_order = {},
@@ -113,6 +113,22 @@ local function get_active_playlist()
   return playlists[1]
 end
 
+local function compare_by_color(a, b)
+  local color_a = a.color or 0
+  local color_b = b.color or 0
+  return color_a < color_b
+end
+
+local function compare_by_index(a, b)
+  return a.rid < b.rid
+end
+
+local function compare_by_alpha(a, b)
+  local name_a = (a.name or ""):lower()
+  local name_b = (b.name or ""):lower()
+  return name_a < name_b
+end
+
 local function get_filtered_pool_regions()
   local result = {}
   local search = app_state.search_filter:lower()
@@ -122,6 +138,14 @@ local function get_filtered_pool_regions()
     if region and (search == "" or region.name:lower():find(search, 1, true)) then
       result[#result + 1] = region
     end
+  end
+  
+  if app_state.sort_mode == "color" then
+    table.sort(result, compare_by_color)
+  elseif app_state.sort_mode == "index" then
+    table.sort(result, compare_by_index)
+  elseif app_state.sort_mode == "alpha" then
+    table.sort(result, compare_by_alpha)
   end
   
   return result
@@ -162,12 +186,66 @@ local region_tiles = RegionTiles.create({
           line_thickness = GRID_SECONDARY_THICKNESS,
         },
       },
+      
+      header = {
+        enabled = true,
+        height = 38,
+        bg_color = 0x1F1F1FFF,
+        border_color = 0x00000066,
+        padding_x = 12,
+        padding_y = 8,
+        spacing = 8,
+        
+        search = {
+          enabled = true,
+          placeholder = "Search regions...",
+          width_ratio = 0.6,
+          min_width = 180,
+          bg_color = 0x141414FF,
+          bg_hover_color = 0x1A1A1AFF,
+          bg_active_color = 0x202020FF,
+          text_color = 0xCCCCCCFF,
+          placeholder_color = 0x666666FF,
+          border_color = 0x303030FF,
+          rounding = 4,
+          fade_speed = 10.0,
+        },
+        
+        sort_buttons = {
+          enabled = true,
+          size = 26,
+          spacing = 6,
+          bg_color = 0x252525FF,
+          bg_hover_color = 0x303030FF,
+          bg_active_color = 0x3A3A3AFF,
+          text_color = 0x999999FF,
+          text_hover_color = 0xEEEEEEFF,
+          border_color = 0x353535FF,
+          rounding = 4,
+          
+          buttons = {
+            { id = "color", label = "C", tooltip = "Sort by Color" },
+            { id = "index", label = "#", tooltip = "Sort by Index" },
+            { id = "alpha", label = "A", tooltip = "Sort Alphabetically" },
+          },
+        },
+      },
     },
   },
   
   on_playlist_changed = function(new_id)
     app_state.active_playlist = new_id
     if settings then settings:set('active_playlist', new_id) end
+  end,
+  
+  on_pool_search = function(text)
+    app_state.search_filter = text
+    if settings then settings:set('pool_search', text) end
+  end,
+  
+  on_pool_sort = function(mode)
+    app_state.sort_mode = mode
+    if settings then settings:set('pool_sort', mode) end
   end,
   
   on_active_reorder = function(new_order)
@@ -354,6 +432,9 @@ local region_tiles = RegionTiles.create({
   settings = settings,
 })
 
+region_tiles:set_pool_search_text(app_state.search_filter)
+region_tiles:set_pool_sort_mode(app_state.sort_mode)
+
 local app_status = "ready"
 
 local function get_app_status()
@@ -361,7 +442,7 @@ local function get_app_status()
   local status_configs = {
     ready = {
       color = 0x41E0A3FF,
-      text = "READY  •  " .. mode_text .. "  •  Drag pool items to active (purple)  •  CTRL+Drag to copy (purple)  •  Drag outside to remove (red)",
+      text = "READY  â€¢  " .. mode_text .. "  â€¢  Drag pool items to active (purple)  â€¢  CTRL+Drag to copy (purple)  â€¢  Drag outside to remove (red)",
       buttons = nil,
       right_buttons = nil,
     },
@@ -537,19 +618,7 @@ local function draw(ctx, state)
     
     ImGui.Dummy(ctx, 1, 16)
     
-    ImGui.PushStyleVar(ctx, ImGui.StyleVar_FramePadding, 6, 3)
-    ImGui.PushStyleVar(ctx, ImGui.StyleVar_FrameRounding, 4)
-    ImGui.SetNextItemWidth(ctx, 200)
-    local ch_s, new_q = ImGui.InputText(ctx, 'Search', app_state.search_filter or '')
-    if ch_s then 
-      app_state.search_filter = new_q
-      if settings then settings:set('pool_search', app_state.search_filter) end
-    end
-    ImGui.PopStyleVar(ctx, 2)
-    
-    ImGui.SameLine(ctx)
     ImGui.Text(ctx, "REGION POOL")
-    
     ImGui.Dummy(ctx, 1, 4)
     region_tiles:draw_pool(ctx, filtered_regions, pool_height)
   else
@@ -578,19 +647,7 @@ local function draw(ctx, state)
     ImGui.PushStyleVar(ctx, ImGui.StyleVar_ItemSpacing, 0, 0)
     
     if ImGui.BeginChild(ctx, "##right_column", pool_width, content_h, ImGui.ChildFlags_None, 0) then
-      ImGui.PushStyleVar(ctx, ImGui.StyleVar_FramePadding, 6, 3)
-      ImGui.PushStyleVar(ctx, ImGui.StyleVar_FrameRounding, 4)
-      ImGui.SetNextItemWidth(ctx, 200)
-      local ch_s, new_q = ImGui.InputText(ctx, 'Search', app_state.search_filter or '')
-      if ch_s then 
-        app_state.search_filter = new_q
-        if settings then settings:set('pool_search', app_state.search_filter) end
-      end
-      ImGui.PopStyleVar(ctx, 2)
-      
-      ImGui.SameLine(ctx)
       ImGui.Text(ctx, "REGION POOL")
-      
       ImGui.Dummy(ctx, 1, 4)
       local label_consumed = ImGui.GetCursorPosY(ctx)
       region_tiles:draw_pool(ctx, filtered_regions, content_h - label_consumed)
