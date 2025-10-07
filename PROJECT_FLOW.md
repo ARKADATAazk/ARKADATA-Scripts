@@ -1,5 +1,5 @@
 # PROJECT FLOW: ARKADATA Scripts
-Generated: 2025-10-07 23:20:48
+Generated: 2025-10-08 00:22:22
 Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
 
 ## Project Structure
@@ -11,7 +11,7 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
     │   │   ├── config.lua         # (171 lines)
     │   │   ├── gui.lua         # (408 lines)
     │   │   ├── shortcuts.lua         # (82 lines)
-    │   │   ├── state.lua         # (299 lines)
+    │   │   ├── state.lua         # (305 lines)
     │   │   └── status.lua         # (58 lines)
     │   └── ARK_Region_Playlist.lua         # (52 lines)
     ├── app/
@@ -29,8 +29,8 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
     ├── features/
     │   └── region_playlist/
     │       ├── controls_widget.lua         # (150 lines)
-    │       ├── coordinator_bridge.lua         # (133 lines)
-    │       ├── engine.lua         # (468 lines)
+    │       ├── coordinator_bridge.lua         # (136 lines)
+    │       ├── engine.lua         # (533 lines)
     │       ├── playback.lua         # (102 lines)
     │       ├── playlist_controller.lua         # (313 lines)
     │       ├── shortcuts.lua         # (68 lines)
@@ -123,8 +123,8 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
 
 ## Overview
 - **Total Files**: 88
-- **Total Lines**: 14,920
-- **Code Lines**: 11,723
+- **Total Lines**: 14,994
+- **Code Lines**: 11,786
 - **Public Functions**: 251
 - **Classes**: 61
 - **Modules**: 183
@@ -132,7 +132,7 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
 ## Folder Structure
 ### ReArkitekt/
   - Files: 88
-  - Lines: 11,723
+  - Lines: 11,786
   - Exports: 251
 
 ## Execution Flow Patterns
@@ -703,13 +703,13 @@ Defines: `win`
 1. `ReArkitekt/gui/widgets/region_tiles/coordinator.lua` (854 lines)
 2. `ReArkitekt/gui/widgets/tiles_container_old.lua` (752 lines)
 3. `ReArkitekt/gui/widgets/grid/core.lua` (549 lines)
-4. `ReArkitekt/core/colors.lua` (514 lines)
-5. `ReArkitekt/features/region_playlist/engine.lua` (468 lines)
+4. `ReArkitekt/features/region_playlist/engine.lua` (533 lines)
+5. `ReArkitekt/core/colors.lua` (514 lines)
 6. `ReArkitekt/Region_Playlist/app/gui.lua` (408 lines)
 7. `ReArkitekt/gui/widgets/tiles_container/init.lua` (390 lines)
 8. `ReArkitekt/gui/widgets/controls/dropdown.lua` (355 lines)
 9. `ReArkitekt/features/region_playlist/playlist_controller.lua` (313 lines)
-10. `ReArkitekt/demo.lua` (299 lines)
+10. `ReArkitekt/Region_Playlist/app/state.lua` (305 lines)
 
 ## Dependency Analysis
 

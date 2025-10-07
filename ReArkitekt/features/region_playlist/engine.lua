@@ -330,7 +330,16 @@ function Engine:poll_transport_sync()
         self.playlist_pointer = i
         self.is_playing = true
         self.current_idx = i
-        self.next_idx = (i < #self.playlist_order) and (i + 1) or -1
+        
+        local meta = self.playlist_metadata[i]
+        local should_loop = meta and meta.current_loop < meta.reps
+        
+        if should_loop then
+          self.next_idx = i
+        else
+          self.next_idx = (i < #self.playlist_order) and (i + 1) or -1
+        end
+        
         self:_update_bounds()
         self:_enter_playlist_mode_if_needed()
         return

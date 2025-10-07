@@ -1,10 +1,10 @@
 # FOLDER FLOW: ReArkitekt
-Generated: 2025-10-07 23:20:48
+Generated: 2025-10-08 00:22:22
 Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
 
 ## Overview
 - **Files**: 88
-- **Total Lines**: 14,920
+- **Total Lines**: 14,994
 - **Public Functions**: 251
 - **Classes**: 61
 
@@ -96,7 +96,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.create(opts)`
   **Requires**: ReArkitekt.gui.draw, ReArkitekt.core.colors, ReArkitekt.gui.fx.tile_motion, ReArkitekt.gui.fx.dnd.drag_indicator, ReArkitekt.gui.widgets.region_tiles.renderers.active
 
-### coordinator_bridge.lua (133 lines)
+### coordinator_bridge.lua (136 lines)
   **Modules**: M, order, regions
   **Classes**: M
   **Exports**:
@@ -198,7 +198,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.soft_glow(dl, x1, y1, x2, y2, color, intensity, radius)`
     - `M.pulse_glow(dl, x1, y1, x2, y2, color, time, speed, radius)`
 
-### engine.lua (468 lines)
+### engine.lua (533 lines)
   **Modules**: M, Engine
   **Classes**: Engine, M
   **Exports**:
@@ -466,7 +466,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.get_or_create_default_playlist(playlists, regions)`
   **Requires**: ReArkitekt.core.json
 
-### state.lua (299 lines)
+### state.lua (305 lines)
   **Modules**: M, tabs, result, reversed
   **Exports**:
     - `M.initialize(settings)`

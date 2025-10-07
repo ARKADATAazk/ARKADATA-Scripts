@@ -67,7 +67,7 @@ end
 function M.go_to_region(proj, target_rid)
   proj = proj or 0
   local rgn = M.get_region_by_rid(proj, target_rid)
-  if not rgn then return false end
+  if not rgn then return false end 
   
   -- The core REAPER API function that performs a smooth seek to the region's start.
   -- The rgn.index (the internal marker index number) is the required 'region_index'.
