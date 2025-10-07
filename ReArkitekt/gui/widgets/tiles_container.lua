@@ -1,15 +1,14 @@
 -- ReArkitekt/gui/widgets/tiles_container.lua
 -- Visual container for tile grids with scrolling, borders, and interactive header
--- Enhanced with multi-scale grid/dot background patterns and search/sort controls
+-- Updated with dropdown-based sorting
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
 
+local Dropdown = require('ReArkitekt.gui.widgets.controls.dropdown')
+
 local M = {}
 
-----------------------------------------------------------------
--- DEFAULT CONFIGURATION
-----------------------------------------------------------------
 local DEFAULTS = {
   bg_color = 0x1C1C1CFF,
   border_color = 0x000000DD,
@@ -76,24 +75,30 @@ local DEFAULTS = {
       fade_speed = 8.0,
     },
     
-    sort_buttons = {
+    sort_dropdown = {
       enabled = true,
-      size = 24,
-      spacing = 4,
-      bg_color = 0x1A1A1AFF,
-      bg_hover_color = 0x262626FF,
-      bg_active_color = 0x41E0A366,
-      text_color = 0x999999FF,
+      width = 120,
+      height = 26,
+      tooltip = "Sorting",
+      bg_color = 0x252525FF,
+      bg_hover_color = 0x303030FF,
+      bg_active_color = 0x3A3A3AFF,
+      text_color = 0xCCCCCCFF,
       text_hover_color = 0xFFFFFFFF,
-      text_active_color = 0x41E0A3FF,
-      border_color = 0x333333FF,
-      border_active_color = 0x41E0A3FF,
-      rounding = 3,
+      border_color = 0x353535FF,
+      border_hover_color = 0x454545FF,
+      rounding = 4,
+      padding_x = 10,
+      padding_y = 6,
+      arrow_size = 4,
+      arrow_color = 0x999999FF,
+      arrow_hover_color = 0xEEEEEEFF,
       
-      buttons = {
-        { id = "color", label = "C", tooltip = "Sort by Color" },
-        { id = "index", label = "#", tooltip = "Sort by Index" },
-        { id = "alpha", label = "A", tooltip = "Sort Alphabetically" },
+      options = {
+        { value = nil, label = "No Sort" },
+        { value = "color", label = "Color" },
+        { value = "index", label = "Index" },
+        { value = "alpha", label = "Alphabetical" },
       },
     },
     
@@ -107,9 +112,6 @@ local DEFAULTS = {
   },
 }
 
-----------------------------------------------------------------
--- Background Pattern Rendering
-----------------------------------------------------------------
 local function draw_grid_pattern(dl, x1, y1, x2, y2, spacing, color, thickness)
   local start_x = x1 + (spacing - (x1 % spacing))
   local start_y = y1 + (spacing - (y1 % spacing))
@@ -171,9 +173,6 @@ local function draw_background_pattern(dl, x1, y1, x2, y2, pattern_cfg)
   ImGui.DrawList_PopClipRect(dl)
 end
 
-----------------------------------------------------------------
--- Header Components
-----------------------------------------------------------------
 local function draw_search_bar(ctx, dl, x, y, width, height, state, cfg)
   local search_cfg = cfg.search
   if not search_cfg or not search_cfg.enabled then return x + width end
@@ -232,37 +231,54 @@ local function draw_search_bar(ctx, dl, x, y, width, height, state, cfg)
   return x + width
 end
 
-local function draw_sort_button(ctx, dl, x, y, size, button_def, state, cfg)
-  local btn_cfg = cfg.sort_buttons
-  local button_id = button_def.id
-  local is_hovered = ImGui.IsMouseHoveringRect(ctx, x, y, x + size, y + size)
-  local is_active = state.sort_mode == button_id
+local function draw_sort_dropdown(ctx, x, y, content_height, state, cfg)
+  local dropdown_cfg = cfg.sort_dropdown
+  if not dropdown_cfg or not dropdown_cfg.enabled then return x end
   
-  local bg_color = is_active and btn_cfg.bg_active_color or 
-                   (is_hovered and btn_cfg.bg_hover_color or btn_cfg.bg_color)
-  
-  ImGui.DrawList_AddRectFilled(dl, x, y, x + size, y + size, bg_color, btn_cfg.rounding)
-  ImGui.DrawList_AddRect(dl, x, y, x + size, y + size, btn_cfg.border_color, btn_cfg.rounding, 0, 1)
-  
-  local text_color = is_hovered and btn_cfg.text_hover_color or btn_cfg.text_color
-  local text_w, text_h = ImGui.CalcTextSize(ctx, button_def.label)
-  local text_x = x + (size - text_w) * 0.5
-  local text_y = y + (size - text_h) * 0.5
-  
-  ImGui.DrawList_AddText(dl, text_x, text_y, text_color, button_def.label)
-  
-  if is_hovered then
-    ImGui.SetTooltip(ctx, button_def.tooltip)
-    
-    if ImGui.IsMouseClicked(ctx, ImGui.MouseButton_Left) then
-      state.sort_mode = button_id
-      if state.on_sort_changed then
-        state.on_sort_changed(button_id)
-      end
-    end
+  if not state.sort_dropdown then
+    state.sort_dropdown = Dropdown.new({
+      id = "sort_dropdown_" .. state.id,
+      tooltip = dropdown_cfg.tooltip,
+      options = dropdown_cfg.options,
+      current_value = state.sort_mode,
+      sort_direction = state.sort_direction or "asc",
+      on_change = function(value)
+        state.sort_mode = value
+        if state.on_sort_changed then
+          state.on_sort_changed(value)
+        end
+      end,
+      on_direction_change = function(direction)
+        state.sort_direction = direction
+        if state.on_sort_direction_changed then
+          state.on_sort_direction_changed(direction)
+        end
+      end,
+      config = {
+        width = dropdown_cfg.width,
+        height = dropdown_cfg.height,
+        bg_color = dropdown_cfg.bg_color,
+        bg_hover_color = dropdown_cfg.bg_hover_color,
+        bg_active_color = dropdown_cfg.bg_active_color,
+        text_color = dropdown_cfg.text_color,
+        text_hover_color = dropdown_cfg.text_hover_color,
+        border_color = dropdown_cfg.border_color,
+        border_hover_color = dropdown_cfg.border_hover_color,
+        rounding = dropdown_cfg.rounding,
+        padding_x = dropdown_cfg.padding_x,
+        padding_y = dropdown_cfg.padding_y,
+        arrow_size = dropdown_cfg.arrow_size,
+        arrow_color = dropdown_cfg.arrow_color,
+        arrow_hover_color = dropdown_cfg.arrow_hover_color,
+        enable_mousewheel = true,
+      },
+    })
   end
   
-  return x + size
+  local dropdown_y = y + (content_height - dropdown_cfg.height) * 0.5
+  state.sort_dropdown:draw(ctx, x, dropdown_y)
+  
+  return x + dropdown_cfg.width
 end
 
 local function draw_header(ctx, dl, x, y, width, height, state, cfg)
@@ -290,25 +306,13 @@ local function draw_header(ctx, dl, x, y, width, height, state, cfg)
     cursor_x = cursor_x + header_cfg.spacing
   end
   
-  if header_cfg.sort_buttons and header_cfg.sort_buttons.enabled then
-    local btn_cfg = header_cfg.sort_buttons
-    local button_y = cursor_y + (content_height - btn_cfg.size) * 0.5
-    
-    for i, button_def in ipairs(btn_cfg.buttons) do
-      if i > 1 then
-        cursor_x = cursor_x + btn_cfg.spacing
-      end
-      cursor_x = draw_sort_button(ctx, dl, cursor_x, button_y, 
-        btn_cfg.size, button_def, state, header_cfg)
-    end
+  if header_cfg.sort_dropdown and header_cfg.sort_dropdown.enabled then
+    cursor_x = draw_sort_dropdown(ctx, cursor_x, cursor_y, content_height, state, header_cfg)
   end
   
   return height
 end
 
-----------------------------------------------------------------
--- Container Widget
-----------------------------------------------------------------
 local Container = {}
 Container.__index = Container
 
@@ -326,9 +330,12 @@ function M.new(opts)
     search_focused = false,
     search_alpha = 0.3,
     sort_mode = nil,
+    sort_direction = "asc",  -- ADD THIS
+    sort_dropdown = nil,
     
     on_search_changed = opts.on_search_changed,
     on_sort_changed = opts.on_sort_changed,
+    on_sort_direction_changed = opts.on_sort_direction_changed,
     
     had_scrollbar_last_frame = false,
     last_content_height = 0,
@@ -434,6 +441,7 @@ function Container:reset()
   self.search_focused = false
   self.search_alpha = 0.3
   self.sort_mode = nil
+  self.sort_dropdown = nil
 end
 
 function Container:get_search_text()
@@ -450,11 +458,18 @@ end
 
 function Container:set_sort_mode(mode)
   self.sort_mode = mode
+  if self.sort_dropdown then
+    self.sort_dropdown:set_value(mode)
+  end
 end
 
-----------------------------------------------------------------
--- Simple wrapper function for convenience
-----------------------------------------------------------------
+function Container:set_sort_direction(direction)
+  self.sort_direction = direction or "asc"
+  if self.sort_dropdown then
+    self.sort_dropdown:set_direction(direction)
+  end
+end
+
 function M.draw(ctx, id, width, height, content_fn, config, on_search_changed, on_sort_changed)
   config = config or DEFAULTS
   

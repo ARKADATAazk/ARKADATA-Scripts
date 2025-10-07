@@ -1,5 +1,5 @@
 -- ReArkitekt/features/region_playlist/coordinator_bridge.lua
--- Bridge between rp/engine and gui/widgets/region_tiles/coordinator
+-- Bridge between engine and gui - updated for native REAPER RIDs
 
 local Engine = require('ReArkitekt.features.region_playlist.engine')
 local Playback = require('ReArkitekt.features.region_playlist.playback')
@@ -47,14 +47,13 @@ function M.create(opts)
   
   function bridge:get_regions_for_ui()
     local regions = {}
-    for rid, data in pairs(self.engine.rid_map) do
+    for rid, rgn in pairs(self.engine.region_cache) do
       regions[#regions + 1] = {
         rid = rid,
-        name = data.region.name,
-        start = data.region.start,
-        ["end"] = data.region["end"],
-        color = data.region.color,
-        guid = data.guid,
+        name = rgn.name,
+        start = rgn.start,
+        ["end"] = rgn["end"],
+        color = rgn.color,
       }
     end
     return regions

@@ -59,6 +59,21 @@ function M.set_edit_cursor(pos, move_view, seek_play, proj)
   reaper.SetEditCurPos2(proj, pos, move_view, seek_play)
 end
 
+function M.set_play_position(pos, move_view, proj)
+  proj = proj or 0
+  move_view = move_view == nil and true or move_view
+  
+  local was_playing = M.is_playing(proj)
+  
+  if was_playing then
+    reaper.CSurf_OnPause()
+    reaper.SetEditCurPos2(proj, pos, move_view, false)
+    reaper.CSurf_OnPlay()
+  else
+    reaper.SetEditCurPos2(proj, pos, move_view, true)
+  end
+end
+
 function M.get_project_length(proj)
   proj = proj or 0
   return reaper.GetProjectLength(proj)

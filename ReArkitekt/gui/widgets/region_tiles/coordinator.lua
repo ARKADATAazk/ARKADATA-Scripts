@@ -7,7 +7,6 @@ local ImGui = require 'imgui' '0.10'
 
 local Draw = require('ReArkitekt.gui.draw')
 local Colors = require('ReArkitekt.core.colors')
-local PlaybackManager = require('ReArkitekt.gui.systems.playback_manager')
 local TileAnim = require('ReArkitekt.gui.fx.tile_motion')
 local DragIndicator = require('ReArkitekt.gui.fx.dnd.drag_indicator')
 local ActiveTile = require('ReArkitekt.gui.widgets.region_tiles.renderers.active')
@@ -95,24 +94,33 @@ local DEFAULTS = {
         fade_speed = 8.0,
       },
       
-      sort_buttons = {
+      sort_dropdown = {
         enabled = true,
-        size = 24,
-        spacing = 4,
-        bg_color = 0x2A2A2AFF,
-        bg_hover_color = 0x333333FF,
+        width = 120,
+        height = 26,
+        tooltip = "Sorting",
+        bg_color = 0x252525FF,
+        bg_hover_color = 0x303030FF,
         bg_active_color = 0x3A3A3AFF,
-        text_color = 0xAAAAAAFF,
-        text_hover_color = 0xEEEEEEFF,
-        border_color = 0x404040FF,
-        rounding = 3,
+        text_color = 0xCCCCCCFF,
+        text_hover_color = 0xFFFFFFFF,
+        border_color = 0x353535FF,
+        border_hover_color = 0x454545FF,
+        rounding = 4,
+        padding_x = 10,
+        padding_y = 6,
+        arrow_size = 4,
+        arrow_color = 0x999999FF,
+        arrow_hover_color = 0xEEEEEEFF,
         
-        buttons = {
-          { id = "color", label = "C", tooltip = "Sort by Color" },
-          { id = "index", label = "#", tooltip = "Sort by Index" },
-          { id = "alpha", label = "A", tooltip = "Sort Alphabetically" },
+            options = {
+                { value = nil, label = "No Sort" },
+                { value = "color", label = "Color" },
+                { value = "index", label = "Index" },
+                { value = "alpha", label = "Alphabetical" },
+                { value = "length", label = "Length" },
+            },
         },
-      },
     },
   },
   
@@ -263,6 +271,7 @@ function M.create(opts)
     on_pool_double_click = opts.on_pool_double_click,
     on_pool_search = opts.on_pool_search,
     on_pool_sort = opts.on_pool_sort,
+    on_pool_sort_direction = opts.on_pool_sort_direction, 
     settings = opts.settings,
     
     allow_pool_reorder = opts.allow_pool_reorder ~= false,
@@ -277,10 +286,6 @@ function M.create(opts)
     selector = Selector.new(),
     active_animator = TileAnim.new(config.hover_config.animation_speed_hover),
     pool_animator = TileAnim.new(config.hover_config.animation_speed_hover),
-
-    playback_manager = PlaybackManager.new({
-      default_duration = 15.0,
-    }),
     
     active_bounds = nil,
     pool_bounds = nil,
@@ -288,6 +293,7 @@ function M.create(opts)
     active_grid = nil,
     pool_grid = nil,
     bridge = nil,
+    app_bridge = nil,
     
     active_container = nil,
     pool_container = nil,
@@ -353,6 +359,11 @@ function M.create(opts)
       if rt.on_pool_sort then
         rt.on_pool_sort(mode)
       end
+    end,
+    on_sort_direction_changed = function(direction)
+        if rt.on_pool_sort_direction then
+            rt.on_pool_sort_direction(direction)
+        end
     end,
   })
   
@@ -463,6 +474,10 @@ function RegionTiles:set_layout_mode(mode)
   else
     self.active_grid.min_col_w_fn = self._original_active_min_col_w
   end
+end
+
+function RegionTiles:set_app_bridge(bridge)
+  self.app_bridge = bridge
 end
 
 function RegionTiles:_find_hovered_tile(ctx, items)
@@ -743,6 +758,10 @@ end
 
 function RegionTiles:set_pool_sort_mode(mode)
   self.pool_container:set_sort_mode(mode)
+end
+
+function RegionTiles:set_pool_sort_direction(direction)
+  self.pool_container:set_sort_direction(direction)
 end
 
 return M

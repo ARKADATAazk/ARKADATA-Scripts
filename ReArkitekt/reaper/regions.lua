@@ -1,10 +1,19 @@
 -- ReArkitekt/reaper/regions.lua
--- REAPER Region API wrapper with stable ID mapping
+-- REAPER Region API wrapper - uses native markrgnindexnumber as stable RID
 
 local M = {}
 
-local function generate_guid()
-  return reaper.genGuid("")
+local FALLBACK_COLOR = 0x4A5A6AFF
+
+local function convert_reaper_color_to_rgba(native_color)
+  if not native_color or native_color == 0 then
+    return FALLBACK_COLOR
+  end
+  
+  local color_int = native_color | 0x1000000
+  local r, g, b = reaper.ColorFromNative(color_int)
+  
+  return (r << 24) | (g << 16) | (b << 8) | 0xFF
 end
 
 function M.scan_project_regions(proj)
@@ -18,12 +27,12 @@ function M.scan_project_regions(proj)
     
     if isrgn then
       regions[#regions + 1] = {
+        rid = markrgnindexnumber,
         index = i,
-        marker_id = markrgnindexnumber,
         name = name,
         start = pos,
         ["end"] = rgnend,
-        color = color,
+        color = convert_reaper_color_to_rgba(color),
       }
     end
   end
@@ -31,62 +40,32 @@ function M.scan_project_regions(proj)
   return regions
 end
 
-function M.create_rid_mapping(regions, prev_mapping)
-  prev_mapping = prev_mapping or {}
-  local rid_map = {}
-  local next_rid = 1
+function M.get_region_by_rid(proj, target_rid)
+  proj = proj or 0
+  local _, num_markers, num_regions = reaper.CountProjectMarkers(proj)
   
-  for rid, data in pairs(prev_mapping) do
-    if type(rid) == "number" and rid >= next_rid then
-      next_rid = rid + 1
-    end
-  end
-  
-  for _, rgn in ipairs(regions) do
-    local key = string.format("%s|%.4f|%.4f", rgn.name, rgn.start, rgn["end"])
-    local existing_rid = prev_mapping[key]
+  for i = 0, num_markers + num_regions - 1 do
+    local retval, isrgn, pos, rgnend, name, markrgnindexnumber, color = 
+      reaper.EnumProjectMarkers3(proj, i)
     
-    if existing_rid then
-      rid_map[existing_rid] = {
-        key = key,
-        region = rgn,
-        guid = prev_mapping[existing_rid] and prev_mapping[existing_rid].guid or generate_guid()
+    if isrgn and markrgnindexnumber == target_rid then
+      return {
+        rid = markrgnindexnumber,
+        index = i,
+        name = name,
+        start = pos,
+        ["end"] = rgnend,
+        color = convert_reaper_color_to_rgba(color),
       }
-    else
-      rid_map[next_rid] = {
-        key = key,
-        region = rgn,
-        guid = generate_guid()
-      }
-      next_rid = next_rid + 1
     end
   end
   
-  return rid_map
+  return nil
 end
 
-function M.get_region_by_index(proj, marker_index)
+function M.go_to_region(proj, target_rid)
   proj = proj or 0
-  local retval, isrgn, pos, rgnend, name, markrgnindexnumber, color = 
-    reaper.EnumProjectMarkers3(proj, marker_index)
-  
-  if not isrgn then
-    return nil
-  end
-  
-  return {
-    index = marker_index,
-    marker_id = markrgnindexnumber,
-    name = name,
-    start = pos,
-    ["end"] = rgnend,
-    color = color,
-  }
-end
-
-function M.go_to_region(proj, marker_index, timeline_order)
-  proj = proj or 0
-  local rgn = M.get_region_by_index(proj, marker_index)
+  local rgn = M.get_region_by_rid(proj, target_rid)
   if not rgn then return false end
   
   reaper.SetEditCurPos(rgn.start, true, true)

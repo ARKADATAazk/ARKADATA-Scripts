@@ -20,8 +20,8 @@ local function load_fonts(ctx, font_sizes)
   local parent_dir = this_dir:match("^(.*"..SEP..")[^"..SEP.."]*"..SEP.."$") or this_dir
   local fonts_dir = parent_dir .. "fonts" .. SEP
 
-  local R  = fonts_dir .. "Roboto-Regular.ttf"
-  local B  = fonts_dir .. "Roboto-Bold.ttf"
+  local R  = fonts_dir .. "Inter_18pt-Regular.ttf"
+  local B  = fonts_dir .. "Inter_18pt-SemiBold.ttf"
 
   local function exists(p) local f=io.open(p,"rb"); if f then f:close(); return true end end
   local reg = exists(R) and ImGui.CreateFont(R, default_size, 0) or ImGui.CreateFont('sans-serif', default_size, 0)
@@ -71,7 +71,6 @@ function M.run(opts)
 
       local visible, open = window:Begin(ctx)
       if visible then
-        -- Draw content - tabs will be full width, content will be padded
         draw_fn(ctx, state)
       end
       window:End(ctx)

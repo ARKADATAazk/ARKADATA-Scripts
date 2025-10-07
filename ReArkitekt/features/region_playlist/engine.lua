@@ -1,5 +1,5 @@
 -- ReArkitekt/features/region_playlist/engine.lua
--- Region Playlist Engine (Phase 1: SWS Parity)
+-- Region Playlist Engine - simplified to use native REAPER region IDs
 
 local Regions = require('ReArkitekt.reaper.regions')
 local Transport = require('ReArkitekt.reaper.transport')
@@ -14,11 +14,12 @@ function M.new(opts)
   local self = setmetatable({}, Engine)
   
   self.proj = opts.proj or 0
-  self.rid_map = {}
+  self.region_cache = {}
   self.playlist_order = {}
   self.playlist_pointer = 1
   self.quantize_mode = opts.quantize_mode or "none"
   self.follow_playhead = opts.follow_playhead or false
+  self.transport_override = opts.transport_override or false
   self.state_change_count = 0
   self.epsilon = opts.epsilon or 0.016
   self.scheduled_jump = nil
@@ -32,18 +33,9 @@ end
 function Engine:rescan()
   local regions = Regions.scan_project_regions(self.proj)
   
-  local key_to_rid = {}
-  for rid, data in pairs(self.rid_map) do
-    key_to_rid[data.key] = rid
-  end
-  
-  self.rid_map = Regions.create_rid_mapping(regions, key_to_rid)
-  
-  if #self.playlist_order == 0 then
-    for rid in pairs(self.rid_map) do
-      self.playlist_order[#self.playlist_order + 1] = rid
-    end
-    table.sort(self.playlist_order)
+  self.region_cache = {}
+  for _, rgn in ipairs(regions) do
+    self.region_cache[rgn.rid] = rgn
   end
   
   self.state_change_count = Transport.get_project_state_change_count(self.proj)
@@ -61,7 +53,7 @@ end
 function Engine:set_order(new_order)
   self.playlist_order = {}
   for _, rid in ipairs(new_order) do
-    if self.rid_map[rid] then
+    if self.region_cache[rid] then
       self.playlist_order[#self.playlist_order + 1] = rid
     end
   end
@@ -74,6 +66,14 @@ function Engine:set_quantize_mode(mode)
   end
 end
 
+function Engine:set_transport_override(enabled)
+  self.transport_override = enabled
+end
+
+function Engine:get_transport_override()
+  return self.transport_override
+end
+
 function Engine:get_current_rid()
   if self.playlist_pointer < 1 or self.playlist_pointer > #self.playlist_order then
     return nil
@@ -82,19 +82,26 @@ function Engine:get_current_rid()
 end
 
 function Engine:get_region_by_rid(rid)
-  local data = self.rid_map[rid]
-  return data and data.region or nil
+  return self.region_cache[rid]
 end
 
 function Engine:play()
   local rid = self:get_current_rid()
-  if not rid then return false end
+  if not rid then 
+    return false 
+  end
   
   local region = self:get_region_by_rid(rid)
-  if not region then return false end
+  if not region then 
+    return false 
+  end
   
-  Transport.set_edit_cursor(region.start, true, true, self.proj)
-  Transport.play(self.proj)
+  Transport.set_play_position(region.start, true, self.proj)
+  
+  if not Transport.is_playing(self.proj) then
+    Transport.play(self.proj)
+  end
+  
   self.is_playing = true
   self.scheduled_jump = nil
   
@@ -131,6 +138,27 @@ function Engine:jump_to_index(idx)
   return false
 end
 
+function Engine:poll_transport_sync()
+  if not self.transport_override then return end
+  if self.is_playing then return end
+  
+  if not Transport.is_playing(self.proj) then return end
+  
+  local playpos = Transport.get_play_position(self.proj)
+  
+  for i, rid in ipairs(self.playlist_order) do
+    local region = self:get_region_by_rid(rid)
+    if region then
+      if playpos >= region.start and playpos < region["end"] then
+        self.playlist_pointer = i
+        self.is_playing = true
+        self.scheduled_jump = nil
+        return
+      end
+    end
+  end
+end
+
 function Engine:update()
   self:check_for_changes()
   
@@ -141,7 +169,10 @@ function Engine:update()
   end
   
   if not self.is_playing then
-    self.is_playing = true
+    self:poll_transport_sync()
+    if not self.is_playing then
+      return
+    end
   end
   
   local playpos = Transport.get_play_position(self.proj)
@@ -194,13 +225,14 @@ end
 
 function Engine:get_state()
   return {
-    rid_map = self.rid_map,
+    region_cache = self.region_cache,
     playlist_order = self.playlist_order,
     playlist_pointer = self.playlist_pointer,
     quantize_mode = self.quantize_mode,
     is_playing = self.is_playing,
     scheduled_jump = self.scheduled_jump,
     follow_playhead = self.follow_playhead,
+    transport_override = self.transport_override,
   }
 end
 

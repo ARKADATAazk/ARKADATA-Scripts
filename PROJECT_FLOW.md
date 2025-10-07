@@ -1,21 +1,39 @@
 # PROJECT FLOW: ARKADATA Scripts
-Generated: 2025-10-06 14:58:51
+Generated: 2025-10-06 23:50:37
 Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
 
 ## Project Structure
 
 ```
 └── ReArkitekt/
+    ├── Region_Playlist/
+    │   ├── app/
+    │   │   ├── config.lua         # (122 lines)
+    │   │   ├── gui.lua         # (475 lines)
+    │   │   ├── shortcuts.lua         # (67 lines)
+    │   │   ├── state.lua         # (308 lines)
+    │   │   └── status.lua         # (58 lines)
+    │   └── ARK_Region_Playlist.lua         # (52 lines)
     ├── app/
     │   ├── runtime.lua         # (68 lines)
-    │   ├── shell.lua         # (96 lines)
+    │   ├── shell.lua         # (95 lines)
     │   └── window.lua         # (182 lines)
     ├── core/
     │   ├── colors.lua         # (428 lines)
     │   ├── json.lua         # (120 lines)
     │   ├── lifecycle.lua         # (80 lines)
     │   ├── math.lua         # (51 lines)
-    │   └── settings.lua         # (118 lines)
+    │   ├── settings.lua         # (118 lines)
+    │   └── undo_manager.lua         # (85 lines)
+    ├── features/
+    │   └── region_playlist/
+    │       ├── controls_widget.lua         # (150 lines)
+    │       ├── coordinator_bridge.lua         # (111 lines)
+    │       ├── engine.lua         # (235 lines)
+    │       ├── playback.lua         # (102 lines)
+    │       ├── shortcuts.lua         # (68 lines)
+    │       ├── state.lua         # (100 lines)
+    │       └── undo_bridge.lua         # (90 lines)
     ├── gui/
     │   ├── fx/
     │   │   ├── animation/
@@ -36,19 +54,21 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
     │   │   └── tile_motion.lua         # (57 lines)
     │   ├── systems/
     │   │   ├── height_stabilizer.lua         # (73 lines)
-    │   │   ├── playback_manager.lua         # (109 lines)
+    │   │   ├── playback_manager.lua         # (21 lines)
     │   │   ├── reorder.lua         # (126 lines)
     │   │   ├── responsive_grid.lua         # (127 lines)
     │   │   ├── selection.lua         # (141 lines)
-    │   │   └── tile_utilities.lua         # (27 lines)
+    │   │   └── tile_utilities.lua         # (48 lines)
     │   ├── widgets/
+    │   │   ├── controls/
+    │   │   │   └── dropdown.lua         # (263 lines)
     │   │   ├── grid/
     │   │   │   ├── animation.lua         # (100 lines)
-    │   │   │   ├── core.lua         # (555 lines)
+    │   │   │   ├── core.lua         # (549 lines)
     │   │   │   ├── dnd_state.lua         # (112 lines)
-    │   │   │   ├── drop_zones.lua         # (240 lines)
+    │   │   │   ├── drop_zones.lua         # (249 lines)
     │   │   │   ├── grid_bridge.lua         # (218 lines)
-    │   │   │   ├── input.lua         # (232 lines)
+    │   │   │   ├── input.lua         # (236 lines)
     │   │   │   ├── layout.lua         # (100 lines)
     │   │   │   └── rendering.lua         # (89 lines)
     │   │   ├── navigation/
@@ -59,41 +79,44 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
     │   │   │   └── renderer.lua         # (232 lines)
     │   │   ├── region_tiles/
     │   │   │   ├── renderers/
-    │   │   │   │   ├── active.lua         # (221 lines)
-    │   │   │   │   └── pool.lua         # (142 lines)
-    │   │   │   ├── active_grid_factory.lua         # (222 lines)
-    │   │   │   ├── coordinator.lua         # (748 lines)
+    │   │   │   │   ├── active.lua         # (234 lines)
+    │   │   │   │   └── pool.lua         # (146 lines)
+    │   │   │   ├── active_grid_factory.lua         # (213 lines)
+    │   │   │   ├── coordinator.lua         # (767 lines)
     │   │   │   ├── pool_grid_factory.lua         # (122 lines)
     │   │   │   └── selector.lua         # (97 lines)
     │   │   ├── sliders/
     │   │   │   └── hue.lua         # (260 lines)
     │   │   ├── selection_rectangle.lua         # (98 lines)
     │   │   ├── status_bar.lua         # (196 lines)
-    │   │   └── tiles_container.lua         # (480 lines)
+    │   │   └── tiles_container.lua         # (495 lines)
     │   ├── draw.lua         # (113 lines)
     │   ├── images.lua         # (284 lines)
     │   └── style.lua         # (173 lines)
     ├── input/
     │   └── wheel_guard.lua         # (42 lines)
+    ├── reaper/
+    │   ├── regions.lua         # (76 lines)
+    │   ├── timing.lua         # (112 lines)
+    │   └── transport.lua         # (82 lines)
     ├── demo.lua         # (299 lines)
     ├── demo2.lua         # (185 lines)
-    ├── mock_region_playlist.lua         # (676 lines)
     └── widget_demo.lua         # (222 lines)
 ```
 
 ## Overview
-- **Total Files**: 57
-- **Total Lines**: 10,197
-- **Code Lines**: 7,942
-- **Public Functions**: 157
-- **Classes**: 44
-- **Modules**: 131
+- **Total Files**: 74
+- **Total Lines**: 12,058
+- **Code Lines**: 9,406
+- **Public Functions**: 217
+- **Classes**: 53
+- **Modules**: 159
 
 ## Folder Structure
 ### ReArkitekt/
-  - Files: 57
-  - Lines: 7,942
-  - Exports: 157
+  - Files: 74
+  - Lines: 9,406
+  - Exports: 217
 
 ## Execution Flow Patterns
 
@@ -107,8 +130,7 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
   → Imports: ReArkitekt.app.shell, ReArkitekt.gui.widgets.navigation.menutabs, ReArkitekt.gui.widgets.status_bar (+4 more)
 - **`ReArkitekt/input/wheel_guard.lua`**
   → Imports: imgui
-- **`ReArkitekt/mock_region_playlist.lua`**
-  → Imports: ReArkitekt.app.shell, ReArkitekt.gui.widgets.status_bar, ReArkitekt.gui.widgets.region_tiles.coordinator (+3 more)
+- **`ReArkitekt/features/region_playlist/shortcuts.lua`**
 - **`ReArkitekt/core/settings.lua`**
   → Imports: json
 - **`ReArkitekt/core/lifecycle.lua`**
@@ -116,18 +138,69 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
 - **`ReArkitekt/gui/style.lua`**
 
 ### Orchestration Pattern
-**`ReArkitekt/gui/widgets/region_tiles/coordinator.lua`** composes 14 modules:
-  draw + colors + playback_manager + tile_motion + drag_indicator (+9 more)
 **`ReArkitekt/gui/widgets/grid/core.lua`** composes 13 modules:
   layout + rect_track + colors + selection + selection_rectangle (+8 more)
+**`ReArkitekt/gui/widgets/region_tiles/coordinator.lua`** composes 13 modules:
+  draw + colors + tile_motion + drag_indicator + active (+8 more)
 **`ReArkitekt/demo.lua`** composes 7 modules:
   shell + menutabs + status_bar + grid + micromanage (+2 more)
-**`ReArkitekt/gui/widgets/region_tiles/renderers/active.lua`** composes 6 modules:
-  draw + colors + tile_fx + tile_fx_config + marching_ants (+1 more)
+**`ReArkitekt/gui/widgets/region_tiles/renderers/active.lua`** composes 7 modules:
+  draw + colors + tile_fx + tile_fx_config + marching_ants (+2 more)
 **`ReArkitekt/gui/widgets/region_tiles/renderers/pool.lua`** composes 6 modules:
   draw + colors + tile_fx + tile_fx_config + marching_ants (+1 more)
 
 ## Module API Surface
+
+### `ReArkitekt/Region_Playlist/app/config.lua`
+> Region_Playlist/app/config.lua
+
+**Modules**: `M`
+**Public API**:
+  - `M.get_region_tiles_config(layout_mode)`
+
+### `ReArkitekt/Region_Playlist/app/gui.lua`
+> Region_Playlist/app/gui.lua
+
+**Modules**: `M, GUI, new_items, keys_to_delete, new_items, dragged_keys, filtered_items, new_keys`
+**Classes**: `GUI, M` (stateful objects)
+**Public API**:
+  - `M.create(State, Config, settings)` → Instance
+**Dependencies**: `ReArkitekt.gui.widgets.region_tiles.coordinator, ReArkitekt.core.colors, ReArkitekt.features.region_playlist.state, Region_Playlist.app.shortcuts, ReArkitekt.gui.fx.tile_motion`
+
+### `ReArkitekt/Region_Playlist/app/shortcuts.lua`
+> Region_Playlist/app/shortcuts.lua
+
+**Modules**: `M`
+**Public API**:
+  - `M.handle_keyboard_shortcuts(ctx, state, region_tiles)`
+**Dependencies**: `Region_Playlist.app.state`
+
+### `ReArkitekt/Region_Playlist/app/state.lua`
+> Region_Playlist/app/state.lua
+
+**Modules**: `M, result, reversed`
+**Public API**:
+  - `M.initialize(settings)`
+  - `M.load_project_state()`
+  - `M.get_active_playlist()`
+  - `M.refresh_regions()`
+  - `M.sync_playlist_to_engine()`
+  - `M.capture_undo_snapshot()`
+  - `M.apply_undo_snapshot(snapshot)`
+  - `M.get_filtered_pool_regions()`
+  - `M.cleanup_deleted_regions()`
+  - `M.check_for_project_changes()`
+**Private Functions**: 6 helpers
+**Dependencies**: `ReArkitekt.features.region_playlist.coordinator_bridge, ReArkitekt.features.region_playlist.state, ReArkitekt.core.undo_manager, ReArkitekt.features.region_playlist.undo_bridge, ReArkitekt.core.colors`
+
+### `ReArkitekt/Region_Playlist/app/status.lua`
+> Region_Playlist/app/status.lua
+
+**Modules**: `M`
+**Classes**: `M` (stateful objects)
+**Public API**:
+  - `M.create(State, Style)` → Instance
+**Dependencies**: `ReArkitekt.gui.widgets.status_bar`
 
 ### `ReArkitekt/app/runtime.lua`
 > ReArkitekt/app/runtime.lua
@@ -208,12 +281,88 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
 **Private Functions**: 7 helpers
 **Dependencies**: `json`
 
+### `ReArkitekt/core/undo_manager.lua`
+> ReArkitekt/core/undo_manager.lua
+
+**Modules**: `M`
+**Classes**: `M` (stateful objects)
+**Public API**:
+  - `M.new(opts)` → Instance
+
 ### `ReArkitekt/demo.lua`
 > ReArkitekt/demo.lua
 
 **Modules**: `result`
 **Private Functions**: 8 helpers
 **Dependencies**: `ReArkitekt.app.shell, ReArkitekt.gui.widgets.navigation.menutabs, ReArkitekt.gui.widgets.status_bar, ReArkitekt.gui.widgets.package_tiles.grid, ReArkitekt.gui.widgets.package_tiles.micromanage, (+2 more)`
+
+### `ReArkitekt/features/region_playlist/controls_widget.lua`
+> ReArkitekt/features/region_playlist/controls_widget.lua
+
+**Modules**: `M`
+**Public API**:
+  - `M.draw_transport_controls(ctx, bridge, x, y)`
+  - `M.draw_quantize_selector(ctx, bridge, x, y, width)`
+  - `M.draw_playback_info(ctx, bridge, x, y, width)`
+  - `M.draw_complete_controls(ctx, bridge, x, y, available_width)`
+
+### `ReArkitekt/features/region_playlist/coordinator_bridge.lua`
+> ReArkitekt/features/region_playlist/coordinator_bridge.lua
+
+**Modules**: `M, order, regions`
+**Classes**: `M` (stateful objects)
+**Public API**:
+  - `M.create(opts)` → Instance
+**Dependencies**: `ReArkitekt.features.region_playlist.engine, ReArkitekt.features.region_playlist.playback, ReArkitekt.features.region_playlist.state`
+
+### `ReArkitekt/features/region_playlist/engine.lua`
+> ReArkitekt/features/region_playlist/engine.lua
+
+**Modules**: `M, Engine`
+**Classes**: `Engine, M` (stateful objects)
+**Public API**:
+  - `M.new(opts)` → Instance
+**Dependencies**: `ReArkitekt.reaper.regions, ReArkitekt.reaper.transport, ReArkitekt.reaper.timing`
+
+### `ReArkitekt/features/region_playlist/playback.lua`
+> ReArkitekt/features/region_playlist/playback.lua
+
+**Modules**: `M, Playback`
+**Classes**: `Playback, M` (stateful objects)
+**Public API**:
+  - `M.new(engine, opts)` → Instance
+**Dependencies**: `ReArkitekt.reaper.transport`
+
+### `ReArkitekt/features/region_playlist/shortcuts.lua`
+> ReArkitekt/features/region_playlist/shortcuts.lua
+
+**Modules**: `M`
+**Public API**:
+  - `M.handle_shortcuts(ctx, bridge)`
+
+### `ReArkitekt/features/region_playlist/state.lua`
+> ReArkitekt/features/region_playlist/state.lua
+
+**Modules**: `M, default_items`
+**Public API**:
+  - `M.save_playlists(playlists, proj)`
+  - `M.load_playlists(proj)`
+  - `M.save_active_playlist(playlist_id, proj)`
+  - `M.load_active_playlist(proj)`
+  - `M.save_settings(settings, proj)`
+  - `M.load_settings(proj)`
+  - `M.clear_all(proj)`
+  - `M.get_or_create_default_playlist(playlists, regions)` → Instance
+**Dependencies**: `ReArkitekt.core.json`
+
+### `ReArkitekt/features/region_playlist/undo_bridge.lua`
+> ReArkitekt/features/region_playlist/undo_bridge.lua
+
+**Modules**: `M, restored_playlists`
+**Public API**:
+  - `M.capture_snapshot(playlists, active_playlist_id)`
+  - `M.restore_snapshot(snapshot, region_index)`
+  - `M.should_capture(old_playlists, new_playlists)`
 
 ### `ReArkitekt/gui/draw.lua`
 > ReArkitekt/gui/draw.lua
@@ -387,10 +536,9 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
 ### `ReArkitekt/gui/systems/playback_manager.lua`
 > ReArkitekt/gui/systems/playback_manager.lua
 
-**Modules**: `M, PlaybackManager`
-**Classes**: `PlaybackManager, M` (stateful objects)
+**Modules**: `M`
 **Public API**:
-  - `M.new(config)` → Instance
+  - `M.compute_fade_alpha(progress, fade_in_ratio, fade_out_ratio)`
 
 ### `ReArkitekt/gui/systems/reorder.lua`
 > ReArkitekt/gui/systems/reorder.lua
@@ -425,7 +573,15 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
 
 **Modules**: `M`
 **Public API**:
-  - `M.format_bar_length(seconds, project_bpm, project_time_sig_num)`
+  - `M.format_bar_length(start_time, end_time, proj)`
+
+### `ReArkitekt/gui/widgets/controls/dropdown.lua`
+> ReArkitekt/gui/widgets/controls/dropdown.lua
+
+**Modules**: `M, Dropdown`
+**Classes**: `Dropdown, M` (stateful objects)
+**Public API**:
+  - `M.new(opts)` → Instance
 
 ### `ReArkitekt/gui/widgets/grid/animation.lua`
 > ReArkitekt/gui/widgets/grid/animation.lua
@@ -453,144 +609,6 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
 **Public API**:
   - `M.new(opts)` → Instance
 
-### `ReArkitekt/gui/widgets/grid/drop_zones.lua`
-> ReArkitekt/gui/widgets/grid/drop_zones.lua
-
-**Modules**: `M, non_dragged, zones, zones, rows, sequential_items, set`
-**Public API**:
-  - `M.find_drop_target(mx, my, items, key_fn, dragged_set, rect_track, is_single_column, grid_bounds)`
-  - `M.find_external_drop_target(mx, my, items, key_fn, rect_track, is_single_column, grid_bounds)`
-  - `M.build_dragged_set(dragged_ids)`
-**Private Functions**: 4 helpers
-
-### `ReArkitekt/gui/widgets/grid/grid_bridge.lua`
-> ReArkitekt/gui/widgets/grid/grid_bridge.lua
-
-**Modules**: `M, GridBridge`
-**Classes**: `GridBridge, M` (stateful objects)
-**Public API**:
-  - `M.new(config)` → Instance
-
-### `ReArkitekt/gui/widgets/grid/input.lua`
-> ReArkitekt/gui/widgets/grid/input.lua
-
-**Modules**: `M, keys_to_adjust, order, order`
-**Public API**:
-  - `M.is_external_drag_active(grid)`
-  - `M.is_mouse_in_exclusion(grid, ctx, item, rect)`
-  - `M.find_hovered_item(grid, ctx, items)`
-  - `M.is_shortcut_pressed(ctx, shortcut, state)`
-  - `M.reset_shortcut_states(ctx, state)`
-  - `M.handle_shortcuts(grid, ctx)`
-  - `M.handle_wheel_input(grid, ctx, items)`
-  - `M.handle_tile_input(grid, ctx, item, rect)`
-  - `M.check_start_drag(grid, ctx)`
-**Dependencies**: `ReArkitekt.gui.draw`
-
-### `ReArkitekt/gui/widgets/grid/layout.lua`
-> ReArkitekt/gui/widgets.grid.layout.lua
-
-**Modules**: `M, rects`
-**Public API**:
-  - `M.calculate(avail_w, min_col_w, gap, n_items, origin_x, origin_y, fixed_tile_h)`
-  - `M.get_height(rows, tile_h, gap)`
-
-### `ReArkitekt/gui/widgets/grid/rendering.lua`
-> ReArkitekt/gui/widgets/grid/rendering.lua
-
-**Modules**: `M`
-**Dependencies**: `ReArkitekt.gui.draw, ReArkitekt.core.colors, ReArkitekt.gui.fx.marching_ants`
-
-### `ReArkitekt/gui/widgets/navigation/menutabs.lua`
-> ReArkitekt/gui/widgets/menutabs.lua
-
-**Modules**: `M, o, o, edges`
-**Classes**: `M` (stateful objects)
-**Public API**:
-  - `M.new(opts)` → Instance
-**Private Functions**: 4 helpers
-
-### `ReArkitekt/gui/widgets/package_tiles/grid.lua`
-> ReArkitekt/gui/widgets/package_tiles/grid.lua
-
-**Modules**: `M`
-**Classes**: `M` (stateful objects)
-**Public API**:
-  - `M.create(pkg, settings, theme)` → Instance
-**Dependencies**: `ReArkitekt.gui.widgets.grid.core, ReArkitekt.core.colors, ReArkitekt.gui.fx.tile_motion, ReArkitekt.gui.widgets.package_tiles.renderer, ReArkitekt.gui.widgets.package_tiles.micromanage`
-
-### `ReArkitekt/gui/widgets/package_tiles/micromanage.lua`
-> ReArkitekt/gui/widgets/package_tiles/micromanage.lua
-
-**Modules**: `M`
-**Public API**:
-  - `M.open(pkg_id)`
-  - `M.close()`
-  - `M.is_open()`
-  - `M.get_package_id()`
-  - `M.draw_window(ctx, pkg, settings)`
-  - `M.reset()`
-
-### `ReArkitekt/gui/widgets/package_tiles/renderer.lua`
-> ReArkitekt/gui/widgets/package_tiles/renderer.lua
-
-**Modules**: `M`
-**Dependencies**: `ReArkitekt.gui.draw, ReArkitekt.gui.fx.marching_ants, ReArkitekt.core.colors`
-
-### `ReArkitekt/gui/widgets/region_tiles/active_grid_factory.lua`
-> ReArkitekt/gui/widgets/region_tiles/active_grid_factory.lua
-
-**Modules**: `M, item_map, items_by_key, dragged_items, items_by_key, new_items`
-**Classes**: `M` (stateful objects)
-**Public API**:
-  - `M.create(rt, config)` → Instance
-**Private Functions**: 6 helpers
-**Dependencies**: `ReArkitekt.gui.widgets.grid.core, ReArkitekt.gui.widgets.region_tiles.renderers.active`
-
-### `ReArkitekt/gui/widgets/region_tiles/coordinator.lua`
-> ReArkitekt/gui/widgets/region_tiles/coordinator.lua
-
-**Modules**: `M, result, RegionTiles, copy, spawned_keys, rids, colors, keys_to_adjust`
-**Classes**: `RegionTiles, M` (stateful objects)
-**Public API**:
-  - `M.create(opts)` → Instance
-**Dependencies**: `ReArkitekt.gui.draw, ReArkitekt.core.colors, ReArkitekt.gui.systems.playback_manager, ReArkitekt.gui.fx.tile_motion, ReArkitekt.gui.fx.dnd.drag_indicator, (+9 more)`
-
-### `ReArkitekt/gui/widgets/region_tiles/pool_grid_factory.lua`
-> ReArkitekt/gui/widgets/region_tiles/pool_grid_factory.lua
-
-**Modules**: `M, rids, rids`
-**Classes**: `M` (stateful objects)
-**Public API**:
-  - `M.create(rt, config)` → Instance
-**Private Functions**: 4 helpers
-**Dependencies**: `ReArkitekt.gui.widgets.grid.core, ReArkitekt.gui.widgets.region_tiles.renderers.pool`
-
-### `ReArkitekt/gui/widgets/region_tiles/renderers/active.lua`
-> ReArkitekt/gui/widgets/region_tiles/renderers/active.lua
-
-**Modules**: `M`
-**Public API**:
-  - `M.render(ctx, rect, item, state, get_region_by_rid, animator, on_repeat_cycle, hover_config, tile_height, border_thickness, playback_manager)`
-**Dependencies**: `ReArkitekt.gui.draw, ReArkitekt.core.colors, ReArkitekt.gui.fx.tile_fx, ReArkitekt.gui.fx.tile_fx_config, ReArkitekt.gui.fx.marching_ants, (+1 more)`
-
-### `ReArkitekt/gui/widgets/region_tiles/renderers/pool.lua`
-> ReArkitekt/gui/widgets/region_tiles/renderers/pool.lua
-
-**Modules**: `M`
-**Public API**:
-  - `M.render(ctx, rect, region, state, animator, hover_config, tile_height, border_thickness)`
-**Dependencies**: `ReArkitekt.gui.draw, ReArkitekt.core.colors, ReArkitekt.gui.fx.tile_fx, ReArkitekt.gui.fx.tile_fx_config, ReArkitekt.gui.fx.marching_ants, (+1 more)`
-
-### `ReArkitekt/gui/widgets/region_tiles/selector.lua`
-> ReArkitekt/gui/widgets/region_tiles/selector.lua
-
-**Modules**: `M, Selector`
-**Classes**: `Selector, M` (stateful objects)
-**Public API**:
-  - `M.new(config)` → Instance
-**Dependencies**: `ReArkitekt.gui.draw, ReArkitekt.core.colors, ReArkitekt.gui.fx.tile_motion`
-
 ## State Ownership
 
 ### Stateful Modules (Classes/Objects)
@@ -598,17 +616,17 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
 - **`window.lua`**: M
 - **`lifecycle.lua`**: Group, M
 - **`settings.lua`**: Settings
+- **`undo_manager.lua`**: M
+- **`coordinator_bridge.lua`**: M
+- **`engine.lua`**: Engine, M
+- **`playback.lua`**: Playback, M
 - **`rect_track.lua`**: RectTrack, M
 - **`track.lua`**: Track, M
-- **`destroy.lua`**: DestroyAnim, M
-- **`spawn.lua`**: SpawnTracker, M
-- **`tile_motion.lua`**: TileAnimator, M
-- **`images.lua`**: Cache, M
-- ... and 16 more
+- ... and 22 more
 
 ### Stateless Modules (Pure Functions)
-- **25** stateless modules
-- **17** with no dependencies (pure utility modules)
+- **36** stateless modules
+- **25** with no dependencies (pure utility modules)
 
 ## Integration Essentials
 
@@ -616,12 +634,12 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
 - `M.new(opts)` in `runtime.lua`
 - `M.new(opts)` in `window.lua`
 - `M.new()` in `lifecycle.lua`
-- `M.new(speed, snap_epsilon, magnetic_threshold, magnetic_multiplier)` in `rect_track.lua`
-- `M.new(initial_value, speed)` in `track.lua`
-- `M.new(opts)` in `destroy.lua`
-- `M.new(config)` in `spawn.lua`
-- `M.new(default_speed)` in `tile_motion.lua`
-- ... and 18 more
+- `M.new(opts)` in `undo_manager.lua`
+- `M.create(opts)` in `coordinator_bridge.lua`
+- `M.new(opts)` in `engine.lua`
+- `M.new(engine, opts)` in `playback.lua`
+- `M.get_or_create_default_playlist(playlists, regions)` in `state.lua`
+- ... and 26 more
 
 ### Callback-Based APIs
 - `M.find_drop_target()` expects: key_fn
@@ -633,49 +651,38 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
 
 ## Module Classification
 
-**Pure Modules** (no dependencies): 31
+**Pure Modules** (no dependencies): 39
   - `ReArkitekt/app/runtime.lua`
   - `ReArkitekt/app/window.lua`
   - `ReArkitekt/core/colors.lua`
   - `ReArkitekt/core/json.lua`
   - `ReArkitekt/core/lifecycle.lua`
-  - ... and 26 more
+  - ... and 34 more
 
-**Class Modules** (OOP with metatables): 26
+**Class Modules** (OOP with metatables): 32
   - `runtime.lua`: M
   - `window.lua`: M
   - `lifecycle.lua`: Group, M
   - `settings.lua`: Settings
-  - `rect_track.lua`: RectTrack, M
-  - ... and 21 more
+  - `undo_manager.lua`: M
+  - ... and 27 more
 
 ## Top 10 Largest Files
 
-1. `ReArkitekt/gui/widgets/region_tiles/coordinator.lua` (748 lines)
-2. `ReArkitekt/mock_region_playlist.lua` (676 lines)
-3. `ReArkitekt/gui/widgets/grid/core.lua` (555 lines)
-4. `ReArkitekt/gui/widgets/tiles_container.lua` (480 lines)
+1. `ReArkitekt/gui/widgets/region_tiles/coordinator.lua` (767 lines)
+2. `ReArkitekt/gui/widgets/grid/core.lua` (549 lines)
+3. `ReArkitekt/gui/widgets/tiles_container.lua` (495 lines)
+4. `ReArkitekt/Region_Playlist/app/gui.lua` (475 lines)
 5. `ReArkitekt/core/colors.lua` (428 lines)
-6. `ReArkitekt/demo.lua` (299 lines)
-7. `ReArkitekt/gui/images.lua` (284 lines)
-8. `ReArkitekt/gui/widgets/navigation/menutabs.lua` (268 lines)
-9. `ReArkitekt/gui/widgets/sliders/hue.lua` (260 lines)
-10. `ReArkitekt/gui/widgets/grid/drop_zones.lua` (240 lines)
+6. `ReArkitekt/Region_Playlist/app/state.lua` (308 lines)
+7. `ReArkitekt/demo.lua` (299 lines)
+8. `ReArkitekt/gui/images.lua` (284 lines)
+9. `ReArkitekt/gui/widgets/navigation/menutabs.lua` (268 lines)
+10. `ReArkitekt/gui/widgets/controls/dropdown.lua` (263 lines)
 
 ## Dependency Analysis
 
 ### Forward Dependencies (What Each File Imports)
-
-**`ReArkitekt/gui/widgets/region_tiles/coordinator.lua`** imports 14 modules:
-  → `ReArkitekt/core/colors.lua`
-  → `ReArkitekt/gui/draw.lua`
-  → `ReArkitekt/gui/fx/dnd/drag_indicator.lua`
-  → `ReArkitekt/gui/fx/tile_motion.lua`
-  → `ReArkitekt/gui/systems/height_stabilizer.lua`
-  → `ReArkitekt/gui/systems/playback_manager.lua`
-  → `ReArkitekt/gui/systems/responsive_grid.lua`
-  → `ReArkitekt/gui/widgets/grid/grid_bridge.lua`
-  → ... and 6 more
 
 **`ReArkitekt/gui/widgets/grid/core.lua`** imports 13 modules:
   → `ReArkitekt/core/colors.lua`
@@ -688,6 +695,17 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
   → `ReArkitekt/gui/widgets/grid/dnd_state.lua`
   → ... and 5 more
 
+**`ReArkitekt/gui/widgets/region_tiles/coordinator.lua`** imports 13 modules:
+  → `ReArkitekt/core/colors.lua`
+  → `ReArkitekt/gui/draw.lua`
+  → `ReArkitekt/gui/fx/dnd/drag_indicator.lua`
+  → `ReArkitekt/gui/fx/tile_motion.lua`
+  → `ReArkitekt/gui/systems/height_stabilizer.lua`
+  → `ReArkitekt/gui/systems/responsive_grid.lua`
+  → `ReArkitekt/gui/widgets/grid/grid_bridge.lua`
+  → `ReArkitekt/gui/widgets/region_tiles/active_grid_factory.lua`
+  → ... and 5 more
+
 **`ReArkitekt/demo.lua`** imports 7 modules:
   → `ReArkitekt/app/shell.lua`
   → `ReArkitekt/gui/widgets/navigation/menutabs.lua`
@@ -697,12 +715,13 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
   → `ReArkitekt/gui/widgets/status_bar.lua`
   → `ReArkitekt/gui/widgets/tiles_container.lua`
 
-**`ReArkitekt/gui/widgets/region_tiles/renderers/active.lua`** imports 6 modules:
+**`ReArkitekt/gui/widgets/region_tiles/renderers/active.lua`** imports 7 modules:
   → `ReArkitekt/core/colors.lua`
   → `ReArkitekt/gui/draw.lua`
   → `ReArkitekt/gui/fx/marching_ants.lua`
   → `ReArkitekt/gui/fx/tile_fx.lua`
   → `ReArkitekt/gui/fx/tile_fx_config.lua`
+  → `ReArkitekt/gui/systems/playback_manager.lua`
   → `ReArkitekt/gui/systems/tile_utilities.lua`
 
 **`ReArkitekt/gui/widgets/region_tiles/renderers/pool.lua`** imports 6 modules:
@@ -713,14 +732,6 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
   → `ReArkitekt/gui/fx/tile_fx_config.lua`
   → `ReArkitekt/gui/systems/tile_utilities.lua`
 
-**`ReArkitekt/mock_region_playlist.lua`** imports 6 modules:
-  → `ReArkitekt/app/shell.lua`
-  → `ReArkitekt/core/colors.lua`
-  → `ReArkitekt/gui/draw.lua`
-  → `ReArkitekt/gui/fx/tile_motion.lua`
-  → `ReArkitekt/gui/widgets/region_tiles/coordinator.lua`
-  → `ReArkitekt/gui/widgets/status_bar.lua`
-
 **`ReArkitekt/gui/widgets/package_tiles/grid.lua`** imports 5 modules:
   → `ReArkitekt/core/colors.lua`
   → `ReArkitekt/gui/fx/tile_motion.lua`
@@ -728,11 +739,42 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
   → `ReArkitekt/gui/widgets/package_tiles/micromanage.lua`
   → `ReArkitekt/gui/widgets/package_tiles/renderer.lua`
 
+**`ReArkitekt/Region_Playlist/app/gui.lua`** imports 5 modules:
+  → `ReArkitekt/Region_Playlist/app/shortcuts.lua`
+  → `ReArkitekt/core/colors.lua`
+  → `ReArkitekt/features/region_playlist/state.lua`
+  → `ReArkitekt/gui/fx/tile_motion.lua`
+  → `ReArkitekt/gui/widgets/region_tiles/coordinator.lua`
+
+**`ReArkitekt/Region_Playlist/app/state.lua`** imports 5 modules:
+  → `ReArkitekt/core/colors.lua`
+  → `ReArkitekt/core/undo_manager.lua`
+  → `ReArkitekt/features/region_playlist/coordinator_bridge.lua`
+  → `ReArkitekt/features/region_playlist/state.lua`
+  → `ReArkitekt/features/region_playlist/undo_bridge.lua`
+
+**`ReArkitekt/Region_Playlist/ARK_Region_Playlist.lua`** imports 5 modules:
+  → `ReArkitekt/Region_Playlist/app/config.lua`
+  → `ReArkitekt/Region_Playlist/app/gui.lua`
+  → `ReArkitekt/Region_Playlist/app/state.lua`
+  → `ReArkitekt/Region_Playlist/app/status.lua`
+  → `ReArkitekt/app/shell.lua`
+
 **`ReArkitekt/demo2.lua`** imports 4 modules:
   → `ReArkitekt/app/shell.lua`
   → `ReArkitekt/gui/widgets/sliders/hue.lua`
   → `ReArkitekt/gui/widgets/status_bar.lua`
   → `ReArkitekt/gui/widgets/tiles_container.lua`
+
+**`ReArkitekt/features/region_playlist/coordinator_bridge.lua`** imports 3 modules:
+  → `ReArkitekt/features/region_playlist/engine.lua`
+  → `ReArkitekt/features/region_playlist/playback.lua`
+  → `ReArkitekt/features/region_playlist/state.lua`
+
+**`ReArkitekt/features/region_playlist/engine.lua`** imports 3 modules:
+  → `ReArkitekt/reaper/regions.lua`
+  → `ReArkitekt/reaper/timing.lua`
+  → `ReArkitekt/reaper/transport.lua`
 
 **`ReArkitekt/gui/fx/dnd/drag_indicator.lua`** imports 3 modules:
   → `ReArkitekt/core/colors.lua`
@@ -771,33 +813,20 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
   → `ReArkitekt/gui/widgets/grid/core.lua`
   → `ReArkitekt/gui/widgets/region_tiles/renderers/active.lua`
 
-**`ReArkitekt/gui/widgets/region_tiles/pool_grid_factory.lua`** imports 2 modules:
-  → `ReArkitekt/gui/widgets/grid/core.lua`
-  → `ReArkitekt/gui/widgets/region_tiles/renderers/pool.lua`
-
-**`ReArkitekt/core/settings.lua`** imports 1 modules:
-  → `ReArkitekt/core/json.lua`
-
-**`ReArkitekt/gui/fx/animation/rect_track.lua`** imports 1 modules:
-  → `ReArkitekt/core/math.lua`
-
-**`ReArkitekt/gui/fx/animation/track.lua`** imports 1 modules:
-  → `ReArkitekt/core/math.lua`
-
 ### Reverse Dependencies (What Imports Each File)
 
-**`ReArkitekt/core/colors.lua`** is imported by 11 files:
+**`ReArkitekt/core/colors.lua`** is imported by 12 files:
+  ← `ReArkitekt/Region_Playlist/app/gui.lua`
+  ← `ReArkitekt/Region_Playlist/app/state.lua`
   ← `ReArkitekt/gui/fx/dnd/drag_indicator.lua`
   ← `ReArkitekt/gui/fx/tile_fx.lua`
   ← `ReArkitekt/gui/widgets/grid/core.lua`
   ← `ReArkitekt/gui/widgets/grid/rendering.lua`
   ← `ReArkitekt/gui/widgets/package_tiles/grid.lua`
   ← `ReArkitekt/gui/widgets/package_tiles/renderer.lua`
-  ← `ReArkitekt/gui/widgets/region_tiles/coordinator.lua`
-  ← `ReArkitekt/gui/widgets/region_tiles/renderers/active.lua`
-  ← ... and 3 more
+  ← ... and 4 more
 
-**`ReArkitekt/gui/draw.lua`** is imported by 11 files:
+**`ReArkitekt/gui/draw.lua`** is imported by 10 files:
   ← `ReArkitekt/gui/fx/dnd/drag_indicator.lua`
   ← `ReArkitekt/gui/widgets/grid/core.lua`
   ← `ReArkitekt/gui/widgets/grid/input.lua`
@@ -806,12 +835,12 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
   ← `ReArkitekt/gui/widgets/region_tiles/coordinator.lua`
   ← `ReArkitekt/gui/widgets/region_tiles/renderers/active.lua`
   ← `ReArkitekt/gui/widgets/region_tiles/renderers/pool.lua`
-  ← ... and 3 more
+  ← ... and 2 more
 
 **`ReArkitekt/app/shell.lua`** is imported by 4 files:
+  ← `ReArkitekt/Region_Playlist/ARK_Region_Playlist.lua`
   ← `ReArkitekt/demo.lua`
   ← `ReArkitekt/demo2.lua`
-  ← `ReArkitekt/mock_region_playlist.lua`
   ← `ReArkitekt/widget_demo.lua`
 
 **`ReArkitekt/gui/fx/marching_ants.lua`** is imported by 4 files:
@@ -821,10 +850,15 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
   ← `ReArkitekt/gui/widgets/region_tiles/renderers/pool.lua`
 
 **`ReArkitekt/gui/fx/tile_motion.lua`** is imported by 4 files:
+  ← `ReArkitekt/Region_Playlist/app/gui.lua`
   ← `ReArkitekt/gui/widgets/package_tiles/grid.lua`
   ← `ReArkitekt/gui/widgets/region_tiles/coordinator.lua`
   ← `ReArkitekt/gui/widgets/region_tiles/selector.lua`
-  ← `ReArkitekt/mock_region_playlist.lua`
+
+**`ReArkitekt/features/region_playlist/state.lua`** is imported by 3 files:
+  ← `ReArkitekt/Region_Playlist/app/gui.lua`
+  ← `ReArkitekt/Region_Playlist/app/state.lua`
+  ← `ReArkitekt/features/region_playlist/coordinator_bridge.lua`
 
 **`ReArkitekt/gui/widgets/grid/core.lua`** is imported by 3 files:
   ← `ReArkitekt/gui/widgets/package_tiles/grid.lua`
@@ -832,14 +866,18 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
   ← `ReArkitekt/gui/widgets/region_tiles/pool_grid_factory.lua`
 
 **`ReArkitekt/gui/widgets/status_bar.lua`** is imported by 3 files:
+  ← `ReArkitekt/Region_Playlist/app/status.lua`
   ← `ReArkitekt/demo.lua`
   ← `ReArkitekt/demo2.lua`
-  ← `ReArkitekt/mock_region_playlist.lua`
 
 **`ReArkitekt/gui/widgets/tiles_container.lua`** is imported by 3 files:
   ← `ReArkitekt/demo.lua`
   ← `ReArkitekt/demo2.lua`
   ← `ReArkitekt/gui/widgets/region_tiles/coordinator.lua`
+
+**`ReArkitekt/core/json.lua`** is imported by 2 files:
+  ← `ReArkitekt/core/settings.lua`
+  ← `ReArkitekt/features/region_playlist/state.lua`
 
 **`ReArkitekt/core/math.lua`** is imported by 2 files:
   ← `ReArkitekt/gui/fx/animation/rect_track.lua`
@@ -861,14 +899,6 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
   ← `ReArkitekt/gui/widgets/region_tiles/renderers/active.lua`
   ← `ReArkitekt/gui/widgets/region_tiles/renderers/pool.lua`
 
-**`ReArkitekt/gui/fx/tile_fx_config.lua`** is imported by 2 files:
-  ← `ReArkitekt/gui/widgets/region_tiles/renderers/active.lua`
-  ← `ReArkitekt/gui/widgets/region_tiles/renderers/pool.lua`
-
-**`ReArkitekt/gui/systems/tile_utilities.lua`** is imported by 2 files:
-  ← `ReArkitekt/gui/widgets/region_tiles/renderers/active.lua`
-  ← `ReArkitekt/gui/widgets/region_tiles/renderers/pool.lua`
-
 ### Circular Dependencies
 
 ✓ No circular dependencies detected
@@ -876,6 +906,8 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
 ### Isolated Files (No Imports or Exports)
 
 - `ReArkitekt/core/lifecycle.lua`
+- `ReArkitekt/features/region_playlist/controls_widget.lua`
+- `ReArkitekt/features/region_playlist/shortcuts.lua`
 - `ReArkitekt/gui/images.lua`
 - `ReArkitekt/gui/style.lua`
 - `ReArkitekt/gui/systems/reorder.lua`
@@ -884,15 +916,15 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
 ### Dependency Complexity Ranking
 
 1. `ReArkitekt/gui/widgets/grid/core.lua`: 13 imports + 3 importers = 16 total
-2. `ReArkitekt/gui/widgets/region_tiles/coordinator.lua`: 14 imports + 1 importers = 15 total
-3. `ReArkitekt/core/colors.lua`: 0 imports + 11 importers = 11 total
-4. `ReArkitekt/gui/draw.lua`: 0 imports + 11 importers = 11 total
-5. `ReArkitekt/gui/widgets/region_tiles/renderers/active.lua`: 6 imports + 2 importers = 8 total
+2. `ReArkitekt/gui/widgets/region_tiles/coordinator.lua`: 13 imports + 1 importers = 14 total
+3. `ReArkitekt/core/colors.lua`: 0 imports + 12 importers = 12 total
+4. `ReArkitekt/gui/draw.lua`: 0 imports + 10 importers = 10 total
+5. `ReArkitekt/gui/widgets/region_tiles/renderers/active.lua`: 7 imports + 2 importers = 9 total
 6. `ReArkitekt/gui/widgets/region_tiles/renderers/pool.lua`: 6 imports + 2 importers = 8 total
 7. `ReArkitekt/demo.lua`: 7 imports + 0 importers = 7 total
-8. `ReArkitekt/app/shell.lua`: 2 imports + 4 importers = 6 total
-9. `ReArkitekt/gui/widgets/package_tiles/grid.lua`: 5 imports + 1 importers = 6 total
-10. `ReArkitekt/mock_region_playlist.lua`: 6 imports + 0 importers = 6 total
+8. `ReArkitekt/Region_Playlist/app/state.lua`: 5 imports + 2 importers = 7 total
+9. `ReArkitekt/app/shell.lua`: 2 imports + 4 importers = 6 total
+10. `ReArkitekt/gui/widgets/package_tiles/grid.lua`: 5 imports + 1 importers = 6 total
 
 ## Important Constraints
 

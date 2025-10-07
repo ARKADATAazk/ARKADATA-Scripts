@@ -131,6 +131,10 @@ function M.handle_wheel_input(grid, ctx, items)
 end
 
 function M.handle_tile_input(grid, ctx, item, rect)
+  if ImGui.IsPopupOpen(ctx, "", ImGui.PopupFlags_AnyPopupId) then
+    return false
+  end
+  
   local key = grid.key(item)
   
   if M.is_mouse_in_exclusion(grid, ctx, item, rect) then

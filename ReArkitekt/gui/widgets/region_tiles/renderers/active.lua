@@ -48,7 +48,7 @@ M.CONFIG = {
   },
 }
 
-function M.render(ctx, rect, item, state, get_region_by_rid, animator, on_repeat_cycle, hover_config, tile_height, border_thickness, playback_manager)
+function M.render(ctx, rect, item, state, get_region_by_rid, animator, on_repeat_cycle, hover_config, tile_height, border_thickness, bridge)
   local dl = ImGui.GetWindowDrawList(ctx)
   local x1, y1, x2, y2 = rect[1], rect[2], rect[3], rect[4]
   
@@ -77,15 +77,24 @@ function M.render(ctx, rect, item, state, get_region_by_rid, animator, on_repeat
   fx_config.rounding = M.CONFIG.rounding
   fx_config.border_thickness = border_thickness or 1.0
   
+  
   local playback_progress = 0
   local playback_fade = 0
-  if playback_manager then
-    playback_progress = playback_manager:get_progress(item.key)
-    playback_fade = playback_manager:get_fade_alpha(item.key)
+  
+  if bridge then
+    local bridge_state = bridge:get_state()
+    local current_rid = bridge:get_current_rid()
+    
+    if bridge_state.is_playing and current_rid == item.rid then
+      playback_progress = bridge:get_progress() or 0
+      
+      local PlaybackUtil = require('ReArkitekt.gui.systems.playback_manager')
+      playback_fade = PlaybackUtil.compute_fade_alpha(playback_progress, 0.1, 0.2)
+    end
   end
   
-  TileFX.render_complete(dl, x1, y1, x2, y2, base_color, fx_config, state.selected, hover_factor, playback_progress, playback_fade)
-  
+  TileFX.render_complete(dl, x1, y1, x2, y2, base_color, fx_config, state.selected, hover_factor, playback_progress, playback_fade) 
+
   if state.selected and fx_config.ants_enabled then
     local ants_color = Colors.same_hue_variant(base_color, 
       fx_config.border_saturation, 
@@ -116,7 +125,7 @@ function M.render(ctx, rect, item, state, get_region_by_rid, animator, on_repeat
     accent_color = Colors.with_alpha(accent_color, text_alpha)
     name_color = Colors.with_alpha(name_color, text_alpha)
     
-    local index_str = state.index and string.format("#%d", state.index) or ""
+    local index_str = string.format("%d", region.rid)
     local name_str = region.name or "Unknown"
     
     local text_x, text_y
@@ -189,8 +198,12 @@ function M.render(ctx, rect, item, state, get_region_by_rid, animator, on_repeat
   end
   
   if show_length then
-    local length_seconds = (region["end"] or 0) - (region.start or 0)
-    local length_str = TileUtil.format_bar_length(length_seconds)
+    if not region["end"] then
+      reaper.ShowConsoleMsg(string.format("Region missing 'end': rid=%s, keys=%s\n", 
+        tostring(item.rid), 
+        table.concat((function() local k={} for key in pairs(region) do k[#k+1]=key end return k end)(), ",")))
+    end
+    local length_str = TileUtil.format_bar_length(region.start, region["end"], 0)
     
     local scale = M.CONFIG.length_font_size
     

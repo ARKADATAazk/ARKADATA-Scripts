@@ -10,12 +10,10 @@ local M = {}
 local function handle_unified_delete(rt, item_keys)
   if not item_keys or #item_keys == 0 then return end
   
-  -- Mark items for destroy animation
   if rt.active_grid then
     rt.active_grid:mark_destroyed(item_keys)
   end
   
-  -- Clear selection for deleted items
   if rt.active_grid and rt.active_grid.selection then
     for _, key in ipairs(item_keys) do
       rt.active_grid.selection.selected[key] = nil
@@ -25,7 +23,6 @@ local function handle_unified_delete(rt, item_keys)
     end
   end
   
-  -- Call the application's delete handler
   if rt.on_active_delete then
     rt.on_active_delete(item_keys)
   end
@@ -34,8 +31,6 @@ end
 local function create_behaviors(rt)
   return {
     drag_start = function(item_keys)
-      -- GridBridge handles drag start via its registration callbacks
-      -- No need to manually track drag state here
     end,
     
     right_click = function(key, selected_keys)
@@ -76,10 +71,8 @@ local function create_behaviors(rt)
     end,
     
     play = function(selected_keys)
-      if not rt.playback_manager or #selected_keys == 0 then return end
-      
-      local first_key = selected_keys[1]
-      rt.playback_manager:toggle(first_key)
+      -- Playback is now handled directly by REAPER transport via bridge
+      -- No separate playback manager needed
     end,
     
     reorder = function(new_order)
@@ -133,8 +126,6 @@ end
 
 local function create_external_drop_handler(rt)
   return function(insert_index)
-    -- When using GridBridge, this is handled by the bridge's on_cross_grid_drop
-    -- This handler is only for fallback mode without bridge
   end
 end
 
@@ -160,7 +151,7 @@ local function create_render_tile(rt, tile_config)
   return function(ctx, rect, item, state)
     local tile_height = rect[4] - rect[2]
     ActiveTile.render(ctx, rect, item, state, rt.get_region_by_rid, rt.active_animator, 
-                    rt.on_repeat_cycle, rt.hover_config, tile_height, tile_config.border_thickness, rt.playback_manager)
+                    rt.on_repeat_cycle, rt.hover_config, tile_height, tile_config.border_thickness, rt.app_bridge)
   end
 end
 

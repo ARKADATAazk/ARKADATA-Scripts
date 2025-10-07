@@ -17,7 +17,7 @@ M.CONFIG = {
   tile_height = 72,
   gap = 12,
   bg_base = 0x1A1A1AFF,
-  rounding = 6, -- was 6
+  rounding = 6,
   text_color_neutral = 0xDDE3E9FF,
   length_margin = 6,
   length_padding_x = 4,
@@ -79,7 +79,7 @@ function M.render(ctx, rect, region, state, animator, hover_config, tile_height,
     local accent_color = Colors.same_hue_variant(base_color, fx_config.index_saturation, fx_config.index_brightness, 0xFF)
     local name_color = Colors.adjust_brightness(fx_config.name_base_color, fx_config.name_brightness)
     
-    local index_str = state.index and string.format("#%d", state.index) or ""
+    local index_str = string.format("%d", region.rid)
     local name_str = region.name or "Unknown"
     
     local text_x, text_y
@@ -111,8 +111,12 @@ function M.render(ctx, rect, region, state, animator, hover_config, tile_height,
   end
   
   if show_length then
-    local length_seconds = (region["end"] or 0) - (region.start or 0)
-    local length_str = TileUtil.format_bar_length(length_seconds)
+    if not region["end"] then
+      reaper.ShowConsoleMsg(string.format("Region missing 'end': rid=%s, keys=%s\n", 
+        tostring(region.rid), 
+        table.concat((function() local k={} for key in pairs(region) do k[#k+1]=key end return k end)(), ",")))
+    end
+    local length_str = TileUtil.format_bar_length(region.start, region["end"], 0)
     
     local scale = M.CONFIG.length_font_size
     
