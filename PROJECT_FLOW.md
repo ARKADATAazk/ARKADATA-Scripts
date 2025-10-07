@@ -1,5 +1,5 @@
 # PROJECT FLOW: ARKADATA Scripts
-Generated: 2025-10-06 23:50:37
+Generated: 2025-10-07 04:14:17
 Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
 
 ## Project Structure
@@ -10,7 +10,7 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
     │   ├── app/
     │   │   ├── config.lua         # (122 lines)
     │   │   ├── gui.lua         # (475 lines)
-    │   │   ├── shortcuts.lua         # (67 lines)
+    │   │   ├── shortcuts.lua         # (65 lines)
     │   │   ├── state.lua         # (308 lines)
     │   │   └── status.lua         # (58 lines)
     │   └── ARK_Region_Playlist.lua         # (52 lines)
@@ -28,8 +28,8 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
     ├── features/
     │   └── region_playlist/
     │       ├── controls_widget.lua         # (150 lines)
-    │       ├── coordinator_bridge.lua         # (111 lines)
-    │       ├── engine.lua         # (235 lines)
+    │       ├── coordinator_bridge.lua         # (128 lines)
+    │       ├── engine.lua         # (239 lines)
     │       ├── playback.lua         # (102 lines)
     │       ├── shortcuts.lua         # (68 lines)
     │       ├── state.lua         # (100 lines)
@@ -98,7 +98,7 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
     ├── reaper/
     │   ├── regions.lua         # (76 lines)
     │   ├── timing.lua         # (112 lines)
-    │   └── transport.lua         # (82 lines)
+    │   └── transport.lua         # (97 lines)
     ├── demo.lua         # (299 lines)
     ├── demo2.lua         # (185 lines)
     └── widget_demo.lua         # (222 lines)
@@ -106,17 +106,17 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
 
 ## Overview
 - **Total Files**: 74
-- **Total Lines**: 12,058
-- **Code Lines**: 9,406
-- **Public Functions**: 217
+- **Total Lines**: 12,092
+- **Code Lines**: 9,431
+- **Public Functions**: 218
 - **Classes**: 53
 - **Modules**: 159
 
 ## Folder Structure
 ### ReArkitekt/
   - Files: 74
-  - Lines: 9,406
-  - Exports: 217
+  - Lines: 9,431
+  - Exports: 218
 
 ## Execution Flow Patterns
 

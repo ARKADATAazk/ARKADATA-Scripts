@@ -1,11 +1,11 @@
 # FOLDER FLOW: ReArkitekt
-Generated: 2025-10-06 23:50:37
+Generated: 2025-10-07 04:14:17
 Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
 
 ## Overview
 - **Files**: 74
-- **Total Lines**: 12,058
-- **Public Functions**: 217
+- **Total Lines**: 12,092
+- **Public Functions**: 218
 - **Classes**: 53
 
 ## Files
@@ -72,7 +72,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.create(opts)`
   **Requires**: ReArkitekt.gui.draw, ReArkitekt.core.colors, ReArkitekt.gui.fx.tile_motion, ReArkitekt.gui.fx.dnd.drag_indicator, ReArkitekt.gui.widgets.region_tiles.renderers.active
 
-### coordinator_bridge.lua (111 lines)
+### coordinator_bridge.lua (128 lines)
   **Modules**: M, order, regions
   **Classes**: M
   **Exports**:
@@ -169,7 +169,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.soft_glow(dl, x1, y1, x2, y2, color, intensity, radius)`
     - `M.pulse_glow(dl, x1, y1, x2, y2, color, time, speed, radius)`
 
-### engine.lua (235 lines)
+### engine.lua (239 lines)
   **Modules**: M, Engine
   **Classes**: Engine, M
   **Exports**:
@@ -385,7 +385,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   **Exports**:
     - `M.handle_shortcuts(ctx, bridge)`
 
-### shortcuts.lua (67 lines)
+### shortcuts.lua (65 lines)
   **Modules**: M
   **Exports**:
     - `M.handle_keyboard_shortcuts(ctx, state, region_tiles)`
@@ -505,7 +505,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.new(initial_value, speed)`
   **Requires**: ReArkitekt.core.math
 
-### transport.lua (82 lines)
+### transport.lua (97 lines)
   **Modules**: M
   **Exports**:
     - `M.is_playing(proj)`
@@ -517,7 +517,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.get_play_position(proj)`
     - `M.get_cursor_position(proj)`
     - `M.set_edit_cursor(pos, move_view, seek_play, proj)`
-    - `M.get_project_length(proj)`
+    - `M.set_play_position(pos, move_view, proj)`
 
 ### undo_bridge.lua (90 lines)
   **Modules**: M, restored_playlists

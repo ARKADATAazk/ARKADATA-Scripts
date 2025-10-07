@@ -19,11 +19,9 @@ function M.handle_keyboard_shortcuts(ctx, state, region_tiles)
         if #selected > 0 then
           local State = require("Region_Playlist.app.state")
           local pl = State.get_active_playlist()
-          for idx, item in ipairs(pl.items) do
-            if item.key == selected[1] then
-              state.bridge.engine.playlist_pointer = idx
-              break
-            end
+          local engine_index = state.bridge:item_key_to_engine_index(pl.items, selected[1])
+          if engine_index then
+            state.bridge.engine.playlist_pointer = engine_index
           end
         end
       end

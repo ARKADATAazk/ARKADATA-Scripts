@@ -105,6 +105,23 @@ function M.create(opts)
     return self.engine:get_state()
   end
   
+  function bridge:item_key_to_engine_index(playlist_items, item_key)
+    if not playlist_items or not item_key then return nil end
+    
+    local engine_index = 0
+    
+    for _, item in ipairs(playlist_items) do
+      if item.rid and item.enabled ~= false then
+        engine_index = engine_index + 1
+        if item.key == item_key then
+          return engine_index
+        end
+      end
+    end
+    
+    return nil
+  end
+  
   return bridge
 end
 
