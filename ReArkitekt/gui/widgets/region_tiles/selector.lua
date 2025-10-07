@@ -50,7 +50,7 @@ function Selector:draw(ctx, playlists, active_id, height, on_playlist_changed)
   local x = cursor_x
   local y = cursor_y
   
-  ImGui.InvisibleButton(ctx, "##selector_area", total_width, height)
+  local _ = ImGui.InvisibleButton(ctx, "##selector_area", total_width, height)
   
   for i, pl in ipairs(playlists) do
     local chip_x = x + (i - 1) * (cfg.chip_width + cfg.gap)
@@ -82,7 +82,7 @@ function Selector:draw(ctx, playlists, active_id, height, on_playlist_changed)
     Draw.centered_text(ctx, label, chip_x, chip_y, chip_x2, chip_y2, cfg.text_color)
     
     ImGui.SetCursorScreenPos(ctx, chip_x, chip_y)
-    ImGui.InvisibleButton(ctx, "##selector_" .. pl.id, cfg.chip_width, cfg.chip_height)
+    local _ = ImGui.InvisibleButton(ctx, "##selector_" .. pl.id, cfg.chip_width, cfg.chip_height)
     
     if ImGui.IsItemClicked(ctx, 0) and on_playlist_changed then
       on_playlist_changed(pl.id)

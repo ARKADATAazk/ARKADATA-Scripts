@@ -1,8 +1,9 @@
 -- ReArkitekt/gui/widgets/controls/dropdown.lua
--- Mousewheel-friendly dropdown/combobox widget
+-- Mousewheel-friendly dropdown/combobox widget with styled popup
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
+local Tooltip = require('ReArkitekt.gui.widgets.controls.tooltip')
 
 local M = {}
 
@@ -23,6 +24,24 @@ local DEFAULTS = {
   arrow_color = 0x999999FF,
   arrow_hover_color = 0xEEEEEEFF,
   enable_mousewheel = true,
+  tooltip_delay = 0.5,
+  
+  popup = {
+    bg_color = 0x1E1E1EFF,
+    border_color = 0x404040FF,
+    item_bg_color = 0x00000000,
+    item_hover_color = 0x404040FF,
+    item_active_color = 0x4A4A4AFF,
+    item_text_color = 0xCCCCCCFF,
+    item_text_hover_color = 0xFFFFFFFF,
+    item_selected_color = 0x3A3A3AFF,
+    item_selected_text_color = 0xFFFFFFFF,
+    rounding = 4,
+    padding = 4,
+    item_height = 24,
+    item_padding_x = 10,
+    border_thickness = 1,
+  },
 }
 
 local Dropdown = {}
@@ -35,6 +54,7 @@ function M.new(opts)
     id = opts.id or "dropdown",
     label = opts.label or "",
     tooltip = opts.tooltip,
+    tooltip_delay = opts.tooltip_delay,
     options = opts.options or {},
     current_value = opts.current_value,
     sort_direction = opts.sort_direction or "asc",
@@ -44,10 +64,22 @@ function M.new(opts)
     config = {},
     
     hover_alpha = 0,
+    popup_hover_index = -1,
   }, Dropdown)
   
   for k, v in pairs(DEFAULTS) do
-    dropdown.config[k] = (opts.config and opts.config[k] ~= nil) and opts.config[k] or v
+    if k == "popup" then
+      dropdown.config.popup = {}
+      for pk, pv in pairs(DEFAULTS.popup) do
+        dropdown.config.popup[pk] = (opts.config and opts.config.popup and opts.config.popup[pk] ~= nil) and opts.config.popup[pk] or pv
+      end
+    else
+      dropdown.config[k] = (opts.config and opts.config[k] ~= nil) and opts.config[k] or v
+    end
+  end
+  
+  if opts.tooltip_delay ~= nil then
+    dropdown.config.tooltip_delay = opts.tooltip_delay
   end
   
   return dropdown
@@ -204,9 +236,10 @@ function Dropdown:draw(ctx, x, y)
   end
   
   if is_hovered and self.tooltip then
-    ImGui.PushStyleVar(ctx, ImGui.StyleVar_WindowPadding, 6, 4)
-    ImGui.SetTooltip(ctx, self.tooltip)
-    ImGui.PopStyleVar(ctx)
+    local delay = self.tooltip_delay or (self.config.tooltip_delay or DEFAULTS.tooltip_delay)
+    Tooltip.show_delayed(ctx, self.tooltip, {delay = delay})
+  else
+    Tooltip.reset()
   end
   
   if clicked then
@@ -214,32 +247,91 @@ function Dropdown:draw(ctx, x, y)
   end
   
   local popup_changed = false
+  
+  ImGui.PushStyleVar(ctx, ImGui.StyleVar_WindowPadding, cfg.popup.padding, cfg.popup.padding)
+  ImGui.PushStyleVar(ctx, ImGui.StyleVar_WindowRounding, cfg.popup.rounding)
+  ImGui.PushStyleVar(ctx, ImGui.StyleVar_PopupRounding, cfg.popup.rounding)
+  ImGui.PushStyleVar(ctx, ImGui.StyleVar_WindowBorderSize, cfg.popup.border_thickness)
+  
+  ImGui.PushStyleColor(ctx, ImGui.Col_PopupBg, cfg.popup.bg_color)
+  ImGui.PushStyleColor(ctx, ImGui.Col_Border, cfg.popup.border_color)
+  
   if ImGui.BeginPopup(ctx, self.id .. "_popup") then
+    local popup_dl = ImGui.GetWindowDrawList(ctx)
+    
+    self.popup_hover_index = -1
+    
+    local max_text_width = 0
+    for _, opt in ipairs(self.options) do
+      local label = type(opt) == "table" and opt.label or tostring(opt)
+      local text_w, _ = ImGui.CalcTextSize(ctx, label)
+      max_text_width = math.max(max_text_width, text_w)
+    end
+    
+    local popup_width = math.max(cfg.width, max_text_width + cfg.popup.item_padding_x * 2 + 20)
+    
     for i, opt in ipairs(self.options) do
       local value
-        if type(opt) == "table" then
-        value = opt.value  -- Can be nil
-        else
+      if type(opt) == "table" then
+        value = opt.value
+      else
         value = opt
-        end
+      end
       local label = type(opt) == "table" and opt.label or tostring(opt)
       
       local is_selected = value == self.current_value
       
-      if ImGui.Selectable(ctx, label, is_selected) then
+      local item_x, item_y = ImGui.GetCursorScreenPos(ctx)
+      local item_w = popup_width
+      local item_h = cfg.popup.item_height
+      
+      local item_hovered = ImGui.IsMouseHoveringRect(ctx, item_x, item_y, item_x + item_w, item_y + item_h)
+      if item_hovered then
+        self.popup_hover_index = i
+      end
+      
+      local item_bg = cfg.popup.item_bg_color
+      local item_text = cfg.popup.item_text_color
+      
+      if is_selected then
+        item_bg = cfg.popup.item_selected_color
+        item_text = cfg.popup.item_selected_text_color
+      end
+      
+      if item_hovered then
+        item_bg = is_selected and cfg.popup.item_active_color or cfg.popup.item_hover_color
+        item_text = cfg.popup.item_text_hover_color
+      end
+      
+      ImGui.DrawList_AddRectFilled(popup_dl, item_x, item_y, item_x + item_w, item_y + item_h, item_bg, 2)
+      
+      local text_w, text_h = ImGui.CalcTextSize(ctx, label)
+      local text_x = item_x + cfg.popup.item_padding_x
+      local text_y = item_y + (item_h - text_h) * 0.5
+      
+      ImGui.DrawList_AddText(popup_dl, text_x, text_y, item_text, label)
+      
+      ImGui.InvisibleButton(ctx, self.id .. "_item_" .. i, item_w, item_h)
+      
+      if ImGui.IsItemClicked(ctx, 0) then
         self.current_value = value
         if self.on_change then
           self.on_change(value)
         end
         popup_changed = true
+        ImGui.CloseCurrentPopup(ctx)
       end
       
       if is_selected then
         ImGui.SetItemDefaultFocus(ctx)
       end
     end
+    
     ImGui.EndPopup(ctx)
   end
+  
+  ImGui.PopStyleColor(ctx, 2)
+  ImGui.PopStyleVar(ctx, 4)
   
   return clicked or wheel_changed or popup_changed or right_clicked
 end

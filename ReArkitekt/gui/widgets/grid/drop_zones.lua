@@ -2,6 +2,7 @@
 -- Drop zone calculation for grid drag-and-drop operations
 -- FIXED: Vertical drop zones now position correctly, matching actual insertion behavior
 -- FIXED: Drop zones are now constrained to the grid's bounds to prevent overlap between adjacent grids.
+-- FIXED: Can now drop in empty space to add items to the end of the grid
 
 local M = {}
 
@@ -27,7 +28,6 @@ end
 local function create_horizontal_drop_zones(non_dragged_items, grid_bounds)
   local zones = {}
   
-  -- Use grid boundaries if available, otherwise fall back to a large number
   local top_bound = grid_bounds and grid_bounds[2] or -10000
   local bottom_bound = grid_bounds and grid_bounds[4] or 10000
   
@@ -83,7 +83,6 @@ end
 local function create_vertical_drop_zones(non_dragged_items, grid_bounds)
   local zones = {}
   
-  -- Use grid boundaries if available, otherwise fall back to a large number
   local left_bound = grid_bounds and grid_bounds[1] or -10000
   local right_bound = grid_bounds and grid_bounds[3] or 10000
   
@@ -203,6 +202,11 @@ local function find_zone_at_point(zones, mx, my)
   return nil, nil, nil, nil, nil
 end
 
+local function is_point_in_bounds(mx, my, bounds)
+  if not bounds then return false end
+  return mx >= bounds[1] and mx <= bounds[3] and my >= bounds[2] and my <= bounds[4]
+end
+
 function M.find_drop_target(mx, my, items, key_fn, dragged_set, rect_track, is_single_column, grid_bounds)
   local non_dragged = build_non_dragged_items(items, key_fn, dragged_set, rect_track)
   
@@ -230,7 +234,30 @@ function M.find_drop_target(mx, my, items, key_fn, dragged_set, rect_track, is_s
     zones = create_vertical_drop_zones(non_dragged, grid_bounds)
   end
   
-  return find_zone_at_point(zones, mx, my)
+  local target_index, coord, alt1, alt2, orientation = find_zone_at_point(zones, mx, my)
+  
+  if not target_index and is_point_in_bounds(mx, my, grid_bounds) then
+    target_index = #non_dragged + 1
+    
+    local last_entry = non_dragged[#non_dragged]
+    if last_entry then
+      local last_rect = last_entry.rect
+      
+      if is_single_column then
+        orientation = 'horizontal'
+        coord = last_rect[4] + 10
+        alt1 = last_rect[1]
+        alt2 = last_rect[3]
+      else
+        orientation = 'vertical'
+        coord = last_rect[3] + 10
+        alt1 = last_rect[2]
+        alt2 = last_rect[4]
+      end
+    end
+  end
+  
+  return target_index, coord, alt1, alt2, orientation
 end
 
 function M.find_external_drop_target(mx, my, items, key_fn, rect_track, is_single_column, grid_bounds)

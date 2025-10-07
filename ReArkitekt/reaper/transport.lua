@@ -66,11 +66,9 @@ function M.set_play_position(pos, move_view, proj)
   local was_playing = M.is_playing(proj)
   
   if was_playing then
-    reaper.CSurf_OnPause()
-    reaper.SetEditCurPos2(proj, pos, move_view, false)
-    reaper.CSurf_OnPlay()
-  else
     reaper.SetEditCurPos2(proj, pos, move_view, true)
+  else
+    reaper.SetEditCurPos2(proj, pos, move_view, false)
   end
 end
 
@@ -88,9 +86,10 @@ function M.update_timeline()
   reaper.UpdateTimeline()
 end
 
-function M.get_pdc_offset()
+function M.get_pdc_offset(proj)
+  proj = proj or 0
   local offset_samples = reaper.GetOutputLatency()
-  local srate = reaper.GetSampleRate()
+  local srate = tonumber(reaper.GetSetProjectInfo_String(proj, "PROJECT_SRATE", "", false)) or 48000
   return offset_samples / srate
 end
 

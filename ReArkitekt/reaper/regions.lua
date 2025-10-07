@@ -63,12 +63,18 @@ function M.get_region_by_rid(proj, target_rid)
   return nil
 end
 
+-- NEW (Seamless) Implementation using native API function
 function M.go_to_region(proj, target_rid)
   proj = proj or 0
   local rgn = M.get_region_by_rid(proj, target_rid)
   if not rgn then return false end
   
-  reaper.SetEditCurPos(rgn.start, true, true)
+  -- The core REAPER API function that performs a smooth seek to the region's start.
+  -- The rgn.index (the internal marker index number) is the required 'region_index'.
+  -- The 'false' argument tells REAPER to use the assigned region number, not the timeline order.
+  -- This single call handles the smooth seek on its own, similar to the C++ extension.
+  reaper.GoToRegion(proj, rgn.index, false)
+  
   reaper.UpdateTimeline()
   return true
 end

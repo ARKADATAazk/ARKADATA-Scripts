@@ -1,5 +1,5 @@
 -- Region_Playlist/app/state.lua
--- Application state management
+-- Pure data layer with repeat cycle tracking
 
 local CoordinatorBridge = require("ReArkitekt.features.region_playlist.coordinator_bridge")
 local RegionState = require("ReArkitekt.features.region_playlist.state")
@@ -23,12 +23,16 @@ M.state = {
   bridge = nil,
   last_project_state = -1,
   undo_manager = nil,
-  last_snapshot = nil,
+  on_state_restored = nil,
+  on_repeat_cycle = nil,
 }
 
 M.playlists = {}
+M.settings = nil
 
 function M.initialize(settings)
+  M.settings = settings
+  
   if settings then
     M.state.search_filter = settings:get('pool_search') or ""
     M.state.sort_mode = settings:get('pool_sort')
@@ -40,17 +44,18 @@ function M.initialize(settings)
   
   M.state.bridge = CoordinatorBridge.create({
     proj = 0,
-    on_region_change = function(rid, region, pointer)
-    end,
-    on_playback_start = function(rid)
-    end,
-    on_playback_stop = function()
-    end,
-    on_transition_scheduled = function(rid, region_end, transition_time)
+    on_region_change = function(rid, region, pointer) end,
+    on_playback_start = function(rid) end,
+    on_playback_stop = function() end,
+    on_transition_scheduled = function(rid, region_end, transition_time) end,
+    on_repeat_cycle = function(key, current_loop, total_reps)
+      if M.state.on_repeat_cycle then
+        M.state.on_repeat_cycle(key, current_loop, total_reps)
+      end
     end,
   })
   
-  M.state.undo_manager = UndoManager.new({ proj = 0, max_history = 50 })
+  M.state.undo_manager = UndoManager.new({ max_history = 50 })
   
   M.refresh_regions()
   M.sync_playlist_to_engine()
@@ -84,6 +89,17 @@ function M.get_active_playlist()
   return M.playlists[1]
 end
 
+function M.get_tabs()
+  local tabs = {}
+  for _, pl in ipairs(M.playlists) do
+    tabs[#tabs + 1] = {
+      id = pl.id,
+      label = pl.name or ("Playlist " .. pl.id),
+    }
+  end
+  return tabs
+end
+
 function M.refresh_regions()
   local regions = M.state.bridge:get_regions_for_ui()
   
@@ -101,13 +117,31 @@ function M.sync_playlist_to_engine()
   M.state.bridge:sync_from_ui_playlist(pl.items)
 end
 
-function M.capture_undo_snapshot()
-  local snapshot = UndoBridge.capture_snapshot(M.playlists, M.state.active_playlist)
-  M.state.undo_manager:capture_state(snapshot)
-  M.state.last_snapshot = snapshot
+function M.persist()
+  RegionState.save_playlists(M.playlists, 0)
+  RegionState.save_active_playlist(M.state.active_playlist, 0)
 end
 
-function M.apply_undo_snapshot(snapshot)
+function M.persist_ui_prefs()
+  if not M.settings then return end
+  M.settings:set('pool_search', M.state.search_filter)
+  M.settings:set('pool_sort', M.state.sort_mode)
+  M.settings:set('pool_sort_direction', M.state.sort_direction)
+  M.settings:set('layout_mode', M.state.layout_mode)
+end
+
+function M.capture_undo_snapshot()
+  local snapshot = UndoBridge.capture_snapshot(M.playlists, M.state.active_playlist)
+  M.state.undo_manager:push(snapshot)
+end
+
+function M.clear_pending()
+  M.state.pending_spawn = {}
+  M.state.pending_select = {}
+  M.state.pending_destroy = {}
+end
+
+function M.restore_snapshot(snapshot)
   if not snapshot then return false end
   
   local restored_playlists, restored_active = UndoBridge.restore_snapshot(
@@ -118,73 +152,53 @@ function M.apply_undo_snapshot(snapshot)
   M.playlists = restored_playlists
   M.state.active_playlist = restored_active
   
-  RegionState.save_playlists(M.playlists, 0)
-  RegionState.save_active_playlist(M.state.active_playlist, 0)
-  
+  M.persist()
+  M.clear_pending()
   M.sync_playlist_to_engine()
+  
+  if M.state.on_state_restored then
+    M.state.on_state_restored()
+  end
   
   return true
 end
 
-local function rgb_to_hsl(color)
-  local r, g, b, a = Colors.rgba_to_components(color)
-  r, g, b = r / 255, g / 255, b / 255
-  
-  local max_c = math.max(r, g, b)
-  local min_c = math.min(r, g, b)
-  local delta = max_c - min_c
-  
-  local h = 0
-  local s = 0
-  local l = (max_c + min_c) / 2
-  
-  if delta ~= 0 then
-    s = (l > 0.5) and (delta / (2 - max_c - min_c)) or (delta / (max_c + min_c))
-    
-    if max_c == r then
-      h = ((g - b) / delta + (g < b and 6 or 0)) / 6
-    elseif max_c == g then
-      h = ((b - r) / delta + 2) / 6
-    else
-      h = ((r - g) / delta + 4) / 6
-    end
+function M.undo()
+  if not M.state.undo_manager:can_undo() then
+    return false
   end
   
-  return h, s, l
+  local snapshot = M.state.undo_manager:undo()
+  return M.restore_snapshot(snapshot)
 end
 
-local function get_color_sort_key(color)
-  if not color or color == 0 then
-    return -1, 0, 0
+function M.redo()
+  if not M.state.undo_manager:can_redo() then
+    return false
   end
   
-  local h, s, l = rgb_to_hsl(color)
-  
-  if s < 0.08 then
-    return 999, l, s
-  end
-  
-  local hue_degrees = h * 360
-  
-  return hue_degrees, s, l
+  local snapshot = M.state.undo_manager:redo()
+  return M.restore_snapshot(snapshot)
+end
+
+function M.can_undo()
+  return M.state.undo_manager:can_undo()
+end
+
+function M.can_redo()
+  return M.state.undo_manager:can_redo()
+end
+
+function M.set_active_playlist(playlist_id)
+  M.state.active_playlist = playlist_id
+  M.persist()
+  M.sync_playlist_to_engine()
 end
 
 local function compare_by_color(a, b)
   local color_a = a.color or 0
   local color_b = b.color or 0
-  
-  local h_a, s_a, l_a = get_color_sort_key(color_a)
-  local h_b, s_b, l_b = get_color_sort_key(color_b)
-  
-  if math.abs(h_a - h_b) > 0.01 then
-    return h_a < h_b
-  end
-  
-  if math.abs(s_a - s_b) > 0.01 then
-    return s_a > s_b
-  end
-  
-  return l_a > l_b
+  return Colors.compare_colors(color_a, color_b)
 end
 
 local function compare_by_index(a, b)
@@ -256,13 +270,13 @@ function M.cleanup_deleted_regions()
   end
   
   if removed_any then
-    RegionState.save_playlists(M.playlists, 0)
+    M.persist()
   end
   
   return removed_any
 end
 
-function M.check_for_project_changes()
+function M.update()
   local current_project_state = reaper.GetProjectStateChangeCount(0)
   if current_project_state ~= M.state.last_project_state then
     local old_region_count = 0
@@ -281,28 +295,11 @@ function M.check_for_project_changes()
     
     if regions_deleted then
       M.cleanup_deleted_regions()
-      M.capture_undo_snapshot()
     end
     
-    local undo_triggered, redo_triggered = M.state.undo_manager:detect_reaper_undo_redo()
-    
-    if undo_triggered then
-      local prev_state = M.state.undo_manager:get_previous_state()
-      M.apply_undo_snapshot(prev_state)
-    elseif redo_triggered then
-      local next_state = M.state.undo_manager:get_next_state()
-      M.apply_undo_snapshot(next_state)
-    else
-      if M.state.last_snapshot and 
-         UndoBridge.should_capture(M.state.last_snapshot.playlists, M.playlists) then
-        M.capture_undo_snapshot()
-      end
-      M.sync_playlist_to_engine()
-    end
-    
+    M.sync_playlist_to_engine()
     M.state.last_project_state = current_project_state
   end
 end
-
 
 return M

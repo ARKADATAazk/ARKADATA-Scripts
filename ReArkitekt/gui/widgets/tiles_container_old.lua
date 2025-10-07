@@ -1,6 +1,6 @@
 -- ReArkitekt/gui/widgets/tiles_container.lua
 -- Visual container for tile grids with scrolling, borders, and interactive header
--- Updated with dropdown-based sorting
+-- Updated with tabs support and CTRL+F search overlay
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
@@ -59,6 +59,49 @@ local DEFAULTS = {
     padding_y = 8,
     spacing = 8,
     
+    mode = 'search_sort',
+    
+    tabs = {
+      enabled = true,
+      plus_button = {
+        width = 28,
+        height = 24,
+        bg_color = 0x252525FF,
+        bg_hover_color = 0x303030FF,
+        bg_active_color = 0x3A3A3AFF,
+        text_color = 0x999999FF,
+        text_hover_color = 0xFFFFFFFF,
+        border_color = 0x353535FF,
+        border_hover_color = 0x454545FF,
+        rounding = 3,
+        icon = "+",
+      },
+      tab = {
+        min_width = 80,
+        max_width = 150,
+        height = 24,
+        padding_x = 12,
+        spacing = 4,
+        bg_color = 0x1A1A1AFF,
+        bg_hover_color = 0x252525FF,
+        bg_active_color = 0x2A2A2AFF,
+        text_color = 0xBBBBBBFF,
+        text_hover_color = 0xFFFFFFFF,
+        text_active_color = 0xFFFFFFFF,
+        border_color = 0x353535FF,
+        border_active_color = 0x41E0A3FF,
+        rounding = 3,
+        close_button = {
+          enabled = true,
+          size = 14,
+          padding = 2,
+          color = 0x666666FF,
+          hover_color = 0xE84A4AFF,
+        },
+      },
+      reserved_right_space = 100,
+    },
+    
     search = {
       enabled = true,
       placeholder = "Search...",
@@ -80,6 +123,7 @@ local DEFAULTS = {
       width = 120,
       height = 26,
       tooltip = "Sorting",
+      tooltip_delay = 0.5,
       bg_color = 0x252525FF,
       bg_hover_color = 0x303030FF,
       bg_active_color = 0x3A3A3AFF,
@@ -93,6 +137,23 @@ local DEFAULTS = {
       arrow_size = 4,
       arrow_color = 0x999999FF,
       arrow_hover_color = 0xEEEEEEFF,
+      
+      popup = {
+        bg_color = 0x1E1E1EFF,
+        border_color = 0x404040FF,
+        item_bg_color = 0x00000000,
+        item_hover_color = 0x3A3A3AFF,
+        item_active_color = 0x454545FF,
+        item_text_color = 0xCCCCCCFF,
+        item_text_hover_color = 0xFFFFFFFF,
+        item_selected_color = 0x2A2A2AFF,
+        item_selected_text_color = 0xFFFFFFFF,
+        rounding = 4,
+        padding = 4,
+        item_height = 24,
+        item_padding_x = 10,
+        border_thickness = 1,
+      },
       
       options = {
         { value = nil, label = "No Sort" },
@@ -239,6 +300,7 @@ local function draw_sort_dropdown(ctx, x, y, content_height, state, cfg)
     state.sort_dropdown = Dropdown.new({
       id = "sort_dropdown_" .. state.id,
       tooltip = dropdown_cfg.tooltip,
+      tooltip_delay = dropdown_cfg.tooltip_delay,
       options = dropdown_cfg.options,
       current_value = state.sort_mode,
       sort_direction = state.sort_direction or "asc",
@@ -257,6 +319,7 @@ local function draw_sort_dropdown(ctx, x, y, content_height, state, cfg)
       config = {
         width = dropdown_cfg.width,
         height = dropdown_cfg.height,
+        tooltip_delay = dropdown_cfg.tooltip_delay,
         bg_color = dropdown_cfg.bg_color,
         bg_hover_color = dropdown_cfg.bg_hover_color,
         bg_active_color = dropdown_cfg.bg_active_color,
@@ -271,6 +334,7 @@ local function draw_sort_dropdown(ctx, x, y, content_height, state, cfg)
         arrow_color = dropdown_cfg.arrow_color,
         arrow_hover_color = dropdown_cfg.arrow_hover_color,
         enable_mousewheel = true,
+        popup = dropdown_cfg.popup,
       },
     })
   end
@@ -281,15 +345,149 @@ local function draw_sort_dropdown(ctx, x, y, content_height, state, cfg)
   return x + dropdown_cfg.width
 end
 
-local function draw_header(ctx, dl, x, y, width, height, state, cfg)
-  local header_cfg = cfg.header
-  if not header_cfg or not header_cfg.enabled then return 0 end
+local function draw_plus_button(ctx, dl, x, y, state, cfg)
+  local btn_cfg = cfg.tabs.plus_button
+  local w = btn_cfg.width
+  local h = btn_cfg.height
   
-  ImGui.DrawList_AddRectFilled(dl, x, y, x + width, y + height, 
-    header_cfg.bg_color, 0)
+  local is_hovered = ImGui.IsMouseHoveringRect(ctx, x, y, x + w, y + h)
+  local is_active = ImGui.IsMouseDown(ctx, 0) and is_hovered
   
-  ImGui.DrawList_AddLine(dl, x, y + height, x + width, y + height, 
-    header_cfg.border_color, 1)
+  local bg_color = btn_cfg.bg_color
+  if is_active then
+    bg_color = btn_cfg.bg_active_color
+  elseif is_hovered then
+    bg_color = btn_cfg.bg_hover_color
+  end
+  
+  local border_color = is_hovered and btn_cfg.border_hover_color or btn_cfg.border_color
+  local text_color = is_hovered and btn_cfg.text_hover_color or btn_cfg.text_color
+  
+  ImGui.DrawList_AddRectFilled(dl, x, y, x + w, y + h, bg_color, btn_cfg.rounding)
+  ImGui.DrawList_AddRect(dl, x, y, x + w, y + h, border_color, btn_cfg.rounding, 0, 1)
+  
+  local text_w, text_h = ImGui.CalcTextSize(ctx, btn_cfg.icon)
+  local text_x = x + (w - text_w) * 0.5
+  local text_y = y + (h - text_h) * 0.5
+  ImGui.DrawList_AddText(dl, text_x, text_y, text_color, btn_cfg.icon)
+  
+  ImGui.SetCursorScreenPos(ctx, x, y)
+  local clicked = ImGui.InvisibleButton(ctx, "##plus_" .. state.id, w, h)
+  
+  return clicked, x + w
+end
+
+local function draw_tab(ctx, dl, x, y, tab_data, is_active, state, cfg)
+  local tab_cfg = cfg.tabs.tab
+  local label = tab_data.label or "Tab"
+  local id = tab_data.id
+  
+  local text_w, text_h = ImGui.CalcTextSize(ctx, label)
+  
+  local close_btn_space = 0
+  if tab_cfg.close_button.enabled and #state.tabs > 1 then
+    close_btn_space = tab_cfg.close_button.size + tab_cfg.close_button.padding
+  end
+  
+  local w = math.min(tab_cfg.max_width, math.max(tab_cfg.min_width, text_w + tab_cfg.padding_x * 2 + close_btn_space))
+  local h = tab_cfg.height
+  
+  local is_hovered = ImGui.IsMouseHoveringRect(ctx, x, y, x + w, y + h)
+  local is_pressed = ImGui.IsMouseDown(ctx, 0) and is_hovered
+  
+  local bg_color = tab_cfg.bg_color
+  if is_active then
+    bg_color = tab_cfg.bg_active_color
+  elseif is_pressed then
+    bg_color = tab_cfg.bg_active_color
+  elseif is_hovered then
+    bg_color = tab_cfg.bg_hover_color
+  end
+  
+  local border_color = is_active and tab_cfg.border_active_color or tab_cfg.border_color
+  local text_color = is_active and tab_cfg.text_active_color or (is_hovered and tab_cfg.text_hover_color or tab_cfg.text_color)
+  
+  ImGui.DrawList_AddRectFilled(dl, x, y, x + w, y + h, bg_color, tab_cfg.rounding)
+  ImGui.DrawList_AddRect(dl, x, y, x + w, y + h, border_color, tab_cfg.rounding, 0, 1)
+  
+  local text_x = x + tab_cfg.padding_x
+  local text_y = y + (h - text_h) * 0.5
+  
+  local text_max_w = w - tab_cfg.padding_x * 2 - close_btn_space
+  if text_w > text_max_w then
+    ImGui.DrawList_PushClipRect(dl, x + tab_cfg.padding_x, y, x + w - tab_cfg.padding_x - close_btn_space, y + h, true)
+    ImGui.DrawList_AddText(dl, text_x, text_y, text_color, label)
+    ImGui.DrawList_PopClipRect(dl)
+  else
+    ImGui.DrawList_AddText(dl, text_x, text_y, text_color, label)
+  end
+  
+  ImGui.SetCursorScreenPos(ctx, x, y)
+  local clicked = ImGui.InvisibleButton(ctx, "##tab_" .. id .. "_" .. state.id, w, h)
+  
+  local close_clicked = false
+  if tab_cfg.close_button.enabled and #state.tabs > 1 then
+    local close_size = tab_cfg.close_button.size
+    local close_x = x + w - tab_cfg.padding_x - close_size
+    local close_y = y + (h - close_size) * 0.5
+    
+    local close_hovered = ImGui.IsMouseHoveringRect(ctx, close_x, close_y, close_x + close_size, close_y + close_size)
+    local close_color = close_hovered and tab_cfg.close_button.hover_color or tab_cfg.close_button.color
+    
+    local padding = 3
+    ImGui.DrawList_AddLine(dl, close_x + padding, close_y + padding, close_x + close_size - padding, close_y + close_size - padding, close_color, 1.5)
+    ImGui.DrawList_AddLine(dl, close_x + close_size - padding, close_y + padding, close_x + padding, close_y + close_size - padding, close_color, 1.5)
+    
+    ImGui.SetCursorScreenPos(ctx, close_x, close_y)
+    if ImGui.InvisibleButton(ctx, "##close_" .. id .. "_" .. state.id, close_size, close_size) then
+      close_clicked = true
+    end
+  end
+  
+  return clicked, close_clicked, x + w
+end
+
+local function draw_tabs_header(ctx, dl, x, y, width, height, state, cfg)
+  local tabs_cfg = cfg.tabs
+  if not tabs_cfg or not tabs_cfg.enabled then return 0 end
+  
+  local cursor_x = x + cfg.padding_x
+  local cursor_y = y + cfg.padding_y
+  local content_height = height - (cfg.padding_y * 2)
+  
+  local plus_clicked, new_x = draw_plus_button(ctx, dl, cursor_x, cursor_y, state, cfg)
+  cursor_x = new_x + tabs_cfg.tab.spacing
+  
+  if plus_clicked and state.on_tab_create then
+    state.on_tab_create()
+  end
+  
+  local available_width = width - (cursor_x - x) - tabs_cfg.reserved_right_space
+  
+  for i, tab_data in ipairs(state.tabs) do
+    local is_active = (tab_data.id == state.active_tab_id)
+    local clicked, close_clicked, next_x = draw_tab(ctx, dl, cursor_x, cursor_y, tab_data, is_active, state, cfg)
+    
+    if clicked and state.on_tab_change then
+      state.on_tab_change(tab_data.id)
+    end
+    
+    if close_clicked and state.on_tab_delete then
+      state.on_tab_delete(tab_data.id)
+    end
+    
+    cursor_x = next_x + tabs_cfg.tab.spacing
+    
+    if cursor_x - x > available_width then
+      break
+    end
+  end
+  
+  return height
+end
+
+local function draw_search_sort_header(ctx, dl, x, y, width, height, state, cfg)
+  local header_cfg = cfg
   
   local cursor_x = x + header_cfg.padding_x
   local cursor_y = y + header_cfg.padding_y
@@ -313,6 +511,40 @@ local function draw_header(ctx, dl, x, y, width, height, state, cfg)
   return height
 end
 
+local function draw_header(ctx, dl, x, y, width, height, state, cfg)
+  local header_cfg = cfg.header
+  if not header_cfg or not header_cfg.enabled then return 0 end
+  
+  ImGui.DrawList_AddRectFilled(dl, x, y, x + width, y + height, 
+    header_cfg.bg_color, 0)
+  
+  ImGui.DrawList_AddLine(dl, x, y + height, x + width, y + height, 
+    header_cfg.border_color, 1)
+  
+  local ctrl_pressed = ImGui.IsKeyDown(ctx, ImGui.Key_LeftCtrl) or ImGui.IsKeyDown(ctx, ImGui.Key_RightCtrl)
+  local f_pressed = ImGui.IsKeyPressed(ctx, ImGui.Key_F)
+  
+  if ctrl_pressed and f_pressed and header_cfg.mode == 'tabs' then
+    state.temp_search_mode = not state.temp_search_mode
+    if state.temp_search_mode then
+      state.search_text = ""
+    end
+  end
+  
+  local mode = header_cfg.mode or 'search_sort'
+  if mode == 'tabs' and state.temp_search_mode then
+    mode = 'temp_search'
+  end
+  
+  if mode == 'tabs' then
+    return draw_tabs_header(ctx, dl, x, y, width, height, state, header_cfg)
+  elseif mode == 'search_sort' or mode == 'temp_search' then
+    return draw_search_sort_header(ctx, dl, x, y, width, height, state, header_cfg)
+  end
+  
+  return height
+end
+
 local Container = {}
 Container.__index = Container
 
@@ -330,12 +562,19 @@ function M.new(opts)
     search_focused = false,
     search_alpha = 0.3,
     sort_mode = nil,
-    sort_direction = "asc",  -- ADD THIS
+    sort_direction = "asc",
     sort_dropdown = nil,
+    
+    tabs = opts.tabs or {},
+    active_tab_id = opts.active_tab_id,
+    temp_search_mode = false,
     
     on_search_changed = opts.on_search_changed,
     on_sort_changed = opts.on_sort_changed,
     on_sort_direction_changed = opts.on_sort_direction_changed,
+    on_tab_create = opts.on_tab_create,
+    on_tab_change = opts.on_tab_change,
+    on_tab_delete = opts.on_tab_delete,
     
     had_scrollbar_last_frame = false,
     last_content_height = 0,
@@ -442,6 +681,7 @@ function Container:reset()
   self.search_alpha = 0.3
   self.sort_mode = nil
   self.sort_dropdown = nil
+  self.temp_search_mode = false
 end
 
 function Container:get_search_text()
@@ -468,6 +708,23 @@ function Container:set_sort_direction(direction)
   if self.sort_dropdown then
     self.sort_dropdown:set_direction(direction)
   end
+end
+
+function Container:set_tabs(tabs, active_id)
+  self.tabs = tabs or {}
+  if active_id then
+    self.active_tab_id = active_id
+  elseif #self.tabs > 0 then
+    self.active_tab_id = self.tabs[1].id
+  end
+end
+
+function Container:get_active_tab_id()
+  return self.active_tab_id
+end
+
+function Container:set_active_tab_id(id)
+  self.active_tab_id = id
 end
 
 function M.draw(ctx, id, width, height, content_fn, config, on_search_changed, on_sort_changed)

@@ -1,6 +1,6 @@
 -- ReArkitekt/gui/widgets/region_tiles/coordinator.lua
 -- Region Playlist coordinator - manages active sequence + pool grids with responsive heights
--- FIXED: Drop indicators now respect grid boundaries and only show in appropriate grids
+-- Updated with tabs support for active grid
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.10'
@@ -78,6 +78,49 @@ local DEFAULTS = {
       padding_y = 8,
       spacing = 8,
       
+      mode = 'search_sort',
+      
+      tabs = {
+        enabled = true,
+        plus_button = {
+          width = 28,
+          height = 24,
+          bg_color = 0x252525FF,
+          bg_hover_color = 0x303030FF,
+          bg_active_color = 0x3A3A3AFF,
+          text_color = 0x999999FF,
+          text_hover_color = 0xFFFFFFFF,
+          border_color = 0x353535FF,
+          border_hover_color = 0x454545FF,
+          rounding = 3,
+          icon = "+",
+        },
+        tab = {
+          min_width = 80,
+          max_width = 150,
+          height = 24,
+          padding_x = 12,
+          spacing = 4,
+          bg_color = 0x1A1A1AFF,
+          bg_hover_color = 0x252525FF,
+          bg_active_color = 0x2A2A2AFF,
+          text_color = 0xBBBBBBFF,
+          text_hover_color = 0xFFFFFFFF,
+          text_active_color = 0xFFFFFFFF,
+          border_color = 0x353535FF,
+          border_active_color = 0x41E0A3FF,
+          rounding = 3,
+          close_button = {
+            enabled = true,
+            size = 14,
+            padding = 2,
+            color = 0x666666FF,
+            hover_color = 0xE84A4AFF,
+          },
+        },
+        reserved_right_space = 100,
+      },
+      
       search = {
         enabled = true,
         placeholder = "Search...",
@@ -113,14 +156,14 @@ local DEFAULTS = {
         arrow_color = 0x999999FF,
         arrow_hover_color = 0xEEEEEEFF,
         
-            options = {
-                { value = nil, label = "No Sort" },
-                { value = "color", label = "Color" },
-                { value = "index", label = "Index" },
-                { value = "alpha", label = "Alphabetical" },
-                { value = "length", label = "Length" },
-            },
+        options = {
+          { value = nil, label = "No Sort" },
+          { value = "color", label = "Color" },
+          { value = "index", label = "Index" },
+          { value = "alpha", label = "Alphabetical" },
+          { value = "length", label = "Length" },
         },
+      },
     },
   },
   
@@ -271,7 +314,12 @@ function M.create(opts)
     on_pool_double_click = opts.on_pool_double_click,
     on_pool_search = opts.on_pool_search,
     on_pool_sort = opts.on_pool_sort,
-    on_pool_sort_direction = opts.on_pool_sort_direction, 
+    on_pool_sort_direction = opts.on_pool_sort_direction,
+    on_tab_create = opts.on_tab_create,
+    on_tab_change = opts.on_tab_change,
+    on_tab_delete = opts.on_tab_delete,
+    on_tab_reorder = opts.on_tab_reorder,
+    on_active_search = opts.on_active_search,
     settings = opts.settings,
     
     allow_pool_reorder = opts.allow_pool_reorder ~= false,
@@ -339,12 +387,35 @@ function M.create(opts)
   local active_container_config = shallow_copy_config(config.container)
   if active_container_config.header then
     active_container_config.header = shallow_copy_config(active_container_config.header)
-    active_container_config.header.enabled = false
+    active_container_config.header.enabled = opts.enable_active_tabs or false
+    active_container_config.header.mode = 'tabs'
   end
   
   rt.active_container = TilesContainer.new({
     id = "active_tiles_container",
     config = active_container_config,
+    tabs = opts.tabs or {},
+    active_tab_id = opts.active_tab_id,
+    on_tab_create = function()
+      if rt.on_tab_create then
+        rt.on_tab_create()
+      end
+    end,
+    on_tab_change = function(id)
+      if rt.on_tab_change then
+        rt.on_tab_change(id)
+      end
+    end,
+    on_tab_delete = function(id)
+      if rt.on_tab_delete then
+        rt.on_tab_delete(id)
+      end
+    end,
+    on_search_changed = function(text)
+      if rt.on_active_search then
+        rt.on_active_search(text)
+      end
+    end,
   })
   
   rt.pool_container = TilesContainer.new({
@@ -361,9 +432,9 @@ function M.create(opts)
       end
     end,
     on_sort_direction_changed = function(direction)
-        if rt.on_pool_sort_direction then
-            rt.on_pool_sort_direction(direction)
-        end
+      if rt.on_pool_sort_direction then
+        rt.on_pool_sort_direction(direction)
+      end
     end,
   })
   
@@ -576,6 +647,19 @@ function RegionTiles:draw_selector(ctx, playlists, active_id, height)
   self.selector:draw(ctx, playlists, active_id, height, self.on_playlist_changed)
 end
 
+function RegionTiles:set_tabs(tabs, active_id)
+  if self.active_container then
+    self.active_container:set_tabs(tabs, active_id)
+  end
+end
+
+function RegionTiles:get_active_tab_id()
+  if self.active_container then
+    return self.active_container:get_active_tab_id()
+  end
+  return nil
+end
+
 function RegionTiles:draw_active(ctx, playlist, height)
   self._imgui_ctx = ctx
   
@@ -589,12 +673,16 @@ function RegionTiles:draw_active(ctx, playlist, height)
   self.active_container.height = height
   
   if not self.active_container:begin_draw(ctx) then
-    self.active_container:end_draw(ctx)
     return
   end
   
+  local header_height = 0
+  if self.active_container.config.header and self.active_container.config.header.enabled then
+    header_height = self.active_container.config.header.height or 36
+  end
+  
   local child_w = avail_w - (self.container_config.padding * 2)
-  local child_h = height - (self.container_config.padding * 2)
+  local child_h = (height - header_height) - (self.container_config.padding * 2)
   
   self.active_grid.get_items = function() return playlist.items end
   
@@ -667,7 +755,6 @@ function RegionTiles:draw_pool(ctx, regions, height)
   self.pool_container.height = height
   
   if not self.pool_container:begin_draw(ctx) then
-    self.pool_container:end_draw(ctx)
     return
   end
   

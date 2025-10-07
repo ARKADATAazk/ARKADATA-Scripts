@@ -71,6 +71,125 @@ function M.auto_text_color(bg_color)
 end
 
 -- ============================================================================
+-- SECTION 1.5: Color Space Conversions
+-- ============================================================================
+
+function M.rgb_to_hsl(color)
+  local r, g, b, a = M.rgba_to_components(color)
+  r, g, b = r / 255, g / 255, b / 255
+  
+  local max_c = math.max(r, g, b)
+  local min_c = math.min(r, g, b)
+  local delta = max_c - min_c
+  
+  local h = 0
+  local s = 0
+  local l = (max_c + min_c) / 2
+  
+  if delta ~= 0 then
+    s = (l > 0.5) and (delta / (2 - max_c - min_c)) or (delta / (max_c + min_c))
+    
+    if max_c == r then
+      h = ((g - b) / delta + (g < b and 6 or 0)) / 6
+    elseif max_c == g then
+      h = ((b - r) / delta + 2) / 6
+    else
+      h = ((r - g) / delta + 4) / 6
+    end
+  end
+  
+  return h, s, l
+end
+
+function M.hsl_to_rgb(h, s, l)
+  local function hue_to_rgb(p, q, t)
+    if t < 0 then t = t + 1 end
+    if t > 1 then t = t - 1 end
+    if t < 1/6 then return p + (q - p) * 6 * t end
+    if t < 1/2 then return q end
+    if t < 2/3 then return p + (q - p) * (2/3 - t) * 6 end
+    return p
+  end
+  
+  local r, g, b
+  
+  if s == 0 then
+    r, g, b = l, l, l
+  else
+    local q = l < 0.5 and l * (1 + s) or l + s - l * s
+    local p = 2 * l - q
+    r = hue_to_rgb(p, q, h + 1/3)
+    g = hue_to_rgb(p, q, h)
+    b = hue_to_rgb(p, q, h - 1/3)
+  end
+  
+  return math.floor(r * 255 + 0.5), math.floor(g * 255 + 0.5), math.floor(b * 255 + 0.5)
+end
+
+local function _rgb_to_hsv(r, g, b)
+  r, g, b = r / 255, g / 255, b / 255
+  local maxv, minv = math.max(r, g, b), math.min(r, g, b)
+  local d = maxv - minv
+  local h = 0
+  if d ~= 0 then
+    if maxv == r then h = ((g - b) / d) % 6
+    elseif maxv == g then h = (b - r) / d + 2
+    else h = (r - g) / d + 4 end
+    h = h / 6
+  end
+  local s = (maxv == 0) and 0 or (d / maxv)
+  return h, s, maxv
+end
+
+local function _hsv_to_rgb(h, s, v)
+  local i = math.floor(h * 6)
+  local f = h * 6 - i
+  local p = v * (1 - s)
+  local q = v * (1 - f * s)
+  local t = v * (1 - (1 - f) * s)
+  local r, g, b =
+    (i % 6 == 0 and v) or (i % 6 == 1 and q) or (i % 6 == 2 and p) or (i % 6 == 3 and p) or (i % 6 == 4 and t) or v,
+    (i % 6 == 0 and t) or (i % 6 == 1 and v) or (i % 6 == 2 and v) or (i % 6 == 3 and q) or (i % 6 == 4 and p) or p,
+    (i % 6 == 0 and p) or (i % 6 == 1 and p) or (i % 6 == 2 and t) or (i % 6 == 3 and v) or (i % 6 == 4 and v) or q
+  return math.floor(r * 255 + 0.5), math.floor(g * 255 + 0.5), math.floor(b * 255 + 0.5)
+end
+
+-- ============================================================================
+-- SECTION 1.6: Color Sorting Utilities
+-- ============================================================================
+
+function M.get_color_sort_key(color)
+  if not color or color == 0 then
+    return -1, 0, 0
+  end
+  
+  local h, s, l = M.rgb_to_hsl(color)
+  
+  if s < 0.08 then
+    return 999, l, s
+  end
+  
+  local hue_degrees = h * 360
+  
+  return hue_degrees, s, l
+end
+
+function M.compare_colors(color_a, color_b)
+  local h_a, s_a, l_a = M.get_color_sort_key(color_a)
+  local h_b, s_b, l_b = M.get_color_sort_key(color_b)
+  
+  if math.abs(h_a - h_b) > 0.01 then
+    return h_a < h_b
+  end
+  
+  if math.abs(s_a - s_b) > 0.01 then
+    return s_a > s_b
+  end
+  
+  return l_a > l_b
+end
+
+-- ============================================================================
 -- SECTION 2: Color Characteristics (for adaptive palettes)
 -- ============================================================================
 
@@ -365,64 +484,31 @@ function M.flashy_palette(base_color)
   })
 end
 
--- === Hue-preserving helpers for tile text ===================================
-local function _rgb_to_hsv(r,g,b)
-  r,g,b = r/255, g/255, b/255
-  local maxv, minv = math.max(r,g,b), math.min(r,g,b)
-  local d = maxv - minv
-  local h = 0
-  if d ~= 0 then
-    if maxv == r then h = ((g-b)/d) % 6
-    elseif maxv == g then h = (b-r)/d + 2
-    else h = (r-g)/d + 4 end
-    h = h / 6
-  end
-  local s = (maxv == 0) and 0 or (d/maxv)
-  return h, s, maxv
-end
+-- ============================================================================
+-- SECTION 7: Hue-Preserving Helpers (for tile text)
+-- ============================================================================
 
-local function _hsv_to_rgb(h,s,v)
-  local i = math.floor(h*6)
-  local f = h*6 - i
-  local p = v*(1-s)
-  local q = v*(1-f*s)
-  local t = v*(1-(1-f)*s)
-  local r,g,b =
-    (i%6==0 and v) or (i%6==1 and q) or (i%6==2 and p) or (i%6==3 and p) or (i%6==4 and t) or v,
-    (i%6==0 and t) or (i%6==1 and v) or (i%6==2 and v) or (i%6==3 and q) or (i%6==4 and p) or p,
-    (i%6==0 and p) or (i%6==1 and p) or (i%6==2 and t) or (i%6==3 and v) or (i%6==4 and v) or q
-  return math.floor(r*255+0.5), math.floor(g*255+0.5), math.floor(b*255+0.5)
-end
-
---- Keep hue, scale saturation/value (alpha optional)
 function M.same_hue_variant(col, s_mult, v_mult, new_a)
   local r = (col >> 24) & 0xFF
   local g = (col >> 16) & 0xFF
-  local b = (col >>  8) & 0xFF
-  local a =  col        & 0xFF
-  local h,s,v = _rgb_to_hsv(r,g,b)
+  local b = (col >> 8) & 0xFF
+  local a = col & 0xFF
+  local h, s, v = _rgb_to_hsv(r, g, b)
   s = math.max(0, math.min(1, s * (s_mult or 1)))
-  v = math.max(0, math.min(1, v * (v_mult or 1)))  -- FIXED: removed /255
-  local rr,gg,bb = _hsv_to_rgb(h,s,v)
-  return (rr<<24)|(gg<<16)|(bb<<8)|(new_a or a)
+  v = math.max(0, math.min(1, v * (v_mult or 1)))
+  local rr, gg, bb = _hsv_to_rgb(h, s, v)
+  return (rr << 24) | (gg << 16) | (bb << 8) | (new_a or a)
 end
 
---- Colors for "index • name" split on tiles
 function M.tile_text_colors(base_color)
-  -- Accent number: same hue, +sat, +value
   local accent = M.same_hue_variant(base_color, 1.25, 1.15, 0xFF)
-  -- Name: neutral, soft white tuned for your shell
-  local name   = 0xDDE3E9FF
+  local name = 0xDDE3E9FF
   return accent, name
 end
 
---- Secondary/metric text (length) derived from name
 function M.tile_meta_color(name_color, alpha)
   alpha = alpha or 0xBB
   return M.with_alpha(name_color, alpha)
 end
-
-
-
 
 return M

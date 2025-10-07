@@ -1,11 +1,11 @@
 -- Region_Playlist/app/gui.lua
--- GUI rendering and layout
+-- GUI rendering - thin adapter to controller
 
 local ImGui = require 'imgui' '0.10'
 local RegionTiles = require("ReArkitekt.gui.widgets.region_tiles.coordinator")
 local Colors = require("ReArkitekt.core.colors")
-local RegionState = require("ReArkitekt.features.region_playlist.state")
 local Shortcuts = require("Region_Playlist.app.shortcuts")
+local PlaylistController = require("ReArkitekt.features.region_playlist.playlist_controller")
 
 local M = {}
 local GUI = {}
@@ -18,9 +18,23 @@ function M.create(State, Config, settings)
     settings = settings,
     region_tiles = nil,
     layout_button_animator = nil,
+    controller = nil,
   }, GUI)
   
   self.layout_button_animator = require('ReArkitekt.gui.fx.tile_motion').new(Config.LAYOUT_BUTTON.animation_speed)
+  self.controller = PlaylistController.new(State, settings, State.state.undo_manager)
+  
+  State.state.bridge:set_controller(self.controller)
+  
+  State.state.on_state_restored = function()
+    self:refresh_tabs()
+    if self.region_tiles.active_grid and self.region_tiles.active_grid.selection then
+      self.region_tiles.active_grid.selection:clear()
+    end
+    if self.region_tiles.pool_grid and self.region_tiles.pool_grid.selection then
+      self.region_tiles.pool_grid.selection:clear()
+    end
+  end
   
   self.region_tiles = RegionTiles.create({
     get_region_by_rid = function(rid)
@@ -28,84 +42,69 @@ function M.create(State, Config, settings)
     end,
     
     allow_pool_reorder = true,
+    enable_active_tabs = true,
+    tabs = State.get_tabs(),
+    active_tab_id = State.state.active_playlist,
     config = Config.get_region_tiles_config(State.state.layout_mode),
     
+    on_tab_create = function()
+      self.controller:create_playlist()
+      self:refresh_tabs()
+    end,
+    
+    on_tab_change = function(new_id)
+      State.set_active_playlist(new_id)
+    end,
+    
+    on_tab_delete = function(id)
+      if self.controller:delete_playlist(id) then
+        self:refresh_tabs()
+      end
+    end,
+    
+    on_tab_reorder = function(source_index, target_index)
+      if self.controller:reorder_playlists(source_index, target_index) then
+        self:refresh_tabs()
+      end
+    end,
+    
+    on_active_search = function(text)
+      State.state.active_search_filter = text or ""
+    end,
+    
     on_playlist_changed = function(new_id)
-      State.state.active_playlist = new_id
-      RegionState.save_active_playlist(new_id, 0)
-      if settings then settings:set('active_playlist', new_id) end
-      State.sync_playlist_to_engine()
+      State.set_active_playlist(new_id)
     end,
     
     on_pool_search = function(text)
       State.state.search_filter = text
-      if settings then settings:set('pool_search', text) end
+      State.persist_ui_prefs()
     end,
     
     on_pool_sort = function(mode)
       State.state.sort_mode = mode
-      if settings then settings:set('pool_sort', mode) end
+      State.persist_ui_prefs()
     end,
 
     on_pool_sort_direction = function(direction)
-        State.state.sort_direction = direction
-        if settings then settings:set('pool_sort_direction', direction) end
+      State.state.sort_direction = direction
+      State.persist_ui_prefs()
     end,    
     
     on_active_reorder = function(new_order)
-      local pl = State.get_active_playlist()
-      pl.items = new_order
-      RegionState.save_playlists(State.playlists, 0)
-      if settings then settings:set('playlists', State.playlists) end
-      State.sync_playlist_to_engine()
+      self.controller:reorder_items(State.state.active_playlist, new_order)
     end,
     
     on_active_remove = function(item_key)
-      local pl = State.get_active_playlist()
-      local new_items = {}
-      for _, item in ipairs(pl.items) do
-        if item.key ~= item_key then
-          new_items[#new_items + 1] = item
-        end
-      end
-      pl.items = new_items
-      RegionState.save_playlists(State.playlists, 0)
-      if settings then settings:set('playlists', State.playlists) end
-      State.sync_playlist_to_engine()
+      self.controller:delete_items(State.state.active_playlist, {item_key})
     end,
     
     on_active_toggle_enabled = function(item_key, new_state)
-      local pl = State.get_active_playlist()
-      for _, item in ipairs(pl.items) do
-        if item.key == item_key then
-          item.enabled = new_state
-          RegionState.save_playlists(State.playlists, 0)
-          if settings then settings:set('playlists', State.playlists) end
-          State.sync_playlist_to_engine()
-          return
-        end
-      end
+      self.controller:toggle_item_enabled(State.state.active_playlist, item_key, new_state)
     end,
     
     on_active_delete = function(item_keys)
-      local pl = State.get_active_playlist()
-      local keys_to_delete = {}
-      for _, key in ipairs(item_keys) do
-        keys_to_delete[key] = true
-      end
-      
-      local new_items = {}
-      for _, item in ipairs(pl.items) do
-        if not keys_to_delete[item.key] then
-          new_items[#new_items + 1] = item
-        end
-      end
-      pl.items = new_items
-      
-      RegionState.save_playlists(State.playlists, 0)
-      if settings then settings:set('playlists', State.playlists) end
-      State.sync_playlist_to_engine()
-      
+      self.controller:delete_items(State.state.active_playlist, item_keys)
       for _, key in ipairs(item_keys) do
         State.state.pending_destroy[#State.state.pending_destroy + 1] = key
       end
@@ -115,150 +114,60 @@ function M.create(State, Config, settings)
     end,
     
     on_active_copy = function(dragged_items, target_index)
-      local pl = State.get_active_playlist()
-      
-      local dragged_keys = {}
-      for _, item in ipairs(dragged_items) do
-        dragged_keys[item.key] = true
-      end
-      
-      local filtered_items = {}
-      for _, item in ipairs(pl.items) do
-        if not dragged_keys[item.key] then
-          filtered_items[#filtered_items + 1] = item
+      local success, keys = self.controller:copy_items(State.state.active_playlist, dragged_items, target_index)
+      if success and keys then
+        for _, key in ipairs(keys) do
+          State.state.pending_spawn[#State.state.pending_spawn + 1] = key
+          State.state.pending_select[#State.state.pending_select + 1] = key
         end
       end
-      
-      local actual_insert_idx
-      
-      if target_index <= 1 then
-        actual_insert_idx = 1
-      elseif target_index > #filtered_items then
-        actual_insert_idx = #pl.items + 1
-      else
-        local ref_item = filtered_items[target_index - 1]
-        for i, item in ipairs(pl.items) do
-          if item.key == ref_item.key then
-            actual_insert_idx = i + 1
-            break
-          end
-        end
-      end
-      
-      local new_keys = {}
-      for i, item in ipairs(dragged_items) do
-        local new_item = {
-          rid = item.rid,
-          reps = item.reps or 1,
-          enabled = item.enabled ~= false,
-          key = "item_" .. item.rid .. "_" .. reaper.time_precise() .. "_" .. i
-        }
-        table.insert(pl.items, actual_insert_idx + i - 1, new_item)
-        new_keys[#new_keys + 1] = new_item.key
-      end
-      
-      RegionState.save_playlists(State.playlists, 0)
-      if settings then settings:set('playlists', State.playlists) end
-      State.sync_playlist_to_engine()
-      
-      for _, key in ipairs(new_keys) do
+    end,
+    
+    on_pool_to_active = function(rid, insert_index)
+      local success, key = self.controller:add_item(State.state.active_playlist, rid, insert_index)
+      return success and key or nil
+    end,
+    
+    on_pool_reorder = function(new_rids)
+      State.state.pool_order = new_rids
+      State.persist_ui_prefs()
+    end,
+    
+    on_repeat_cycle = function(item_key)
+      self.controller:cycle_repeats(State.state.active_playlist, item_key)
+    end,
+    
+    on_repeat_adjust = function(keys, delta)
+      self.controller:adjust_repeats(State.state.active_playlist, keys, delta)
+    end,
+    
+    on_repeat_sync = function(keys, target_reps)
+      self.controller:sync_repeats(State.state.active_playlist, keys, target_reps)
+    end,
+    
+    on_pool_double_click = function(rid)
+      local success, key = self.controller:add_item(State.state.active_playlist, rid)
+      if success and key then
         State.state.pending_spawn[#State.state.pending_spawn + 1] = key
         State.state.pending_select[#State.state.pending_select + 1] = key
       end
     end,
     
-    on_pool_to_active = function(rid, insert_index)
-      local pl = State.get_active_playlist()
-      local new_item = {
-        rid = rid,
-        reps = 1,
-        enabled = true,
-        key = "item_" .. rid .. "_" .. reaper.time_precise()
-      }
-      table.insert(pl.items, insert_index or (#pl.items + 1), new_item)
-      RegionState.save_playlists(State.playlists, 0)
-      if settings then settings:set('playlists', State.playlists) end
-      State.sync_playlist_to_engine()
-      return new_item.key
-    end,
-    
-    on_pool_reorder = function(new_rids)
-      State.state.pool_order = new_rids
-      if settings then settings:set('pool_order', State.state.pool_order) end
-    end,
-    
-    on_repeat_cycle = function(item_key)
-      local pl = State.get_active_playlist()
-      for _, item in ipairs(pl.items) do
-        if item.key == item_key then
-          local reps = item.reps or 1
-          if reps == 1 then item.reps = 2
-          elseif reps == 2 then item.reps = 4
-          elseif reps == 4 then item.reps = 8
-          else item.reps = 1 end
-          RegionState.save_playlists(State.playlists, 0)
-          if settings then settings:set('playlists', State.playlists) end
-          return
-        end
-      end
-    end,
-    
-    on_repeat_adjust = function(keys, delta)
-      local pl = State.get_active_playlist()
-      for _, key in ipairs(keys) do
-        for _, item in ipairs(pl.items) do
-          if item.key == key then
-            local current_reps = item.reps or 1
-            local new_reps = math.max(0, current_reps + delta)
-            item.reps = new_reps
-            break
-          end
-        end
-      end
-      RegionState.save_playlists(State.playlists, 0)
-      if settings then settings:set('playlists', State.playlists) end
-    end,
-    
-    on_repeat_sync = function(keys, target_reps)
-      local pl = State.get_active_playlist()
-      for _, key in ipairs(keys) do
-        for _, item in ipairs(pl.items) do
-          if item.key == key then
-            item.reps = target_reps
-            break
-          end
-        end
-      end
-      RegionState.save_playlists(State.playlists, 0)
-      if settings then settings:set('playlists', State.playlists) end
-    end,
-    
-    on_pool_double_click = function(rid)
-      local pl = State.get_active_playlist()
-      local new_item = {
-        rid = rid,
-        reps = 1,
-        enabled = true,
-        key = "item_" .. rid .. "_" .. reaper.time_precise()
-      }
-      pl.items[#pl.items + 1] = new_item
-      RegionState.save_playlists(State.playlists, 0)
-      if settings then settings:set('playlists', State.playlists) end
-      State.sync_playlist_to_engine()
-      
-      State.state.pending_spawn[#State.state.pending_spawn + 1] = new_item.key
-      State.state.pending_select[#State.state.pending_select + 1] = new_item.key
-    end,
-    
     settings = settings,
   })
   
-    self.region_tiles:set_pool_search_text(State.state.search_filter)
-    self.region_tiles:set_pool_sort_mode(State.state.sort_mode)
-    self.region_tiles:set_pool_sort_direction(State.state.sort_direction)
-    self.region_tiles:set_app_bridge(State.state.bridge)
+  self.region_tiles:set_pool_search_text(State.state.search_filter)
+  self.region_tiles:set_pool_sort_mode(State.state.sort_mode)
+  self.region_tiles:set_pool_sort_direction(State.state.sort_direction)
+  self.region_tiles:set_app_bridge(State.state.bridge)
+  
+  State.state.active_search_filter = ""
   
   return self
+end
+
+function GUI:refresh_tabs()
+  self.region_tiles:set_tabs(self.State.get_tabs(), self.State.state.active_playlist)
 end
 
 function GUI:draw_layout_toggle_button(ctx)
@@ -313,12 +222,12 @@ function GUI:draw_layout_toggle_button(ctx)
   end
   
   ImGui.SetCursorScreenPos(ctx, cursor_x, cursor_y)
-  ImGui.InvisibleButton(ctx, "##layout_toggle", btn_w, btn_h)
+  local _ = ImGui.InvisibleButton(ctx, "##layout_toggle", btn_w, btn_h)
   
   if ImGui.IsItemClicked(ctx, 0) then
     self.State.state.layout_mode = (self.State.state.layout_mode == 'horizontal') and 'vertical' or 'horizontal'
     self.region_tiles:set_layout_mode(self.State.state.layout_mode)
-    if self.settings then self.settings:set('layout_mode', self.State.state.layout_mode) end
+    self.State.persist_ui_prefs()
   end
   
   if ImGui.IsItemHovered(ctx) then
@@ -350,9 +259,32 @@ function GUI:draw_transport_override_checkbox(ctx)
   ImGui.SameLine(ctx, 0, 12)
 end
 
+function GUI:get_filtered_active_items(playlist)
+  local filter = self.State.state.active_search_filter or ""
+  
+  if filter == "" then
+    return playlist.items
+  end
+  
+  local filtered = {}
+  local filter_lower = filter:lower()
+  
+  for _, item in ipairs(playlist.items) do
+    local region = self.State.state.region_index[item.rid]
+    if region then
+      local name_lower = region.name:lower()
+      if name_lower:find(filter_lower, 1, true) then
+        filtered[#filtered + 1] = item
+      end
+    end
+  end
+  
+  return filtered
+end
+
 function GUI:draw(ctx)
   self.State.state.bridge:update()
-  self.State.check_for_project_changes()
+  self.State.update()
   
   if #self.State.state.pending_spawn > 0 then
     self.region_tiles.active_grid:mark_spawned(self.State.state.pending_spawn)
@@ -402,19 +334,20 @@ function GUI:draw(ctx)
   
   local child_flags = ImGui.ChildFlags_AlwaysUseWindowPadding
   local window_flags = ImGui.WindowFlags_NoScrollbar
-  ImGui.BeginChild(ctx, "##content", 0, content_h, child_flags, window_flags)
-  
-  local selector_height = 44
+  local _ = ImGui.BeginChild(ctx, "##content", 0, content_h, child_flags, window_flags)
   
   self:draw_layout_toggle_button(ctx)
   self:draw_transport_override_checkbox(ctx)
-  ImGui.Text(ctx, "PLAYLISTS")
-  ImGui.Dummy(ctx, 1, 2)
-  self.region_tiles:draw_selector(ctx, self.State.playlists, self.State.state.active_playlist, selector_height)
   
   ImGui.Dummy(ctx, 1, 16)
   
   local pl = self.State.get_active_playlist()
+  local filtered_active_items = self:get_filtered_active_items(pl)
+  local display_playlist = {
+    id = pl.id,
+    name = pl.name,
+    items = filtered_active_items,
+  }
   local filtered_regions = self.State.get_filtered_pool_regions()
   
   if self.State.state.layout_mode == 'horizontal' then
@@ -423,7 +356,7 @@ function GUI:draw(ctx)
     
     ImGui.Text(ctx, "ACTIVE SEQUENCE")
     ImGui.Dummy(ctx, 1, 4)
-    self.region_tiles:draw_active(ctx, pl, active_height)
+    self.region_tiles:draw_active(ctx, display_playlist, active_height)
     
     ImGui.Dummy(ctx, 1, 16)
     
@@ -445,7 +378,7 @@ function GUI:draw(ctx)
       ImGui.Text(ctx, "ACTIVE SEQUENCE")
       ImGui.Dummy(ctx, 1, 4)
       local label_consumed = ImGui.GetCursorPosY(ctx)
-      self.region_tiles:draw_active(ctx, pl, content_h - label_consumed)
+      self.region_tiles:draw_active(ctx, display_playlist, content_h - label_consumed)
     end
     ImGui.EndChild(ctx)
     

@@ -7,6 +7,23 @@ local M = {}
 
 function M.handle_keyboard_shortcuts(ctx, state, region_tiles)
   local ctrl = ImGui.IsKeyDown(ctx, ImGui.Mod_Ctrl)
+  local shift = ImGui.IsKeyDown(ctx, ImGui.Mod_Shift)
+  
+  if ctrl and ImGui.IsKeyPressed(ctx, ImGui.Key_Z, false) then
+    local State = require("Region_Playlist.app.state")
+    if shift then
+      State.redo()
+    else
+      State.undo()
+    end
+    return true
+  end
+  
+  if ctrl and ImGui.IsKeyPressed(ctx, ImGui.Key_Y, false) then
+    local State = require("Region_Playlist.app.state")
+    State.redo()
+    return true
+  end
   
   if ImGui.IsKeyPressed(ctx, ImGui.Key_Space, false) then
     local bridge_state = state.bridge:get_state()

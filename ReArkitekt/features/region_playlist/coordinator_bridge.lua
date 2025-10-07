@@ -1,35 +1,40 @@
 -- ReArkitekt/features/region_playlist/coordinator_bridge.lua
--- Bridge between engine and gui - updated for native REAPER RIDs
+-- Unified bridge with loop-aware playlist sync
 
-local Engine = require('ReArkitekt.features.region_playlist.engine')
-local Playback = require('ReArkitekt.features.region_playlist.playback')
-local State = require('ReArkitekt.features.region_playlist.state')
+local Engine = require("ReArkitekt.features.region_playlist.engine")
+local Playback = require("ReArkitekt.features.region_playlist.playback")
+local RegionState = require("ReArkitekt.features.region_playlist.state")
 
 local M = {}
 
 function M.create(opts)
   opts = opts or {}
   
-  local saved_settings = State.load_settings(opts.proj)
+  local saved_settings = RegionState.load_settings(opts.proj or 0)
   
-  local engine = Engine.new({
-    proj = opts.proj,
+  local bridge = {
+    proj = opts.proj or 0,
+    controller = nil,
+  }
+  
+  bridge.engine = Engine.new({
+    proj = bridge.proj,
     quantize_mode = saved_settings.quantize_mode or "none",
     follow_playhead = saved_settings.follow_playhead or false,
+    transport_override = saved_settings.transport_override or false,
+    on_repeat_cycle = opts.on_repeat_cycle,
   })
   
-  local playback = Playback.new(engine, {
+  bridge.playback = Playback.new(bridge.engine, {
     on_region_change = opts.on_region_change,
     on_playback_start = opts.on_playback_start,
     on_playback_stop = opts.on_playback_stop,
     on_transition_scheduled = opts.on_transition_scheduled,
   })
   
-  local bridge = {
-    engine = engine,
-    playback = playback,
-    proj = opts.proj or 0,
-  }
+  function bridge:set_controller(controller)
+    self.controller = controller
+  end
   
   function bridge:update()
     self.playback:update()
@@ -39,7 +44,11 @@ function M.create(opts)
     local order = {}
     for _, item in ipairs(playlist_items) do
       if item.rid and item.enabled ~= false then
-        order[#order + 1] = item.rid
+        order[#order + 1] = {
+          rid = item.rid,
+          key = item.key,
+          reps = item.reps or 1,
+        }
       end
     end
     self.engine:set_order(order)
@@ -89,20 +98,19 @@ function M.create(opts)
   
   function bridge:set_quantize_mode(mode)
     self.engine:set_quantize_mode(mode)
-    local settings = State.load_settings(self.proj)
+    local settings = RegionState.load_settings(self.proj)
     settings.quantize_mode = mode
-    State.save_settings(settings, self.proj)
-  end
-  
-  function bridge:set_follow_playhead(enabled)
-    self.engine.follow_playhead = enabled
-    local settings = State.load_settings(self.proj)
-    settings.follow_playhead = enabled
-    State.save_settings(settings, self.proj)
+    RegionState.save_settings(settings, self.proj)
   end
   
   function bridge:get_state()
-    return self.engine:get_state()
+    local engine_state = self.engine:get_state()
+    return {
+      is_playing = engine_state.is_playing,
+      playlist_pointer = engine_state.playlist_pointer,
+      playlist_order = engine_state.playlist_order,
+      quantize_mode = engine_state.quantize_mode,
+    }
   end
   
   function bridge:item_key_to_engine_index(playlist_items, item_key)
@@ -112,10 +120,10 @@ function M.create(opts)
     
     for _, item in ipairs(playlist_items) do
       if item.rid and item.enabled ~= false then
-        engine_index = engine_index + 1
         if item.key == item_key then
-          return engine_index
+          return engine_index + 1
         end
+        engine_index = engine_index + 1
       end
     end
     
