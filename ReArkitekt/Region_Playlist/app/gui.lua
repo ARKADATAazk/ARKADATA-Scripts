@@ -259,6 +259,24 @@ function GUI:draw_transport_override_checkbox(ctx)
   ImGui.SameLine(ctx, 0, 12)
 end
 
+function GUI:draw_loop_playlist_checkbox(ctx)
+  local bridge = self.State.state.bridge
+  if not bridge then return end
+  
+  local loop_playlist = bridge:get_loop_playlist()
+  local changed, new_value = ImGui.Checkbox(ctx, "Loop Playlist", loop_playlist)
+  
+  if ImGui.IsItemHovered(ctx) then
+    ImGui.SetTooltip(ctx, "Wrap to start when reaching\nthe end of the playlist")
+  end
+  
+  if changed then
+    bridge:set_loop_playlist(new_value)
+  end
+  
+  ImGui.SameLine(ctx, 0, 12)
+end
+
 function GUI:get_filtered_active_items(playlist)
   local filter = self.State.state.active_search_filter or ""
   
@@ -338,6 +356,7 @@ function GUI:draw(ctx)
   
   self:draw_layout_toggle_button(ctx)
   self:draw_transport_override_checkbox(ctx)
+  self:draw_loop_playlist_checkbox(ctx)
   
   ImGui.Dummy(ctx, 1, 16)
   
@@ -354,14 +373,10 @@ function GUI:draw(ctx)
     local active_height = 180
     local pool_height = 280
     
-    ImGui.Text(ctx, "ACTIVE SEQUENCE")
-    ImGui.Dummy(ctx, 1, 4)
     self.region_tiles:draw_active(ctx, display_playlist, active_height)
     
     ImGui.Dummy(ctx, 1, 16)
     
-    ImGui.Text(ctx, "REGION POOL")
-    ImGui.Dummy(ctx, 1, 4)
     self.region_tiles:draw_pool(ctx, filtered_regions, pool_height)
   else
     local content_w, content_h = ImGui.GetContentRegionAvail(ctx)
@@ -375,10 +390,7 @@ function GUI:draw(ctx)
     ImGui.PushStyleVar(ctx, ImGui.StyleVar_ItemSpacing, 0, 0)
     
     if ImGui.BeginChild(ctx, "##left_column", active_width, content_h, ImGui.ChildFlags_None, 0) then
-      ImGui.Text(ctx, "ACTIVE SEQUENCE")
-      ImGui.Dummy(ctx, 1, 4)
-      local label_consumed = ImGui.GetCursorPosY(ctx)
-      self.region_tiles:draw_active(ctx, display_playlist, content_h - label_consumed)
+      self.region_tiles:draw_active(ctx, display_playlist, content_h)
     end
     ImGui.EndChild(ctx)
     
@@ -389,10 +401,7 @@ function GUI:draw(ctx)
     ImGui.PushStyleVar(ctx, ImGui.StyleVar_ItemSpacing, 0, 0)
     
     if ImGui.BeginChild(ctx, "##right_column", pool_width, content_h, ImGui.ChildFlags_None, 0) then
-      ImGui.Text(ctx, "REGION POOL")
-      ImGui.Dummy(ctx, 1, 4)
-      local label_consumed = ImGui.GetCursorPosY(ctx)
-      self.region_tiles:draw_pool(ctx, filtered_regions, content_h - label_consumed)
+      self.region_tiles:draw_pool(ctx, filtered_regions, content_h)
     end
     ImGui.EndChild(ctx)
     

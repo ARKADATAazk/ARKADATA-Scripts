@@ -9,12 +9,15 @@ local SearchSortMode = require('ReArkitekt.gui.widgets.tiles_container.modes.sea
 
 local M = {}
 
-function M.draw(ctx, dl, x, y, width, height, state, cfg)
+function M.draw(ctx, dl, x, y, width, height, state, cfg, container_rounding)
   local header_cfg = cfg.header
   if not header_cfg or not header_cfg.enabled then return 0 end
   
+  local rounding = container_rounding or 0
+  local round_flags = ImGui.DrawFlags_RoundCornersTop or 0
+  
   ImGui.DrawList_AddRectFilled(dl, x, y, x + width, y + height, 
-    header_cfg.bg_color, 0)
+    header_cfg.bg_color, rounding, round_flags)
   
   ImGui.DrawList_AddLine(dl, x, y + height, x + width, y + height, 
     header_cfg.border_color, 1)

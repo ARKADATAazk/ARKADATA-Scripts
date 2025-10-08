@@ -66,7 +66,7 @@ local function draw_search_bar(ctx, dl, x, y, width, height, state, cfg)
   return x + width
 end
 
-local function draw_sort_dropdown(ctx, x, y, content_height, state, cfg)
+local function draw_sort_dropdown(ctx, x, y, element_height, state, cfg)
   local dropdown_cfg = cfg.sort_dropdown
   if not dropdown_cfg or not dropdown_cfg.enabled then return x end
   
@@ -92,7 +92,7 @@ local function draw_sort_dropdown(ctx, x, y, content_height, state, cfg)
       end,
       config = {
         width = dropdown_cfg.width,
-        height = dropdown_cfg.height,
+        height = element_height,
         tooltip_delay = dropdown_cfg.tooltip_delay,
         bg_color = dropdown_cfg.bg_color,
         bg_hover_color = dropdown_cfg.bg_hover_color,
@@ -113,16 +113,15 @@ local function draw_sort_dropdown(ctx, x, y, content_height, state, cfg)
     })
   end
   
-  local dropdown_y = y + (content_height - dropdown_cfg.height) * 0.5
-  state.sort_dropdown:draw(ctx, x, dropdown_y)
+  state.sort_dropdown:draw(ctx, x, y)
   
   return x + dropdown_cfg.width
 end
 
 function M.draw(ctx, dl, x, y, width, height, state, cfg)
+  local element_height = cfg.element_height or 20
   local cursor_x = x + cfg.padding_x
-  local cursor_y = y + cfg.padding_y
-  local content_height = height - (cfg.padding_y * 2)
+  local cursor_y = y + (height - element_height) * 0.5
   
   if cfg.search and cfg.search.enabled then
     local search_width = math.max(
@@ -131,12 +130,12 @@ function M.draw(ctx, dl, x, y, width, height, state, cfg)
     )
     
     cursor_x = draw_search_bar(ctx, dl, cursor_x, cursor_y, 
-      search_width, content_height, state, cfg)
+      search_width, element_height, state, cfg)
     cursor_x = cursor_x + cfg.spacing
   end
   
   if cfg.sort_dropdown and cfg.sort_dropdown.enabled then
-    cursor_x = draw_sort_dropdown(ctx, cursor_x, cursor_y, content_height, state, cfg)
+    cursor_x = draw_sort_dropdown(ctx, cursor_x, cursor_y, element_height, state, cfg)
   end
   
   return height

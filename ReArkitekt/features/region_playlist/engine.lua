@@ -39,6 +39,7 @@ function M.new(opts)
   self.playlist_pointer = 1
   self.follow_playhead = (opts.follow_playhead ~= false)
   self.transport_override = (opts.transport_override == true)
+  self.loop_playlist = (opts.loop_playlist == true)
   self.on_repeat_cycle = opts.on_repeat_cycle
   
   self.state_change_count = 0
@@ -337,7 +338,13 @@ function Engine:poll_transport_sync()
         if should_loop then
           self.next_idx = i
         else
-          self.next_idx = (i < #self.playlist_order) and (i + 1) or -1
+          if i < #self.playlist_order then
+            self.next_idx = i + 1
+          elseif self.loop_playlist and #self.playlist_order > 0 then
+            self.next_idx = 1
+          else
+            self.next_idx = -1
+          end
         end
         
         self:_update_bounds()
@@ -404,7 +411,16 @@ function Engine:_handle_smooth_transitions()
           reaper.ShowConsoleMsg("[LOOP] ADVANCING to next region\n")
         end
         
-        local next_candidate = (self.current_idx < #self.playlist_order) and (self.current_idx + 1) or -1
+        local next_candidate
+        if self.current_idx < #self.playlist_order then
+          next_candidate = self.current_idx + 1
+        elseif self.loop_playlist and #self.playlist_order > 0 then
+          next_candidate = 1
+          reaper.ShowConsoleMsg("[LOOP] WRAPPING to start\n")
+        else
+          next_candidate = -1
+        end
+        
         if next_candidate >= 1 then
           self.next_idx = next_candidate
           local rid = self.playlist_order[self.next_idx]
@@ -449,7 +465,15 @@ function Engine:_handle_smooth_transitions()
       end
       
       if should_advance then
-        local next_candidate = (found_idx < #self.playlist_order) and (found_idx + 1) or -1
+        local next_candidate
+        if found_idx < #self.playlist_order then
+          next_candidate = found_idx + 1
+        elseif self.loop_playlist and #self.playlist_order > 0 then
+          next_candidate = 1
+        else
+          next_candidate = -1
+        end
+        
         if next_candidate >= 1 then
           self.next_idx = next_candidate
           local rid_next = self.playlist_order[self.next_idx]
@@ -522,6 +546,14 @@ function Engine:get_transport_override()
   return self.transport_override
 end
 
+function Engine:set_loop_playlist(enabled)
+  self.loop_playlist = not not enabled
+end
+
+function Engine:get_loop_playlist()
+  return self.loop_playlist
+end
+
 function Engine:get_state()
   return {
     proj = self.proj,
@@ -530,6 +562,7 @@ function Engine:get_state()
     playlist_pointer = self.playlist_pointer,
     follow_playhead = self.follow_playhead,
     transport_override = self.transport_override,
+    loop_playlist = self.loop_playlist,
     is_playing = self.is_playing,
     has_sws = _has_sws(),
     _playlist_mode = self._playlist_mode,

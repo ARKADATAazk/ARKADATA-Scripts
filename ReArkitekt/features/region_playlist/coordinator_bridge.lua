@@ -22,6 +22,7 @@ function M.create(opts)
     quantize_mode = saved_settings.quantize_mode or "none",
     follow_playhead = saved_settings.follow_playhead or false,
     transport_override = saved_settings.transport_override or false,
+    loop_playlist = saved_settings.loop_playlist or false,
     on_repeat_cycle = opts.on_repeat_cycle,
   })
   
@@ -101,6 +102,17 @@ function M.create(opts)
     local settings = RegionState.load_settings(self.proj)
     settings.quantize_mode = mode
     RegionState.save_settings(settings, self.proj)
+  end
+  
+  function bridge:set_loop_playlist(enabled)
+    self.engine:set_loop_playlist(enabled)
+    local settings = RegionState.load_settings(self.proj)
+    settings.loop_playlist = enabled
+    RegionState.save_settings(settings, self.proj)
+  end
+  
+  function bridge:get_loop_playlist()
+    return self.engine:get_loop_playlist()
   end
   
   function bridge:get_state()

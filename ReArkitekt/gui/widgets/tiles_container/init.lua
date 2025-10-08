@@ -51,11 +51,11 @@ local DEFAULTS = {
   
   header = {
     enabled = true,
-    height = 36,
+    height = 30,
+    element_height = 20,
     bg_color = 0x0F0F0FFF,
     border_color = 0x000000DD,
     padding_x = 12,
-    padding_y = 8,
     spacing = 8,
     mode = 'search_sort',
     
@@ -63,8 +63,7 @@ local DEFAULTS = {
       enabled = true,
       reserved_right_space = 50,
       plus_button = {
-        width = 28,
-        height = 20,
+        width = 23,
         rounding = 4,
         icon = "+",
         bg_color = 0x2A2A2AFF,
@@ -78,8 +77,7 @@ local DEFAULTS = {
       tab = {
         min_width = 60,
         max_width = 180,
-        height = 20,
-        padding_x = 12,
+        padding_x = 8,
         spacing = 6,
         rounding = 4,
         bg_color = 0x2A2A2AFF,
@@ -90,6 +88,15 @@ local DEFAULTS = {
         text_color = 0xAAAAAAFF,
         text_hover_color = 0xFFFFFFFF,
         text_active_color = 0xFFFFFFFF,
+        use_custom_colors = true,
+        fill_desaturation = 0.4,
+        fill_brightness = 0.50,
+        fill_alpha = 0xDD,
+        border_saturation = 0.7,
+        border_brightness = 0.75,
+        border_alpha = 0xFF,
+        text_index_saturation = 0.85,
+        text_index_brightness = 0.95,
       },
       context_menu = {
         bg_color = 0x1E1E1EFF,
@@ -102,7 +109,6 @@ local DEFAULTS = {
       drag_config = {
         tile = {
           width = 60,
-          height = 20,
           rounding = 4,
           stroke_thickness = 1.5,
           global_opacity = 0.85,
@@ -159,12 +165,13 @@ function M.new(opts)
     sort_direction = "asc",
     sort_dropdown = nil,
     
-    tabs = opts.tabs or {},
+    tabs = {},
     active_tab_id = opts.active_tab_id,
     temp_search_mode = false,
     dragging_tab = nil,
     drop_target = nil,
     pending_delete_id = nil,
+    tab_positions = {},
     
     tab_animator = nil,
     enable_tab_animations = opts.enable_tab_animations ~= false,
@@ -194,6 +201,15 @@ function M.new(opts)
         end
       end,
     })
+  end
+  
+  -- Auto-assign random colors to initial tabs
+  if opts.tabs then
+    local TabsMode = require('ReArkitekt.gui.widgets.tiles_container.modes.tabs')
+    for _, tab in ipairs(opts.tabs) do
+      TabsMode.assign_random_color(tab)
+    end
+    container.tabs = opts.tabs
   end
   
   return container
@@ -281,6 +297,7 @@ function Container:reset()
   self.dragging_tab = nil
   self.drop_target = nil
   self.pending_delete_id = nil
+  self.tab_positions = {}
   
   if self.tab_animator then
     self.tab_animator:clear()
@@ -321,6 +338,12 @@ function Container:set_tabs(tabs, active_id)
   
   self.tabs = tabs or {}
   
+  -- Auto-assign random colors to tabs if they don't have one
+  local TabsMode = require('ReArkitekt.gui.widgets.tiles_container.modes.tabs')
+  for _, tab in ipairs(self.tabs) do
+    TabsMode.assign_random_color(tab)
+  end
+  
   if self.tab_animator then
     for _, tab in ipairs(self.tabs) do
       if not old_ids[tab.id] then
@@ -345,6 +368,10 @@ function Container:set_active_tab_id(id)
 end
 
 function Container:add_tab(tab_data)
+  -- Auto-assign random color if not specified
+  local TabsMode = require('ReArkitekt.gui.widgets.tiles_container.modes.tabs')
+  TabsMode.assign_random_color(tab_data)
+  
   table.insert(self.tabs, tab_data)
   if self.tab_animator then
     self.tab_animator:spawn(tab_data.id)
@@ -386,5 +413,39 @@ function M.draw(ctx, id, width, height, content_fn, config, on_search_changed, o
   
   return container
 end
+
+--[[
+  EXAMPLE: Creating a container with tabs (colors auto-assigned randomly)
+  
+  local container = TilesContainer.new({
+    id = "my_container",
+    tabs = {
+      { id = "main", label = "Main" },           -- Will get random color (40% grey, 60% colored)
+      { id = "playlist1", label = "Playlist 1" }, -- Will get random color
+      { id = "playlist2", label = "Playlist 2" }, -- Will get random color
+      { id = "playlist3", label = "Playlist 3" }, -- Will get random color
+    },
+    active_tab_id = "main",
+    config = your_config,
+  })
+  
+  To force a specific color, add it to the tab data:
+  { id = "playlist1", label = "Playlist 1", color = 0x42E896FF }  -- Green
+  
+  To force grey (no color):
+  { id = "main", label = "Main", color = nil }
+  
+  Available palette colors:
+  0x42E896FF -- Green
+  0xE84C3DFF -- Red
+  0x3D9EE8FF -- Blue
+  0xE89C42FF -- Orange
+  0xA742E8FF -- Purple
+  0xE842A7FF -- Pink
+  0x42E8D4FF -- Cyan
+  0xE8D442FF -- Yellow
+  0x8E42E8FF -- Violet
+  0xE86542FF -- Coral
+]]
 
 return M

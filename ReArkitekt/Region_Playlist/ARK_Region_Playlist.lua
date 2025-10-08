@@ -40,12 +40,14 @@ local status_bar = StatusBarConfig.create(State, StyleOK and Style)
 local gui = GUI.create(State, Config, settings)
 
 Shell.run({
-  title        = "ReArkitekt - Region Playlist",
+  title        = "Region Playlist",
   draw         = function(ctx, shell_state) gui:draw(ctx) end,
   settings     = settings,
   style        = StyleOK and Style or nil,
   initial_pos  = { x = 120, y = 120 },
   initial_size = { w = 1000, h = 700 },
+  icon_color = 0x41E0A3FF,  -- Optional: custom color
+  icon_size = 18,           -- Optional: size
   min_size     = { w = 700, h = 500 },
   status_bar   = status_bar,
   content_padding = 12,
