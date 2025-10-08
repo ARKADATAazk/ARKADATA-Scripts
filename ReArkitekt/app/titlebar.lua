@@ -149,7 +149,7 @@ function M.new(opts)
       local num_buttons = 1 + (self.enable_maximize and 1 or 0)
       local total_button_width = (self.button_width * num_buttons) + (self.button_spacing * (num_buttons - 1))
       
-      ImGui.SetCursorPos(ctx, win_w - total_button_width - self.pad_h, 0)
+      ImGui.SetCursorPos(ctx, win_w - total_button_width, 0)
       
       if self.button_style == "filled" then
         clicked_maximize, clicked_close = self:_draw_buttons_filled(ctx)
@@ -182,116 +182,117 @@ function M.new(opts)
     return true
   end
 
-  -- [REVISED] Draw cleaner, better-proportioned icons for buttons
-  function titlebar:_draw_button_icon(ctx, min_x, min_y, max_x, max_y, icon_type, color, bg_color)
+    -- [REVISED] Draws icons in a perfect square for a 45-degree cross. Size adjusted.
+    function titlebar:_draw_button_icon(ctx, min_x, min_y, max_x, max_y, icon_type, color, bg_color)
     local draw_list = ImGui.GetWindowDrawList(ctx)
     local dpi = ImGui.GetWindowDpiScale(ctx)
     local thickness = math.max(1, math.floor(1.0 * dpi))
 
-    -- Calculate a centered, square area for the icon with 30% padding
-    -- Using floor for pixel-perfect alignment
     local h = max_y - min_y
-    local padding = math.floor(h * 0.3)
-    local ix1, iy1 = min_x + padding, min_y + padding
-    local ix2, iy2 = max_x - padding, max_y - padding
+    local w = max_x - min_x
+    
+    -- Use 35% vertical padding for a medium icon size
+    local v_padding = math.floor(h * 0.35)
+    local iy1 = min_y + v_padding
+    local iy2 = max_y - v_padding
 
-    -- For sharp 1px lines, it's best to draw on half-pixel coordinates
-    local offset = 0.5
-    ix1, iy1 = ix1 + offset, iy1 + offset
-    ix2, iy2 = ix2 + offset, iy2 + offset
+    -- Create a single, centered, perfect square bounding box for ALL icons
+    local icon_h = iy2 - iy1
+    
+    -- Force the icon to be square and centered, with even dimensions
+    local square_size = icon_h
+    if square_size % 2 == 1 then
+        square_size = square_size - 1  -- Make it even
+    end
+    
+    local center_x = min_x + (w / 2)
+    local half_size = square_size / 2
+    local ix1 = math.floor(center_x - half_size)
+    local ix2 = ix1 + square_size
 
     if icon_type == 'maximize' then
-      ImGui.DrawList_AddRect(draw_list, ix1, iy1, ix2, iy2, color, 0, 0, thickness)
+        ImGui.DrawList_AddRect(draw_list, ix1, iy1, ix2, iy2, color, 0, 0, thickness)
 
     elseif icon_type == 'restore' then
-      local box_w = ix2 - ix1
-      local box_h = iy2 - iy1
-      local small_offset = math.floor(box_w * 0.2)
-
-      -- Back window
-      local bx1, by1 = ix1 + small_offset, iy1
-      local bx2, by2 = ix2, iy2 - small_offset
-      ImGui.DrawList_AddRect(draw_list, bx1, by1, bx2, by2, color, 0, 0, thickness)
-      
-      -- Front window (draw filled bg first to hide back lines, then outline)
-      local fx1, fy1 = ix1, iy1 + small_offset
-      local fx2, fy2 = ix2 - small_offset, iy2
-      ImGui.DrawList_AddRectFilled(draw_list, fx1, fy1, fx2, fy2, bg_color)
-      ImGui.DrawList_AddRect(draw_list, fx1, fy1, fx2, fy2, color, 0, 0, thickness)
+        local small_offset = math.floor((ix2 - ix1) * 0.25)
+        -- Back window
+        local bx1, by1 = ix1 + small_offset, iy1
+        local bx2, by2 = ix2, iy2 - small_offset
+        ImGui.DrawList_AddRect(draw_list, bx1, by1, bx2, by2, color, 0, 0, thickness)
+        
+        -- Front window
+        local fx1, fy1 = ix1, iy1 + small_offset
+        local fx2, fy2 = ix2 - small_offset, iy2
+        ImGui.DrawList_AddRectFilled(draw_list, fx1, fy1, fx2, fy2, bg_color)
+        ImGui.DrawList_AddRect(draw_list, fx1, fy1, fx2, fy2, color, 0, 0, thickness)
 
     elseif icon_type == 'close' then
-      -- Inset the lines slightly for a cleaner 'X'
-      local inset = 1 * dpi
-      ImGui.DrawList_AddLine(draw_list, ix1 + inset, iy1 + inset, ix2 - inset, iy2 - inset, color, thickness)
-      ImGui.DrawList_AddLine(draw_list, ix1 + inset, iy2 - inset, ix2 - inset, iy1 + inset, color, thickness)
+        -- Draws a perfectly balanced cross inside the square
+        ImGui.DrawList_AddLine(draw_list, ix1, iy1, ix2, iy2, color, thickness)
+        ImGui.DrawList_AddLine(draw_list, ix1, iy2, ix2, iy1, color, thickness)
     end
-  end
-  
-  -- Minimal button style with drawn icons
-  function titlebar:_draw_buttons_minimal(ctx, bg_color)
-    ImGui.PushStyleVar(ctx, ImGui.StyleVar_FramePadding, 0, 0)
-    ImGui.PushStyleVar(ctx, ImGui.StyleVar_FrameRounding, 0)
-    ImGui.PushStyleVar(ctx, ImGui.StyleVar_FrameBorderSize, 0)
-
-    local clicked_maximize = false
-    local clicked_close = false
-    local icon_color = ImGui.GetColor(ctx, ImGui.Col_Text)
-
-    if self.enable_maximize then
-      ImGui.PushStyleColor(ctx, ImGui.Col_Button, DEFAULTS.button_maximize_normal or 0x00000000)
-      ImGui.PushStyleColor(ctx, ImGui.Col_ButtonHovered, DEFAULTS.button_maximize_hovered or 0x40FFFFFF)
-      ImGui.PushStyleColor(ctx, ImGui.Col_ButtonActive, DEFAULTS.button_maximize_active or 0x60FFFFFF)
-
-      if ImGui.Button(ctx, "##max", self.button_width, self.height) then
-        clicked_maximize = true
-      end
-      
-      local current_bg_color = DEFAULTS.button_maximize_normal or 0x00000000
-      if ImGui.IsItemActive(ctx) then current_bg_color = DEFAULTS.button_maximize_active or 0x60FFFFFF
-      elseif ImGui.IsItemHovered(ctx) then current_bg_color = DEFAULTS.button_maximize_hovered or 0x40FFFFFF
-      end
-      
-      local min_x, min_y = ImGui.GetItemRectMin(ctx)
-      local max_x, max_y = ImGui.GetItemRectMax(ctx)
-      local icon_type = self.is_maximized and "restore" or "maximize"
-      self:_draw_button_icon(ctx, min_x, min_y, max_x, max_y, icon_type, icon_color, current_bg_color)
-
-      ImGui.PopStyleColor(ctx, 3)
-
-      if ImGui.IsItemHovered(ctx) then
-        ImGui.SetTooltip(ctx, self.is_maximized and "Restore" or "Maximize")
-      end
-
-      ImGui.SameLine(ctx)
     end
 
-    ImGui.PushStyleColor(ctx, ImGui.Col_Button, DEFAULTS.button_close_normal or 0x00000000)
-    ImGui.PushStyleColor(ctx, ImGui.Col_ButtonHovered, DEFAULTS.button_close_hovered or 0xCC3333FF)
-    ImGui.PushStyleColor(ctx, ImGui.Col_ButtonActive, DEFAULTS.button_close_active or 0xFF1111FF)
 
-    if ImGui.Button(ctx, "##close", self.button_width, self.height) then
-      clicked_close = true
+
+
+-- Minimal button style with drawn icons
+function titlebar:_draw_buttons_minimal(ctx, bg_color)
+  ImGui.PushStyleVar(ctx, ImGui.StyleVar_FramePadding, 0, 0)
+  ImGui.PushStyleVar(ctx, ImGui.StyleVar_FrameRounding, 0)
+  ImGui.PushStyleVar(ctx, ImGui.StyleVar_FrameBorderSize, 0)
+
+  local clicked_maximize = false
+  local clicked_close = false
+  local icon_color = ImGui.GetColor(ctx, ImGui.Col_Text)
+
+  if self.enable_maximize then
+    ImGui.PushStyleColor(ctx, ImGui.Col_Button, DEFAULTS.button_maximize_normal or 0x00000000)
+    ImGui.PushStyleColor(ctx, ImGui.Col_ButtonHovered, DEFAULTS.button_maximize_hovered or 0x40FFFFFF)
+    ImGui.PushStyleColor(ctx, ImGui.Col_ButtonActive, DEFAULTS.button_maximize_active or 0x60FFFFFF)
+
+    if ImGui.Button(ctx, "##max", self.button_width, self.height) then
+      clicked_maximize = true
     end
     
-    local current_bg_color = DEFAULTS.button_close_normal or 0x00000000
-    if ImGui.IsItemActive(ctx) then current_bg_color = DEFAULTS.button_close_active or 0xFF1111FF
-    elseif ImGui.IsItemHovered(ctx) then current_bg_color = DEFAULTS.button_close_hovered or 0xCC3333FF
-    end
-
+    -- Use titlebar bg_color for the restore icon's filled rectangle
     local min_x, min_y = ImGui.GetItemRectMin(ctx)
     local max_x, max_y = ImGui.GetItemRectMax(ctx)
-    self:_draw_button_icon(ctx, min_x, min_y, max_x, max_y, "close", icon_color, current_bg_color)
-    
+    local icon_type = self.is_maximized and "restore" or "maximize"
+    self:_draw_button_icon(ctx, min_x, min_y, max_x, max_y, icon_type, icon_color, bg_color)
+
     ImGui.PopStyleColor(ctx, 3)
-    ImGui.PopStyleVar(ctx, 3)
 
     if ImGui.IsItemHovered(ctx) then
-      ImGui.SetTooltip(ctx, "Close")
+      ImGui.SetTooltip(ctx, self.is_maximized and "Restore" or "Maximize")
     end
 
-    return clicked_maximize, clicked_close
+    ImGui.SameLine(ctx)
   end
+
+  ImGui.PushStyleColor(ctx, ImGui.Col_Button, DEFAULTS.button_close_normal or 0x00000000)
+  ImGui.PushStyleColor(ctx, ImGui.Col_ButtonHovered, DEFAULTS.button_close_hovered or 0xCC3333FF)
+  ImGui.PushStyleColor(ctx, ImGui.Col_ButtonActive, DEFAULTS.button_close_active or 0xFF1111FF)
+
+  if ImGui.Button(ctx, "##close", self.button_width, self.height) then
+    clicked_close = true
+  end
+
+  local min_x, min_y = ImGui.GetItemRectMin(ctx)
+  local max_x, max_y = ImGui.GetItemRectMax(ctx)
+  self:_draw_button_icon(ctx, min_x, min_y, max_x, max_y, "close", icon_color, bg_color)
   
+  ImGui.PopStyleColor(ctx, 3)
+  ImGui.PopStyleVar(ctx, 3)
+
+  if ImGui.IsItemHovered(ctx) then
+    ImGui.SetTooltip(ctx, "Close")
+  end
+
+  return clicked_maximize, clicked_close
+end
+
+
   -- Filled button style
   function titlebar:_draw_buttons_filled(ctx)
     ImGui.PushStyleVar(ctx, ImGui.StyleVar_FramePadding, 0, 0)
