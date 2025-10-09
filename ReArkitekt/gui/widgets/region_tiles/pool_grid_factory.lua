@@ -1,11 +1,18 @@
 -- ReArkitekt/gui/widgets/region_tiles/pool_grid_factory.lua
 -- Factory for creating pool grid instances with standardized configuration
--- Extracted from pool_grid.lua to separate creation from coordination logic
+-- NOW: Blocks dragging disabled playlists
 
 local Grid = require('ReArkitekt.gui.widgets.grid.core')
 local PoolTile = require('ReArkitekt.gui.widgets.region_tiles.renderers.pool')
 
 local M = {}
+
+local function is_item_draggable(rt, key, item)
+  if item.id and item.items then
+    return not (item.is_disabled or false)
+  end
+  return true
+end
 
 local function create_behaviors(rt)
   return {
@@ -14,8 +21,27 @@ local function create_behaviors(rt)
         return
       end
       
-      local rids = {}
+      local pool_items = rt.pool_grid.get_items()
+      local items_by_key = {}
+      for _, item in ipairs(pool_items) do
+        local item_key = rt.pool_grid.key(item)
+        items_by_key[item_key] = item
+      end
+      
+      local filtered_keys = {}
       for _, key in ipairs(item_keys) do
+        local item = items_by_key[key]
+        if item and is_item_draggable(rt, key, item) then
+          filtered_keys[#filtered_keys + 1] = key
+        end
+      end
+      
+      if #filtered_keys == 0 then
+        return
+      end
+      
+      local rids = {}
+      for _, key in ipairs(filtered_keys) do
         local rid = tonumber(key:match("pool_(%d+)"))
         if rid then
           rids[#rids + 1] = rid
@@ -41,10 +67,40 @@ local function create_behaviors(rt)
     end,
     
     double_click = function(key)
+      local pool_items = rt.pool_grid.get_items()
+      local items_by_key = {}
+      for _, item in ipairs(pool_items) do
+        local item_key = rt.pool_grid.key(item)
+        items_by_key[item_key] = item
+      end
+      
+      local item = items_by_key[key]
+      if item and item.is_disabled then
+        return
+      end
+      
       local rid = tonumber(key:match("pool_(%d+)"))
       if rid and rt.on_pool_double_click then
         rt.on_pool_double_click(rid)
+        return
       end
+      
+      local playlist_id = key:match("pool_playlist_(.+)")
+      if playlist_id and rt.on_pool_playlist_double_click then
+        rt.on_pool_playlist_double_click(playlist_id)
+        return
+      end
+    end,
+    
+    can_drag_item = function(key)
+      local pool_items = rt.pool_grid.get_items()
+      for _, item in ipairs(pool_items) do
+        local item_key = rt.pool_grid.key(item)
+        if item_key == key then
+          return is_item_draggable(rt, key, item)
+        end
+      end
+      return true
     end,
     
     on_select = function(selected_keys)

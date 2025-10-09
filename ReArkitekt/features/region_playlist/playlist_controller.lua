@@ -1,9 +1,12 @@
 -- ReArkitekt/features/region_playlist/playlist_controller.lua
 -- Centralized playlist operations with automatic undo/save/sync
+-- NO STALE METADATA + Key collision prevention
 
 local M = {}
 local Controller = {}
 Controller.__index = Controller
+
+local key_counter = 0
 
 function M.new(state_module, settings, undo_manager)
   local ctrl = setmetatable({
@@ -52,7 +55,8 @@ function Controller:_generate_playlist_id()
 end
 
 function Controller:_generate_item_key(identifier, suffix)
-  local base = "item_" .. tostring(identifier) .. "_" .. reaper.time_precise()
+  key_counter = key_counter + 1
+  local base = "item_" .. tostring(identifier) .. "_" .. reaper.time_precise() .. "_" .. key_counter
   return suffix and (base .. "_" .. suffix) or base
 end
 
@@ -99,6 +103,18 @@ function Controller:delete_playlist(id)
     if self.state.state.active_playlist == id then
       local new_active_index = math.min(delete_index, #self.state.playlists)
       self.state.state.active_playlist = self.state.playlists[new_active_index].id
+    end
+    
+    for _, pl in ipairs(self.state.playlists) do
+      local i = 1
+      while i <= #pl.items do
+        local item = pl.items[i]
+        if item.type == "playlist" and item.playlist_id == id then
+          table.remove(pl.items, i)
+        else
+          i = i + 1
+        end
+      end
     end
   end)
 end
@@ -149,12 +165,9 @@ function Controller:add_playlist_item(target_playlist_id, source_playlist_id, in
     local new_item = {
       type = "playlist",
       playlist_id = source_playlist_id,
-      playlist_name = source_pl.name,
-      playlist_item_count = #source_pl.items,
       reps = 1,
       enabled = true,
       key = self:_generate_item_key("playlist_" .. source_playlist_id),
-      chip_color = source_pl.chip_color,
     }
     
     table.insert(target_pl.items, insert_index or (#target_pl.items + 1), new_item)
@@ -203,12 +216,9 @@ function Controller:copy_items(playlist_id, items, insert_index)
         type = item.type or "region",
         rid = item.rid,
         playlist_id = item.playlist_id,
-        playlist_name = item.playlist_name,
-        playlist_item_count = item.playlist_item_count,
         reps = item.reps or 1,
         enabled = item.enabled ~= false,
         key = self:_generate_item_key(item.rid or ("playlist_" .. (item.playlist_id or "unknown")), i),
-        chip_color = item.chip_color,
       }
       table.insert(pl.items, idx + i - 1, new_item)
       keys[#keys + 1] = new_item.key

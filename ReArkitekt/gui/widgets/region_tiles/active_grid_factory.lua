@@ -71,8 +71,6 @@ local function create_behaviors(rt)
     end,
     
     play = function(selected_keys)
-      -- Playback is now handled directly by REAPER transport via bridge
-      -- No separate playback manager needed
     end,
     
     reorder = function(new_order)
@@ -151,7 +149,8 @@ local function create_render_tile(rt, tile_config)
   return function(ctx, rect, item, state)
     local tile_height = rect[4] - rect[2]
     ActiveTile.render(ctx, rect, item, state, rt.get_region_by_rid, rt.active_animator, 
-                    rt.on_repeat_cycle, rt.hover_config, tile_height, tile_config.border_thickness, rt.app_bridge)
+                    rt.on_repeat_cycle, rt.hover_config, tile_height, tile_config.border_thickness, 
+                    rt.app_bridge, rt.get_playlist_by_id)
   end
 end
 

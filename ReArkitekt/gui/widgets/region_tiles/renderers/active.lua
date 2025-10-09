@@ -54,9 +54,9 @@ M.CONFIG = {
   },
 }
 
-function M.render(ctx, rect, item, state, get_region_by_rid, animator, on_repeat_cycle, hover_config, tile_height, border_thickness, bridge)
+function M.render(ctx, rect, item, state, get_region_by_rid, animator, on_repeat_cycle, hover_config, tile_height, border_thickness, bridge, get_playlist_by_id)
   if item.type == "playlist" then
-    return M.render_playlist(ctx, rect, item, state, animator, on_repeat_cycle, hover_config, tile_height, border_thickness)
+    return M.render_playlist(ctx, rect, item, state, animator, on_repeat_cycle, hover_config, tile_height, border_thickness, get_playlist_by_id)
   else
     return M.render_region(ctx, rect, item, state, get_region_by_rid, animator, on_repeat_cycle, hover_config, tile_height, border_thickness, bridge)
   end
@@ -244,11 +244,16 @@ function M.render_region(ctx, rect, item, state, get_region_by_rid, animator, on
   end
 end
 
-function M.render_playlist(ctx, rect, item, state, animator, on_repeat_cycle, hover_config, tile_height, border_thickness)
+function M.render_playlist(ctx, rect, item, state, animator, on_repeat_cycle, hover_config, tile_height, border_thickness, get_playlist_by_id)
   local dl = ImGui.GetWindowDrawList(ctx)
   local x1, y1, x2, y2 = rect[1], rect[2], rect[3], rect[4]
   
   local actual_height = tile_height or (y2 - y1)
+  
+  local playlist = get_playlist_by_id and get_playlist_by_id(item.playlist_id) or nil
+  local name_str = playlist and playlist.name or (item.playlist_name or "Unknown Playlist")
+  local item_count = playlist and #playlist.items or (item.playlist_item_count or 0)
+  local chip_color = playlist and playlist.chip_color or (item.chip_color or 0xFF5733FF)
   
   local is_enabled = item.enabled ~= false
   
@@ -273,7 +278,7 @@ function M.render_playlist(ctx, rect, item, state, animator, on_repeat_cycle, ho
   TileFX.render_complete(dl, x1, y1, x2, y2, base_color, fx_config, state.selected, hover_factor, 0, 0)
   
   if state.selected and fx_config.ants_enabled then
-    local ants_color = Colors.same_hue_variant(item.chip_color or base_color, 
+    local ants_color = Colors.same_hue_variant(chip_color, 
       fx_config.border_saturation, 
       fx_config.border_brightness, 
       fx_config.ants_alpha or 0xFF)
@@ -298,26 +303,25 @@ function M.render_playlist(ctx, rect, item, state, animator, on_repeat_cycle, ho
     local chip_y = y1 + (actual_height - 10) * 0.5
     local chip_radius = M.CONFIG.playlist_tile.chip_radius
     
-    local chip_color = item.chip_color or 0xFF5733FF
-    chip_color = Colors.with_alpha(chip_color, text_alpha)
+    local current_chip_color = chip_color
+    current_chip_color = Colors.with_alpha(current_chip_color, text_alpha)
     
     if state.hover or state.selected then
-      chip_color = Colors.adjust_brightness(chip_color, 1.3)
+      current_chip_color = Colors.adjust_brightness(current_chip_color, 1.3)
     end
     
     ImGui.DrawList_AddCircleFilled(dl, chip_x, chip_y, chip_radius + 1, Colors.with_alpha(0x000000FF, math.floor(80 * (text_alpha / 255))))
-    ImGui.DrawList_AddCircleFilled(dl, chip_x, chip_y, chip_radius, chip_color)
+    ImGui.DrawList_AddCircleFilled(dl, chip_x, chip_y, chip_radius, current_chip_color)
     
     if state.selected or state.hover then
       for i = 1, M.CONFIG.playlist_tile.chip_glow_layers do
         local glow_alpha = math.floor((100 / (i * 1.5)) * (text_alpha / 255))
         local glow_radius = chip_radius + (i * 2)
-        local glow_color = Colors.with_alpha(chip_color, glow_alpha)
+        local glow_color = Colors.with_alpha(current_chip_color, glow_alpha)
         ImGui.DrawList_AddCircle(dl, chip_x, chip_y, glow_radius, glow_color, 0, 1.5)
       end
     end
     
-    local name_str = item.playlist_name or "Playlist"
     local name_color = Colors.adjust_brightness(fx_config.name_base_color, fx_config.name_brightness)
     name_color = Colors.with_alpha(name_color, text_alpha)
     
@@ -332,7 +336,6 @@ function M.render_playlist(ctx, rect, item, state, animator, on_repeat_cycle, ho
   
   if show_badge then
     local reps = item.reps or 1
-    local item_count = item.playlist_item_count or 0
     local badge_text = (reps == 0) and ("∞ [" .. item_count .. "]") or ("×" .. reps .. " [" .. item_count .. "]")
     
     local bw, bh = ImGui.CalcTextSize(ctx, badge_text)
@@ -349,7 +352,7 @@ function M.render_playlist(ctx, rect, item, state, animator, on_repeat_cycle, ho
     local badge_y2 = badge_y + bh + scaled_badge_padding_y * 2
     
     local badge_bg = M.CONFIG.badge_bg
-    local badge_border_color = Colors.with_alpha(item.chip_color or base_color, M.CONFIG.badge_border_alpha)
+    local badge_border_color = Colors.with_alpha(chip_color, M.CONFIG.badge_border_alpha)
     
     local badge_bg_alpha = math.floor(((badge_bg & 0xFF) * enabled_factor) + (M.CONFIG.disabled.min_alpha * (1.0 - enabled_factor)))
     badge_bg = (badge_bg & 0xFFFFFF00) | badge_bg_alpha
@@ -368,6 +371,10 @@ function M.render_playlist(ctx, rect, item, state, animator, on_repeat_cycle, ho
     
     if ImGui.IsItemClicked(ctx, 0) and on_repeat_cycle then
       on_repeat_cycle(item.key)
+    end
+    
+    if ImGui.IsItemHovered(ctx) then
+      ImGui.SetTooltip(ctx, string.format("Playlist • %d items", item_count))
     end
   end
 end

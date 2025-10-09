@@ -198,6 +198,26 @@ function M.create(State, Config, settings)
       end
     end,
     
+    on_pool_playlist_double_click = function(playlist_id)
+      local active_playlist_id = State.state.active_playlist
+      
+      if State.detect_circular_reference then
+        local circular, path = State.detect_circular_reference(active_playlist_id, playlist_id)
+        if circular then
+          local path_str = table.concat(path, " → ")
+          reaper.ShowConsoleMsg(string.format("Circular reference detected: %s\n", path_str))
+          reaper.MB("Cannot add playlist: circular reference detected.\n\nPath: " .. path_str, "Circular Reference", 0)
+          return
+        end
+      end
+      
+      local success, key = self.controller:add_playlist_item(State.state.active_playlist, playlist_id)
+      if success and key then
+        State.state.pending_spawn[#State.state.pending_spawn + 1] = key
+        State.state.pending_select[#State.state.pending_select + 1] = key
+      end
+    end,
+    
     settings = settings,
   })
   
@@ -354,9 +374,6 @@ function GUI:draw_horizontal_separator(ctx, x, y, width, height)
     ImGui.SetMouseCursor(ctx, ImGui.MouseCursor_ResizeNS)
   end
   
-  -- The visible handle has been removed to make the separator invisible.
-  -- The InvisibleButton below handles the interaction.
-  
   ImGui.SetCursorScreenPos(ctx, x, y - separator_thickness/2)
   ImGui.InvisibleButton(ctx, "##hseparator", width, separator_thickness)
   
@@ -389,9 +406,6 @@ function GUI:draw_vertical_separator(ctx, x, y, width, height)
   if is_hovered or self.separator_drag_state.is_dragging then
     ImGui.SetMouseCursor(ctx, ImGui.MouseCursor_ResizeEW)
   end
-  
-  -- The visible handle has been removed to make the separator invisible.
-  -- The InvisibleButton below handles the interaction.
   
   ImGui.SetCursorScreenPos(ctx, x - separator_thickness/2, y)
   ImGui.InvisibleButton(ctx, "##vseparator", separator_thickness, height)
@@ -427,7 +441,8 @@ function GUI:get_filtered_active_items(playlist)
   
   for _, item in ipairs(playlist.items) do
     if item.type == "playlist" then
-      local name_lower = (item.playlist_name or ""):lower()
+      local playlist_data = self.State.get_playlist_by_id(item.playlist_id)
+      local name_lower = playlist_data and playlist_data.name:lower() or ""
       if name_lower:find(filter_lower, 1, true) then
         filtered[#filtered + 1] = item
       end
@@ -491,7 +506,7 @@ function GUI:draw(ctx)
   
   self:draw_transport_section(ctx)
   
-  ImGui.Dummy(ctx, 1, 8) -- Separator gap between transport and main content
+  ImGui.Dummy(ctx, 1, 8)
   
   local pl = self.State.get_active_playlist()
   local filtered_active_items = self:get_filtered_active_items(pl)

@@ -1,5 +1,6 @@
 -- ReArkitekt/gui/widgets/region_tiles/coordinator.lua
 -- Region Playlist coordinator - manages active sequence + pool grids with responsive heights
+-- NOW WITH: Per-frame caching for playlist lookups
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.10'
@@ -21,14 +22,37 @@ local M = {}
 local RegionTiles = {}
 RegionTiles.__index = RegionTiles
 
+local playlist_cache = {}
+local cache_frame_time = 0
+
+local function cached_get_playlist_by_id(get_fn, playlist_id)
+  local current_time = reaper.time_precise()
+  
+  if current_time ~= cache_frame_time then
+    playlist_cache = {}
+    cache_frame_time = current_time
+  end
+  
+  if not playlist_cache[playlist_id] then
+    playlist_cache[playlist_id] = get_fn(playlist_id)
+  end
+  
+  return playlist_cache[playlist_id]
+end
+
 function M.create(opts)
   opts = opts or {}
   
   local config = Config.merge_config(Config.DEFAULTS, opts.config or {})
   
+  local raw_get_playlist = opts.get_playlist_by_id
+  local cached_get_playlist = function(id)
+    return cached_get_playlist_by_id(raw_get_playlist, id)
+  end
+  
   local rt = setmetatable({
     get_region_by_rid = opts.get_region_by_rid,
-    get_playlist_by_id = opts.get_playlist_by_id,
+    get_playlist_by_id = cached_get_playlist,
     detect_circular_ref = opts.detect_circular_ref,
     on_playlist_changed = opts.on_playlist_changed,
     on_active_reorder = opts.on_active_reorder,
@@ -44,6 +68,7 @@ function M.create(opts)
     on_repeat_adjust = opts.on_repeat_adjust,
     on_repeat_sync = opts.on_repeat_sync,
     on_pool_double_click = opts.on_pool_double_click,
+    on_pool_playlist_double_click = opts.on_pool_playlist_double_click,
     on_pool_search = opts.on_pool_search,
     on_pool_sort = opts.on_pool_sort,
     on_pool_sort_direction = opts.on_pool_sort_direction,
@@ -75,9 +100,6 @@ function M.create(opts)
     pool_grid = nil,
     bridge = nil,
     app_bridge = nil,
-    
-    active_container = nil,
-    pool_container = nil,
     
     wheel_consumed_this_frame = false,
     
@@ -405,8 +427,11 @@ function RegionTiles:_get_drag_colors()
         for _, item in ipairs(playlist_items) do
           if item.key == key then
             if item.type == "playlist" then
-              if item.chip_color then
-                colors[#colors + 1] = item.chip_color
+              if self.get_playlist_by_id then
+                local playlist = self.get_playlist_by_id(item.playlist_id)
+                if playlist and playlist.chip_color then
+                  colors[#colors + 1] = playlist.chip_color
+                end
               end
             else
               local region = self.get_region_by_rid(item.rid)

@@ -1,5 +1,5 @@
 -- Region_Playlist/app/state.lua
--- Pure data layer with repeat cycle tracking and nested playlist support
+-- FIXED: Detects project switches and reloads playlist data
 
 local CoordinatorBridge = require("ReArkitekt.features.region_playlist.coordinator_bridge")
 local RegionState = require("ReArkitekt.features.region_playlist.state")
@@ -23,6 +23,7 @@ M.state = {
   pending_destroy = {},
   bridge = nil,
   last_project_state = -1,
+  last_project_filename = nil,
   undo_manager = nil,
   on_state_restored = nil,
   on_repeat_cycle = nil,
@@ -30,6 +31,17 @@ M.state = {
 
 M.playlists = {}
 M.settings = nil
+M.dependency_graph = {}
+M.graph_dirty = true
+
+local function get_current_project_filename()
+  local proj_path = reaper.GetProjectPath("")
+  local proj_name = reaper.GetProjectName(0, "")
+  if proj_path == "" or proj_name == "" then
+    return nil
+  end
+  return proj_path .. "/" .. proj_name
+end
 
 function M.initialize(settings)
   M.settings = settings
@@ -42,9 +54,10 @@ function M.initialize(settings)
     M.state.pool_mode = settings:get('pool_mode') or 'regions'
   end
   
-  M.load_project_state()
+  M.state.last_project_filename = get_current_project_filename()
   
-  M.ensure_playlist_colors()
+  M.load_project_state()
+  M.rebuild_dependency_graph()
   
   M.state.bridge = CoordinatorBridge.create({
     proj = 0,
@@ -57,6 +70,7 @@ function M.initialize(settings)
         M.state.on_repeat_cycle(key, current_loop, total_reps)
       end
     end,
+    get_playlist_by_id = M.get_playlist_by_id,
   })
   
   M.state.undo_manager = UndoManager.new({ max_history = 50 })
@@ -83,6 +97,25 @@ function M.load_project_state()
   
   local saved_active = RegionState.load_active_playlist(0)
   M.state.active_playlist = saved_active or M.playlists[1].id
+end
+
+function M.reload_project_data()
+  if M.state.bridge and M.state.bridge.engine and M.state.bridge.engine.is_playing then
+    M.state.bridge:stop()
+  end
+  
+  M.load_project_state()
+  M.rebuild_dependency_graph()
+  M.refresh_regions()
+  M.sync_playlist_to_engine()
+  
+  M.state.undo_manager = UndoManager.new({ max_history = 50 })
+  
+  M.clear_pending()
+  
+  if M.state.on_state_restored then
+    M.state.on_state_restored()
+  end
 end
 
 function M.get_active_playlist()
@@ -134,6 +167,7 @@ end
 function M.persist()
   RegionState.save_playlists(M.playlists, 0)
   RegionState.save_active_playlist(M.state.active_playlist, 0)
+  M.mark_graph_dirty()
 end
 
 function M.persist_ui_prefs()
@@ -158,6 +192,10 @@ end
 
 function M.restore_snapshot(snapshot)
   if not snapshot then return false end
+  
+  if M.state.bridge and M.state.bridge.engine and M.state.bridge.engine.is_playing then
+    M.state.bridge:stop()
+  end
   
   local restored_playlists, restored_active = UndoBridge.restore_snapshot(
     snapshot, 
@@ -267,86 +305,212 @@ function M.get_filtered_pool_regions()
   return result
 end
 
-function M.get_playlists_for_pool()
-  local pool_playlists = {}
+local function compare_playlists_by_alpha(a, b)
+  local name_a = (a.name or ""):lower()
+  local name_b = (b.name or ""):lower()
+  return name_a < name_b
+end
+
+local function compare_playlists_by_item_count(a, b)
+  local count_a = #a.items
+  local count_b = #b.items
+  return count_a < count_b
+end
+
+function M.mark_graph_dirty()
+  M.graph_dirty = true
+end
+
+function M.rebuild_dependency_graph()
+  M.dependency_graph = {}
+  
   for _, pl in ipairs(M.playlists) do
-    if pl.id ~= M.state.active_playlist then
+    M.dependency_graph[pl.id] = {
+      direct_deps = {},
+      all_deps = {},
+      is_disabled_for = {}
+    }
+    
+    for _, item in ipairs(pl.items) do
+      if item.type == "playlist" and item.playlist_id then
+        M.dependency_graph[pl.id].direct_deps[#M.dependency_graph[pl.id].direct_deps + 1] = item.playlist_id
+      end
+    end
+  end
+  
+  for _, pl in ipairs(M.playlists) do
+    local all_deps = {}
+    local visited = {}
+    
+    local function collect_deps(pid)
+      if visited[pid] then return end
+      visited[pid] = true
+      
+      local node = M.dependency_graph[pid]
+      if not node then return end
+      
+      for _, dep_id in ipairs(node.direct_deps) do
+        all_deps[dep_id] = true
+        collect_deps(dep_id)
+      end
+    end
+    
+    collect_deps(pl.id)
+    
+    M.dependency_graph[pl.id].all_deps = all_deps
+  end
+  
+  for target_id, target_node in pairs(M.dependency_graph) do
+    for source_id, source_node in pairs(M.dependency_graph) do
+      if target_id ~= source_id then
+        if source_node.all_deps[target_id] or target_id == source_id then
+          target_node.is_disabled_for[source_id] = true
+        end
+      end
+    end
+  end
+  
+  M.graph_dirty = false
+end
+
+function M.is_playlist_draggable_to(playlist_id, target_playlist_id)
+  if M.graph_dirty then
+    M.rebuild_dependency_graph()
+  end
+  
+  if playlist_id == target_playlist_id then
+    return false
+  end
+  
+  local target_node = M.dependency_graph[target_playlist_id]
+  if not target_node then
+    return true
+  end
+  
+  if target_node.is_disabled_for[playlist_id] then
+    return false
+  end
+  
+  local playlist_node = M.dependency_graph[playlist_id]
+  if not playlist_node then
+    return true
+  end
+  
+  if playlist_node.all_deps[target_playlist_id] then
+    return false
+  end
+  
+  return true
+end
+
+function M.get_playlists_for_pool()
+  if M.graph_dirty then
+    M.rebuild_dependency_graph()
+  end
+  
+  local pool_playlists = {}
+  local active_id = M.state.active_playlist
+  
+  for _, pl in ipairs(M.playlists) do
+    if pl.id ~= active_id then
+      local is_draggable = M.is_playlist_draggable_to(pl.id, active_id)
+      
       pool_playlists[#pool_playlists + 1] = {
         id = pl.id,
         name = pl.name,
         items = pl.items,
         chip_color = pl.chip_color or RegionState.generate_chip_color(),
+        is_disabled = not is_draggable,
       }
     end
   end
+  
+  local search = M.state.search_filter:lower()
+  if search ~= "" then
+    local filtered = {}
+    for _, pl in ipairs(pool_playlists) do
+      if pl.name:lower():find(search, 1, true) then
+        filtered[#filtered + 1] = pl
+      end
+    end
+    pool_playlists = filtered
+  end
+  
+  local sort_mode = M.state.sort_mode
+  local sort_dir = M.state.sort_direction or "asc"
+  
+  if sort_mode == "alpha" then
+    table.sort(pool_playlists, compare_playlists_by_alpha)
+  elseif sort_mode == "length" then
+    table.sort(pool_playlists, compare_playlists_by_item_count)
+  end
+  
+  if sort_dir == "desc" then
+    local reversed = {}
+    for i = #pool_playlists, 1, -1 do
+      reversed[#reversed + 1] = pool_playlists[i]
+    end
+    pool_playlists = reversed
+  end
+  
   return pool_playlists
 end
 
-function M.ensure_playlist_colors()
-  local changed = false
-  for _, pl in ipairs(M.playlists) do
-    if not pl.chip_color then
-      pl.chip_color = RegionState.generate_chip_color()
-      changed = true
-    end
-  end
-  if changed then
-    M.persist()
-  end
-end
-
 function M.detect_circular_reference(target_playlist_id, playlist_id_to_add)
+  if M.graph_dirty then
+    M.rebuild_dependency_graph()
+  end
+  
   if target_playlist_id == playlist_id_to_add then
     return true, {target_playlist_id}
   end
   
-  local visited = {}
-  local path = {}
+  local target_node = M.dependency_graph[target_playlist_id]
+  if target_node and target_node.is_disabled_for[playlist_id_to_add] then
+    return true, {playlist_id_to_add, target_playlist_id}
+  end
   
-  local function dfs(current_id)
-    if visited[current_id] then
-      return false
-    end
+  local playlist_node = M.dependency_graph[playlist_id_to_add]
+  if playlist_node and playlist_node.all_deps[target_playlist_id] then
+    local path = {playlist_id_to_add}
     
-    visited[current_id] = true
-    path[#path + 1] = current_id
-    
-    if current_id == target_playlist_id then
-      return true, path
-    end
-    
-    local pl = M.get_playlist_by_id(current_id)
-    if not pl then
-      table.remove(path)
-      return false
-    end
-    
-    for _, item in ipairs(pl.items) do
-      if item.type == "playlist" and item.playlist_id then
-        local circular, circular_path = dfs(item.playlist_id)
-        if circular then
-          return true, circular_path
+    local function build_path(from_id, to_id, current_path)
+      if from_id == to_id then
+        return current_path
+      end
+      
+      local node = M.dependency_graph[from_id]
+      if not node then return nil end
+      
+      for _, dep_id in ipairs(node.direct_deps) do
+        if not current_path[dep_id] then
+          local new_path = {}
+          for k, v in pairs(current_path) do new_path[k] = v end
+          new_path[dep_id] = true
+          
+          local result = build_path(dep_id, to_id, new_path)
+          if result then
+            return result
+          end
         end
       end
+      
+      return nil
     end
     
-    table.remove(path)
-    return false
-  end
-  
-  local playlist_to_add = M.get_playlist_by_id(playlist_id_to_add)
-  if not playlist_to_add then
-    return false
-  end
-  
-  for _, item in ipairs(playlist_to_add.items) do
-    if item.type == "playlist" and item.playlist_id then
-      local circular, circular_path = dfs(item.playlist_id)
-      if circular then
-        table.insert(circular_path, 1, playlist_id_to_add)
-        return true, circular_path
+    local path_set = {[playlist_id_to_add] = true}
+    local full_path_set = build_path(playlist_id_to_add, target_playlist_id, path_set)
+    
+    if full_path_set then
+      local path_array = {}
+      for pid in pairs(full_path_set) do
+        path_array[#path_array + 1] = pid
       end
+      path_array[#path_array + 1] = target_playlist_id
+      return true, path_array
     end
+    
+    return true, {playlist_id_to_add, "...", target_playlist_id}
   end
   
   return false
@@ -364,7 +528,6 @@ function M.create_playlist_item(playlist_id, reps)
     reps = reps or 1,
     enabled = true,
     key = "playlist_" .. playlist_id .. "_" .. reaper.time_precise(),
-    chip_color = playlist.chip_color,
   }
 end
 
@@ -393,6 +556,14 @@ function M.cleanup_deleted_regions()
 end
 
 function M.update()
+  local current_project_filename = get_current_project_filename()
+  
+  if current_project_filename ~= M.state.last_project_filename then
+    M.state.last_project_filename = current_project_filename
+    M.reload_project_data()
+    return
+  end
+  
   local current_project_state = reaper.GetProjectStateChangeCount(0)
   if current_project_state ~= M.state.last_project_state then
     local old_region_count = 0

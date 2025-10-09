@@ -1,7 +1,9 @@
 -- ReArkitekt/features/region_playlist/state.lua
 -- Region Playlist state persistence via Project ExtState
+-- FIXED: Colors persist correctly and generation is centralized.
 
 local JSON = require('ReArkitekt.core.json')
+local Colors = require('ReArkitekt.core.colors') -- Added
 
 local M = {}
 
@@ -10,6 +12,7 @@ local KEY_PLAYLISTS = "playlists"
 local KEY_ACTIVE = "active_playlist"
 local KEY_SETTINGS = "settings"
 
+-- (No changes to migrate functions)
 local function migrate_playlist_items(items)
   for _, item in ipairs(items) do
     if not item.type then
@@ -25,18 +28,27 @@ local function migrate_playlist_items(items)
   return items
 end
 
-local function migrate_playlists(playlists)
+local function migrate_playlists(playlists, proj)
+  local needs_save = false
+  
   for _, pl in ipairs(playlists) do
     if pl.items then
       migrate_playlist_items(pl.items)
     end
     if not pl.chip_color then
       pl.chip_color = M.generate_chip_color()
+      needs_save = true
     end
   end
+  
+  if needs_save then
+    M.save_playlists(playlists, proj)
+  end
+  
   return playlists
 end
 
+-- (No changes to save/load functions)
 function M.save_playlists(playlists, proj)
   proj = proj or 0
   local json_str = JSON.encode(playlists)
@@ -55,7 +67,7 @@ function M.load_playlists(proj)
     return {}
   end
   
-  return migrate_playlists(playlists or {})
+  return migrate_playlists(playlists or {}, proj)
 end
 
 function M.save_active_playlist(playlist_id, proj)
@@ -126,38 +138,14 @@ function M.get_or_create_default_playlist(playlists, regions)
   }
 end
 
+--- REFACTORED FUNCTION ---
 function M.generate_chip_color()
-  local hue = math.random(0, 360)
+  local hue = math.random()
   local saturation = 0.65 + math.random() * 0.25
   local lightness = 0.50 + math.random() * 0.15
   
-  local function hsl_to_rgb(h, s, l)
-    h = h / 360
-    local function hue_to_rgb(p, q, t)
-      if t < 0 then t = t + 1 end
-      if t > 1 then t = t - 1 end
-      if t < 1/6 then return p + (q - p) * 6 * t end
-      if t < 1/2 then return q end
-      if t < 2/3 then return p + (q - p) * (2/3 - t) * 6 end
-      return p
-    end
-    
-    local r, g, b
-    if s == 0 then
-      r, g, b = l, l, l
-    else
-      local q = l < 0.5 and l * (1 + s) or l + s - l * s
-      local p = 2 * l - q
-      r = hue_to_rgb(p, q, h + 1/3)
-      g = hue_to_rgb(p, q, h)
-      b = hue_to_rgb(p, q, h - 1/3)
-    end
-    
-    return math.floor(r * 255), math.floor(g * 255), math.floor(b * 255)
-  end
-  
-  local r, g, b = hsl_to_rgb(hue, saturation, lightness)
-  return (r << 24) | (g << 16) | (b << 8) | 0xFF
+  local r, g, b = Colors.hsl_to_rgb(hue, saturation, lightness)
+  return Colors.components_to_rgba(r, g, b, 0xFF)
 end
 
 return M
