@@ -19,6 +19,10 @@ M.CONTAINER = {
   BORDER_COLOR = 0x000000DD,
 }
 
+M.TRANSPORT = {
+  height = 100,
+}
+
 M.LAYOUT_BUTTON = {
   width = 32,
   height = 32,

@@ -6,6 +6,7 @@ local RegionTiles = require("ReArkitekt.gui.widgets.region_tiles.coordinator")
 local Colors = require("ReArkitekt.core.colors")
 local Shortcuts = require("Region_Playlist.app.shortcuts")
 local PlaylistController = require("ReArkitekt.features.region_playlist.playlist_controller")
+local TransportContainer = require("ReArkitekt.gui.widgets.transport.transport_container")
 
 local M = {}
 local GUI = {}
@@ -19,12 +20,31 @@ function M.create(State, Config, settings)
     region_tiles = nil,
     layout_button_animator = nil,
     controller = nil,
+    transport_container = nil,
+    separator_drag_state = {
+      is_dragging = false,
+      drag_offset = 0
+    },
+    default_separator_horizontal = 180,
+    default_separator_vertical = 280,
   }, GUI)
   
   self.layout_button_animator = require('ReArkitekt.gui.fx.tile_motion').new(Config.LAYOUT_BUTTON.animation_speed)
   self.controller = PlaylistController.new(State, settings, State.state.undo_manager)
   
+  self.transport_container = TransportContainer.new({
+    id = "region_playlist_transport",
+    height = Config.TRANSPORT.height,
+  })
+  
   State.state.bridge:set_controller(self.controller)
+  
+  if not State.state.separator_position_horizontal then
+    State.state.separator_position_horizontal = self.default_separator_horizontal
+  end
+  if not State.state.separator_position_vertical then
+    State.state.separator_position_vertical = self.default_separator_vertical
+  end
   
   State.state.on_state_restored = function()
     self:refresh_tabs()
@@ -170,6 +190,26 @@ function GUI:refresh_tabs()
   self.region_tiles:set_tabs(self.State.get_tabs(), self.State.state.active_playlist)
 end
 
+function GUI:draw_transport_section(ctx)
+  local content_w, content_h = self.transport_container:begin_draw(ctx)
+  
+  local spacing = 12
+  local current_x = 0
+  
+  ImGui.SetCursorPosX(ctx, current_x)
+  self:draw_layout_toggle_button(ctx)
+  current_x = ImGui.GetCursorPosX(ctx)
+  
+  ImGui.SetCursorPosX(ctx, current_x)
+  self:draw_transport_override_checkbox(ctx)
+  current_x = ImGui.GetCursorPosX(ctx)
+  
+  ImGui.SetCursorPosX(ctx, current_x)
+  self:draw_loop_playlist_checkbox(ctx)
+  
+  self.transport_container:end_draw(ctx)
+end
+
 function GUI:draw_layout_toggle_button(ctx)
   local dl = ImGui.GetWindowDrawList(ctx)
   local cursor_x, cursor_y = ImGui.GetCursorScreenPos(ctx)
@@ -277,6 +317,94 @@ function GUI:draw_loop_playlist_checkbox(ctx)
   ImGui.SameLine(ctx, 0, 12)
 end
 
+function GUI:draw_horizontal_separator(ctx, x, y, width, height)
+  local dl = ImGui.GetWindowDrawList(ctx)
+  local separator_thickness = 6
+  local handle_height = 2
+  
+  local mx, my = ImGui.GetMousePos(ctx)
+  local is_hovered = mx >= x and mx < x + width and 
+                     my >= y - separator_thickness/2 and my < y + separator_thickness/2
+  
+  if is_hovered or self.separator_drag_state.is_dragging then
+    ImGui.SetMouseCursor(ctx, ImGui.MouseCursor_ResizeNS)
+  end
+  
+  local handle_y = y - handle_height/2
+  local handle_color = is_hovered and 0x666666FF or 0x444444FF
+  
+  if self.separator_drag_state.is_dragging then
+    handle_color = 0x888888FF
+  end
+  
+  ImGui.DrawList_AddRectFilled(dl, x, handle_y, x + width, handle_y + handle_height, handle_color, 0)
+  
+  ImGui.SetCursorScreenPos(ctx, x, y - separator_thickness/2)
+  ImGui.InvisibleButton(ctx, "##hseparator", width, separator_thickness)
+  
+  if ImGui.IsItemHovered(ctx) and ImGui.IsMouseDoubleClicked(ctx, 0) then
+    return "reset", 0
+  end
+  
+  if ImGui.IsItemActive(ctx) then
+    if not self.separator_drag_state.is_dragging then
+      self.separator_drag_state.is_dragging = true
+      self.separator_drag_state.drag_offset = my - y
+    end
+    
+    local new_pos = my - self.separator_drag_state.drag_offset
+    return "drag", new_pos
+  elseif self.separator_drag_state.is_dragging and not ImGui.IsMouseDown(ctx, 0) then
+    self.separator_drag_state.is_dragging = false
+  end
+  
+  return "none", y
+end
+
+function GUI:draw_vertical_separator(ctx, x, y, width, height)
+  local dl = ImGui.GetWindowDrawList(ctx)
+  local separator_thickness = 6
+  local handle_width = 2
+  
+  local mx, my = ImGui.GetMousePos(ctx)
+  local is_hovered = mx >= x - separator_thickness/2 and mx < x + separator_thickness/2 and 
+                     my >= y and my < y + height
+  
+  if is_hovered or self.separator_drag_state.is_dragging then
+    ImGui.SetMouseCursor(ctx, ImGui.MouseCursor_ResizeEW)
+  end
+  
+  local handle_x = x - handle_width/2
+  local handle_color = is_hovered and 0x666666FF or 0x444444FF
+  
+  if self.separator_drag_state.is_dragging then
+    handle_color = 0x888888FF
+  end
+  
+  ImGui.DrawList_AddRectFilled(dl, handle_x, y, handle_x + handle_width, y + height, handle_color, 0)
+  
+  ImGui.SetCursorScreenPos(ctx, x - separator_thickness/2, y)
+  ImGui.InvisibleButton(ctx, "##vseparator", separator_thickness, height)
+  
+  if ImGui.IsItemHovered(ctx) and ImGui.IsMouseDoubleClicked(ctx, 0) then
+    return "reset", 0
+  end
+  
+  if ImGui.IsItemActive(ctx) then
+    if not self.separator_drag_state.is_dragging then
+      self.separator_drag_state.is_dragging = true
+      self.separator_drag_state.drag_offset = mx - x
+    end
+    
+    local new_pos = mx - self.separator_drag_state.drag_offset
+    return "drag", new_pos
+  elseif self.separator_drag_state.is_dragging and not ImGui.IsMouseDown(ctx, 0) then
+    self.separator_drag_state.is_dragging = false
+  end
+  
+  return "none", x
+end
+
 function GUI:get_filtered_active_items(playlist)
   local filter = self.State.state.active_search_filter or ""
   
@@ -344,19 +472,7 @@ function GUI:draw(ctx)
   
   Shortcuts.handle_keyboard_shortcuts(ctx, self.State.state, self.region_tiles)
   
-  local avail_w, avail_h = ImGui.GetContentRegionAvail(ctx)
-  local status_bar_height = 34
-  local content_h = math.floor(avail_h - status_bar_height + 0.5)
-  
-  ImGui.PushStyleVar(ctx, ImGui.StyleVar_WindowPadding, 12, 12)
-  
-  local child_flags = ImGui.ChildFlags_AlwaysUseWindowPadding
-  local window_flags = ImGui.WindowFlags_NoScrollbar
-  local _ = ImGui.BeginChild(ctx, "##content", 0, content_h, child_flags, window_flags)
-  
-  self:draw_layout_toggle_button(ctx)
-  self:draw_transport_override_checkbox(ctx)
-  self:draw_loop_playlist_checkbox(ctx)
+  self:draw_transport_section(ctx)
   
   ImGui.Dummy(ctx, 1, 16)
   
@@ -370,20 +486,82 @@ function GUI:draw(ctx)
   local filtered_regions = self.State.get_filtered_pool_regions()
   
   if self.State.state.layout_mode == 'horizontal' then
-    local active_height = 180
-    local pool_height = 280
+    local content_w, content_h = ImGui.GetContentRegionAvail(ctx)
+    
+    local min_active_height = 100
+    local min_pool_height = 100
+    local separator_gap = 8
+    
+    local min_total_height = min_active_height + min_pool_height + separator_gap
+    
+    local active_height, pool_height
+    
+    if content_h < min_total_height then
+      local ratio = content_h / min_total_height
+      active_height = math.floor(min_active_height * ratio)
+      pool_height = content_h - active_height - separator_gap
+      
+      if active_height < 50 then active_height = 50 end
+      if pool_height < 50 then pool_height = 50 end
+      
+      pool_height = math.max(1, content_h - active_height - separator_gap)
+    else
+      active_height = self.State.state.separator_position_horizontal
+      active_height = math.max(min_active_height, math.min(active_height, content_h - min_pool_height - separator_gap))
+      pool_height = content_h - active_height - separator_gap
+    end
+    
+    active_height = math.max(1, active_height)
+    pool_height = math.max(1, pool_height)
+    
+    local start_x, start_y = ImGui.GetCursorScreenPos(ctx)
     
     self.region_tiles:draw_active(ctx, display_playlist, active_height)
     
-    ImGui.Dummy(ctx, 1, 16)
+    local separator_y = start_y + active_height + separator_gap/2
+    local action, value = self:draw_horizontal_separator(ctx, start_x, separator_y, content_w, content_h)
+    
+    if action == "reset" then
+      self.State.state.separator_position_horizontal = self.default_separator_horizontal
+      self.State.persist_ui_prefs()
+    elseif action == "drag" and content_h >= min_total_height then
+      local new_active_height = value - start_y - separator_gap/2
+      new_active_height = math.max(min_active_height, math.min(new_active_height, content_h - min_pool_height - separator_gap))
+      self.State.state.separator_position_horizontal = new_active_height
+      self.State.persist_ui_prefs()
+    end
+    
+    ImGui.SetCursorScreenPos(ctx, start_x, start_y + active_height + separator_gap)
     
     self.region_tiles:draw_pool(ctx, filtered_regions, pool_height)
   else
     local content_w, content_h = ImGui.GetContentRegionAvail(ctx)
     
-    local active_width = 280
-    local gap = 16
-    local pool_width = content_w - active_width - gap
+    local min_active_width = 200
+    local min_pool_width = 200
+    local separator_gap = 8
+    
+    local min_total_width = min_active_width + min_pool_width + separator_gap
+    
+    local active_width, pool_width
+    
+    if content_w < min_total_width then
+      local ratio = content_w / min_total_width
+      active_width = math.floor(min_active_width * ratio)
+      pool_width = content_w - active_width - separator_gap
+      
+      if active_width < 50 then active_width = 50 end
+      if pool_width < 50 then pool_width = 50 end
+      
+      pool_width = math.max(1, content_w - active_width - separator_gap)
+    else
+      active_width = self.State.state.separator_position_vertical
+      active_width = math.max(min_active_width, math.min(active_width, content_w - min_pool_width - separator_gap))
+      pool_width = content_w - active_width - separator_gap
+    end
+    
+    active_width = math.max(1, active_width)
+    pool_width = math.max(1, pool_width)
     
     local start_cursor_x, start_cursor_y = ImGui.GetCursorScreenPos(ctx)
     
@@ -396,7 +574,20 @@ function GUI:draw(ctx)
     
     ImGui.PopStyleVar(ctx)
     
-    ImGui.SetCursorScreenPos(ctx, start_cursor_x + active_width + gap, start_cursor_y)
+    local separator_x = start_cursor_x + active_width + separator_gap/2
+    local action, value = self:draw_vertical_separator(ctx, separator_x, start_cursor_y, content_w, content_h)
+    
+    if action == "reset" then
+      self.State.state.separator_position_vertical = self.default_separator_vertical
+      self.State.persist_ui_prefs()
+    elseif action == "drag" and content_w >= min_total_width then
+      local new_active_width = value - start_cursor_x - separator_gap/2
+      new_active_width = math.max(min_active_width, math.min(new_active_width, content_w - min_pool_width - separator_gap))
+      self.State.state.separator_position_vertical = new_active_width
+      self.State.persist_ui_prefs()
+    end
+    
+    ImGui.SetCursorScreenPos(ctx, start_cursor_x + active_width + separator_gap, start_cursor_y)
     
     ImGui.PushStyleVar(ctx, ImGui.StyleVar_ItemSpacing, 0, 0)
     
@@ -408,10 +599,8 @@ function GUI:draw(ctx)
     ImGui.PopStyleVar(ctx)
   end
   
-  ImGui.EndChild(ctx)
-  ImGui.PopStyleVar(ctx)
-  
   self.region_tiles:draw_ghosts(ctx)
 end
+
 
 return M

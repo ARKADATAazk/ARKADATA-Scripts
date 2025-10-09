@@ -16,8 +16,6 @@ addpath(join(HERE,  "ReArkitekt/?/init.lua"))
 addpath(join(HERE,  "ReArkitekt/?/?.lua"))
 
 local Shell          = require("ReArkitekt.app.shell")
-local Menutabs       = require("ReArkitekt.gui.widgets.navigation.menutabs")
-local StatusBar      = require("ReArkitekt.gui.widgets.status_bar")
 local PackageGrid    = require("ReArkitekt.gui.widgets.package_tiles.grid")
 local Micromanage    = require("ReArkitekt.gui.widgets.package_tiles.micromanage")
 local TilesContainer = require("ReArkitekt.gui.widgets.tiles_container")
@@ -145,36 +143,12 @@ local container = TilesContainer.new({
   end,
 })
 
-local tabs = Menutabs.new({
-  items = {
-    { id="PACKAGES", label="Packages" },
-    { id="SETTINGS", label="Settings" },
-    { id="ABOUT",    label="About" },
-  },
-  active = "PACKAGES",
-})
-
-local app_status = "ready"
-
 local function get_app_status()
-  local status_configs = {
-    ready = {
-      color = 0x41E0A3FF,
-      text = "READY",
-      buttons = nil,
-      right_buttons = {
-        { label = "â˜…", width = 30 },
-      }
-    },
+  return {
+    color = 0x41E0A3FF,
+    text = "READY",
   }
-  return status_configs[app_status] or status_configs.ready
 end
-
-local status_bar = StatusBar.new({
-  height = 34,
-  get_status = get_app_status,
-  style = StyleOK and Style and { palette = Style.palette } or nil
-})
 
 local function draw_packages(ctx)
   ImGui.PushStyleVar(ctx, ImGui.StyleVar_FramePadding, 6, 3)
@@ -263,27 +237,17 @@ local function draw_about(ctx)
   ImGui.TextWrapped(ctx, "The grid widget provides selection, drag-drop, and layout systems that can be reused for any grid-based UI.")
   ImGui.Dummy(ctx, 1, 20)
   ImGui.TextWrapped(ctx, "Content padding is now centralized in the window system, eliminating duplication across tab functions.")
+  ImGui.Dummy(ctx, 1, 20)
+  ImGui.TextWrapped(ctx, "Tabs are now proper window chrome, rendered between titlebar and content with no gap.")
 end
 
 local function draw(ctx, state)
-  local active, index = tabs:draw(ctx)
-
-  local _, avail_h = ImGui.GetContentRegionAvail(ctx)
-  local status_bar_height = status_bar and status_bar.height or 0
-  local content_h = math.floor(avail_h - status_bar_height + 0.5)
+  local active_tab = state.window:get_active_tab()
   
-  ImGui.PushStyleVar(ctx, ImGui.StyleVar_WindowPadding, 12, 12)
-  
-  local child_flags = ImGui.ChildFlags_AlwaysUseWindowPadding
-  ImGui.BeginChild(ctx, "##content", 0, content_h, child_flags)
-  
-  if     active == "PACKAGES" then draw_packages(ctx)
-  elseif active == "SETTINGS" then draw_settings(ctx)
-  elseif active == "ABOUT"    then draw_about(ctx)
+  if     active_tab == "PACKAGES" then draw_packages(ctx)
+  elseif active_tab == "SETTINGS" then draw_settings(ctx)
+  elseif active_tab == "ABOUT"    then draw_about(ctx)
   end
-  
-  ImGui.EndChild(ctx)
-  ImGui.PopStyleVar(ctx)
 end
 
 Shell.run({
@@ -294,6 +258,14 @@ Shell.run({
   initial_pos  = { x = 120, y = 120 },
   initial_size = { w = 900, h = 600 },
   min_size     = { w = 600, h = 400 },
-  status_bar   = status_bar,
+  get_status_func = get_app_status,
   content_padding = 12,
+  tabs = {
+    items = {
+      { id="PACKAGES", label="Packages" },
+      { id="SETTINGS", label="Settings" },
+      { id="ABOUT",    label="About" },
+    },
+    active = "PACKAGES",
+  },
 })

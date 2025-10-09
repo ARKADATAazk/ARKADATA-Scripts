@@ -12,7 +12,6 @@ local HERE  = dirname(SRC) or "."
 local REARKITEKT_ROOT = dirname(HERE or ".") or "."
 local SCRIPTS_ROOT = dirname(REARKITEKT_ROOT or ".") or "."
 
--- Add paths to resolve both ReArkitekt.* and Region_Playlist.* modules
 addpath(join(SCRIPTS_ROOT, "?.lua"))
 addpath(join(SCRIPTS_ROOT, "?/init.lua"))
 addpath(join(REARKITEKT_ROOT, "?.lua"))
@@ -35,7 +34,6 @@ end
 
 State.initialize(settings)
 
----@type table
 local status_bar = StatusBarConfig.create(State, StyleOK and Style)
 local gui = GUI.create(State, Config, settings)
 
@@ -46,9 +44,8 @@ Shell.run({
   style        = StyleOK and Style or nil,
   initial_pos  = { x = 120, y = 120 },
   initial_size = { w = 1000, h = 700 },
-  icon_color = 0x41E0A3FF,  -- Optional: custom color
-  icon_size = 18,           -- Optional: size
+  icon_color   = 0x41E0A3FF,
+  icon_size    = 18,
   min_size     = { w = 700, h = 500 },
   status_bar   = status_bar,
-  content_padding = 12,
 })

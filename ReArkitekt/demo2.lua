@@ -18,7 +18,6 @@ addpath(join(HERE,  "ReArkitekt/?/?.lua"))
 -- Libs
 local Shell         = require("ReArkitekt.app.shell")
 local ColorSliders  = require("ReArkitekt.gui.widgets.sliders.hue")
-local StatusBar     = require("ReArkitekt.gui.widgets.status_bar")
 local TilesContainer = require("ReArkitekt.gui.widgets.tiles_container")
 
 -- Fallback style
@@ -29,7 +28,7 @@ local hue = 210.0
 local saturation = 80.0
 local brightness = 85.0
 
--- Simple status bar
+-- This is now just a callback function, not part of a component instance.
 local function get_status()
   return {
     color = 0x41E0A3FF,
@@ -38,12 +37,6 @@ local function get_status()
     right_buttons = nil
   }
 end
-
-local status_bar = StatusBar.new({
-  height = 28,
-  get_status = get_status,
-  style = style_ok and Style and { palette = Style.palette } or nil
-})
 
 -- HSV->RGBA helper for preview
 local function hsv_to_rgba_u32(hdeg, s, v, a)
@@ -181,5 +174,9 @@ Shell.run({
   initial_pos  = { x = 140, y = 140 },
   initial_size = { w = 520, h = 720 },
   min_size     = { w = 420, h = 500 },
-  status_bar   = status_bar
+  
+  -- Pass status bar config directly to the shell/window.
+  show_status_bar   = true,
+  get_status_func   = get_status,
+  status_bar_height = 28,  -- FIXED at 28px
 })

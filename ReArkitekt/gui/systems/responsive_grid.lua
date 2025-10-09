@@ -102,6 +102,107 @@ function M.calculate_grid_metrics(opts)
   }
 end
 
+function M.calculate_justified_layout(items, opts)
+  local available_width = opts.available_width or 0
+  local min_widths = opts.min_widths or {}
+  local gap = opts.gap or 8
+  local max_stretch_ratio = opts.max_stretch_ratio or 1.5
+  
+  if #items == 0 or available_width <= 0 then
+    return {}
+  end
+  
+  local rows = {}
+  local current_row = {}
+  local current_row_width = 0
+  
+  for i, item in ipairs(items) do
+    local min_width = min_widths[i] or 0
+    local needed_width = current_row_width + min_width + (#current_row > 0 and gap or 0)
+    
+    if #current_row > 0 and needed_width > available_width then
+      table.insert(rows, current_row)
+      current_row = {}
+      current_row_width = 0
+    end
+    
+    table.insert(current_row, {
+      index = i,
+      item = item,
+      min_width = min_width,
+    })
+    current_row_width = current_row_width + min_width + (#current_row > 1 and gap or 0)
+  end
+  
+  if #current_row > 0 then
+    table.insert(rows, current_row)
+  end
+  
+  local layout = {}
+  
+  for row_idx, row in ipairs(rows) do
+    local total_min_width = 0
+    for _, cell in ipairs(row) do
+      total_min_width = total_min_width + cell.min_width
+    end
+    
+    local total_gap_width = (#row - 1) * gap
+    local used_width = total_min_width + total_gap_width
+    local extra_width = available_width - used_width
+    
+    local is_last_row = (row_idx == #rows)
+    local should_justify = not is_last_row or #row >= 3
+    
+    if extra_width > 0 and should_justify then
+      local max_allowed_extra = total_min_width * (max_stretch_ratio - 1.0)
+      extra_width = math.min(extra_width, max_allowed_extra)
+      
+      local width_per_item = extra_width / #row
+      local distributed = 0
+      local accumulated_error = 0
+      
+      for i, cell in ipairs(row) do
+        local ideal_width = cell.min_width + width_per_item
+        local floored_width = math.floor(ideal_width)
+        
+        accumulated_error = accumulated_error + (ideal_width - floored_width)
+        
+        if accumulated_error >= 1.0 then
+          floored_width = floored_width + 1
+          accumulated_error = accumulated_error - 1.0
+        end
+        
+        cell.final_width = floored_width
+        distributed = distributed + floored_width
+      end
+      
+      local total_with_gaps = distributed + total_gap_width
+      if total_with_gaps > available_width then
+        local overflow = total_with_gaps - available_width
+        for i = #row, 1, -1 do
+          if overflow <= 0 then break end
+          local can_reduce = math.min(overflow, row[i].final_width - row[i].min_width)
+          if can_reduce > 0 then
+            row[i].final_width = row[i].final_width - can_reduce
+            overflow = overflow - can_reduce
+          end
+        end
+      elseif total_with_gaps < available_width then
+        local remaining = available_width - total_with_gaps
+        row[#row].final_width = row[#row].final_width + remaining
+      end
+    else
+      for _, cell in ipairs(row) do
+        cell.final_width = cell.min_width
+      end
+    end
+    
+    table.insert(layout, row)
+  end
+  
+  return layout
+end
+
 function M.should_show_scrollbar(grid_height, available_height, buffer)
   buffer = buffer or 24
   return grid_height > (available_height - buffer)

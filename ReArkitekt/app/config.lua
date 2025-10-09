@@ -1,20 +1,24 @@
 -- ReArkitekt/app/config.lua
--- Default application configuration for ReArkitekt shell + window
+-- Single source of truth for all application defaults
 
 local M = {}
 
 M.defaults = {
   window = {
-    title           = "ReArkitekt App",
+    title           = "Arkitekt App",
     content_padding = 12,
     min_size        = { w = 400, h = 300 },
     initial_size    = { w = 900, h = 600 },
     initial_pos     = { x = 100, y = 100 },
+    
+    -- Background colors
+    bg_color_floating = nil,  -- nil = use ImGui default
+    bg_color_docked   = 0x282828FF,  -- Slightly lighter for docked mode
   },
 
   fonts = {
     default        = 13,
-    title          = 14,
+    title          = 13,
     family_regular = "Inter_18pt-Regular.ttf",
     family_bold    = "Inter_18pt-SemiBold.ttf",
   },
@@ -36,29 +40,46 @@ M.defaults = {
     enable_maximize = true,
     
     -- Button colors (minimal style)
-    button_maximize_normal  = 0x00000000,  -- Transparent
-    button_maximize_hovered = 0x57C290FF,  -- Subtle white
+    button_maximize_normal  = 0x00000000,
+    button_maximize_hovered = 0x57C290FF,
     button_maximize_active  = 0x60FFFFFF,
-    button_close_normal     = 0x00000000,  -- Transparent
-    button_close_hovered    = 0xCC3333FF,  -- Red
-    button_close_active     = 0xFF1111FF,  -- Bright red
+    button_close_normal     = 0x00000000,
+    button_close_hovered    = 0xCC3333FF,
+    button_close_active     = 0xFF1111FF,
     
     -- Button colors (filled style)
-    button_maximize_filled_normal  = 0x808080FF,  -- Gray
+    button_maximize_filled_normal  = 0x808080FF,
     button_maximize_filled_hovered = 0x999999FF,
     button_maximize_filled_active  = 0x666666FF,
-    button_close_filled_normal     = 0xCC3333FF,  -- Red
+    button_close_filled_normal     = 0xCC3333FF,
     button_close_filled_hovered    = 0xFF4444FF,
     button_close_filled_active     = 0xFF1111FF,
   },
 
   status_bar = {
-    height = 34,
+    height = 28,
   },
 }
 
 function M.get_defaults()
   return M.defaults
+end
+
+function M.get(path)
+  local keys = {}
+  for key in path:gmatch("[^.]+") do
+    table.insert(keys, key)
+  end
+  
+  local value = M.defaults
+  for _, key in ipairs(keys) do
+    if type(value) ~= "table" then
+      return nil
+    end
+    value = value[key]
+  end
+  
+  return value
 end
 
 return M

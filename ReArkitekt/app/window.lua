@@ -1,5 +1,5 @@
 -- ReArkitekt/app/window.lua
--- Window with integrated status bar, saved geometry, and custom titlebar (ReaImGui 0.9+)
+-- Window with integrated status bar, tabs, saved geometry, custom titlebar, and profiling
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
@@ -10,38 +10,62 @@ local WF_None = 0
 
 local function floor(n) return math.floor(n + 0.5) end
 
--- Constructor
+local DEFAULTS = {}
+do
+  local ok, Config = pcall(require, 'ReArkitekt.app.config')
+  if ok and Config and Config.get_defaults then
+    DEFAULTS = Config.get_defaults()
+  else
+    DEFAULTS = {
+      window = {
+        content_padding = 12,
+        initial_pos = { x = 100, y = 100 },
+        initial_size = { w = 900, h = 600 },
+        min_size = { w = 400, h = 300 },
+      },
+      status_bar = {
+        height = 28,
+      },
+      titlebar = {
+        height = 26,
+        pad_h = 12,
+        pad_v = 0,
+      },
+    }
+  end
+end
+
 function M.new(opts)
   opts = opts or {}
 
   local win = {
-    -- external
     settings        = opts.settings,
-    title           = opts.title or "Window",
+    title           = opts.title or DEFAULTS.window.title or "Window",
     flags           = opts.flags or WF_None,
 
-    -- layout
-    content_padding = opts.content_padding or 12,
+    content_padding = opts.content_padding or DEFAULTS.window.content_padding,
     titlebar_pad_h  = opts.titlebar_pad_h,
-    titlebar_pad_v  = opts.titlebar_pad_v or 7,
+    titlebar_pad_v  = opts.titlebar_pad_v or DEFAULTS.titlebar.pad_v,
     title_font      = opts.title_font,
 
-    -- geometry
-    initial_pos     = opts.initial_pos  or { x = 100, y = 100 },
-    initial_size    = opts.initial_size or { w = 900, h = 600 },
-    min_size        = opts.min_size     or { w = 400, h = 300 },
+    initial_pos     = opts.initial_pos  or DEFAULTS.window.initial_pos,
+    initial_size    = opts.initial_size or DEFAULTS.window.initial_size,
+    min_size        = opts.min_size     or DEFAULTS.window.min_size,
 
-    -- status bar
-    status_bar      = opts.status_bar,
+    bg_color_floating = opts.bg_color_floating or DEFAULTS.window.bg_color_floating,
+    bg_color_docked   = opts.bg_color_docked or DEFAULTS.window.bg_color_docked,
+    
+    status_bar      = nil,
+    tabs            = nil,
+    active_tab      = nil,
 
-    -- titlebar options (pass to titlebar module)
     titlebar_opts   = {
-      height          = opts.titlebar_height or 28,
-      pad_h           = opts.titlebar_pad_h or 12,
-      pad_v           = opts.titlebar_pad_v or 0,
-      button_width    = opts.titlebar_button_width or 44,
-      button_spacing  = opts.titlebar_button_spacing or 0,
-      button_style    = opts.titlebar_button_style or "minimal",
+      height          = opts.titlebar_height or DEFAULTS.titlebar.height,
+      pad_h           = opts.titlebar_pad_h or DEFAULTS.titlebar.pad_h,
+      pad_v           = opts.titlebar_pad_v or DEFAULTS.titlebar.pad_v,
+      button_width    = opts.titlebar_button_width or DEFAULTS.titlebar.button_width,
+      button_spacing  = opts.titlebar_button_spacing or DEFAULTS.titlebar.button_spacing,
+      button_style    = opts.titlebar_button_style or DEFAULTS.titlebar.button_style,
       separator       = opts.titlebar_separator,
       bg_color        = opts.titlebar_bg_color,
       bg_color_active = opts.titlebar_bg_color_active,
@@ -55,7 +79,6 @@ function M.new(opts)
       icon_draw       = opts.icon_draw,
     },
 
-    -- maximize feature
     _is_maximized   = false,
     _pre_max_pos    = nil,
     _pre_max_size   = nil,
@@ -63,16 +86,34 @@ function M.new(opts)
     _pending_maximize = false,
     _pending_restore  = false,
 
-    -- internals
     _saved_pos      = nil,
     _saved_size     = nil,
     _pos_size_set   = false,
     _body_open      = false,
     _begun          = false,
     _titlebar       = nil,
+    _was_docked     = false,
+    _bg_color_pushed = false,
+    
+    overlay         = nil,
+    
+    -- Profiling state
+    profiling       = {
+      show_metrics    = false,
+      show_custom     = false,
+      frame_times     = {},
+      max_frame_samples = 120,
+      last_frame_time = 0,
+      total_frames    = 0,
+      memory_samples  = {},
+      max_memory_samples = 60,
+      last_memory_time = 0,
+      draw_calls      = 0,
+      widgets_count   = 0,
+      custom_timers   = {},
+    },
   }
 
-  -- Force NoTitleBar and NoScrollbar since we draw custom
   if ImGui.WindowFlags_NoTitleBar then
     win.flags = win.flags | ImGui.WindowFlags_NoTitleBar
   end
@@ -82,39 +123,49 @@ function M.new(opts)
   if ImGui.WindowFlags_NoScrollbar then
     win.flags = win.flags | ImGui.WindowFlags_NoScrollbar
   end
-  -- FIX: Prevent scrolling the main window with the mouse wheel
   if ImGui.WindowFlags_NoScrollWithMouse then
     win.flags = win.flags | ImGui.WindowFlags_NoScrollWithMouse
   end
 
-  -- Restore persisted geometry if settings provided
   if win.settings then
     win._saved_pos  = win.settings:get("window.pos",  nil)
     win._saved_size = win.settings:get("window.size", nil)
     win._is_maximized = win.settings:get("window.maximized", false)
   end
 
-  -- Lazy-create a default status bar if not provided
-  if not win.status_bar then
+  if opts.show_status_bar ~= false then
     local ok, StatusBar = pcall(require, 'ReArkitekt.gui.widgets.status_bar')
     if ok and StatusBar and StatusBar.new then
+      local status_height_compensation = 6
       win.status_bar = StatusBar.new({
-        height = 34,
-        get_status = function() return { text = "READY", color = 0x41E0A3FF } end
+        height = DEFAULTS.status_bar.height + status_height_compensation,
+        get_status = opts.get_status_func or function() return { text = "READY", color = 0x41E0A3FF } end,
+        style = opts.style and { palette = opts.style.palette } or nil
       })
     end
   end
 
-  -- Create titlebar component
+  if opts.tabs then
+    local ok, Menutabs = pcall(require, 'ReArkitekt.gui.widgets.navigation.menutabs')
+    if ok and Menutabs and Menutabs.new then
+      win.tabs = Menutabs.new(opts.tabs)
+      win.active_tab = win.tabs.active
+    end
+  end
+
   do
     local ok, Titlebar = pcall(require, 'ReArkitekt.app.titlebar')
     if ok and Titlebar and Titlebar.new then
       win.titlebar_opts.title = win.title
+      win.titlebar_opts.separator = opts.tabs and false or opts.titlebar_separator
       win.titlebar_opts.on_close = function()
         win._should_close = true
       end
       win.titlebar_opts.on_maximize = function()
         win:_maximize_requested()
+      end
+      win.titlebar_opts.on_icon_double_click = function()
+        win:toggle_profiling()
       end
       
       win._titlebar = Titlebar.new(win.titlebar_opts)
@@ -122,7 +173,12 @@ function M.new(opts)
     end
   end
 
-  -- Public API
+  do
+    local ok, OverlayManager = pcall(require, 'ReArkitekt.gui.widgets.overlay.manager')
+    if ok and OverlayManager and OverlayManager.new then
+      win.overlay = OverlayManager.new()
+    end
+  end
 
   function win:set_title(s)
     self.title = tostring(s or self.title)
@@ -138,30 +194,16 @@ function M.new(opts)
     end
   end
 
-  function win:toggle_status_bar(enabled)
-    if enabled == false then
-      self.status_bar = nil
-      return
-    end
-    if self.status_bar then return end
-    local ok, StatusBar = pcall(require, 'ReArkitekt.gui.widgets.status_bar')
-    if ok and StatusBar and StatusBar.new then
-      self.status_bar = StatusBar.new({
-        height = 34,
-        get_status = function() return { text = "READY", color = 0x41E0A3FF } end
-      })
-    end
+  function win:get_active_tab()
+    return self.active_tab
   end
 
   function win:_maximize_requested()
-    reaper.ShowConsoleMsg("[MAXIMIZE] Button clicked\n")
     if ImGui.IsWindowDocked then
       if self._current_ctx and ImGui.IsWindowDocked(self._current_ctx) then
-        reaper.ShowConsoleMsg("[MAXIMIZE] Window is docked, ignoring\n")
         return
       end
     end
-    reaper.ShowConsoleMsg("[MAXIMIZE] Setting pending_maximize = true\n")
     self._pending_maximize = true
   end
 
@@ -169,23 +211,15 @@ function M.new(opts)
     if not self._current_ctx then return end
     local ctx = self._current_ctx
     
-    reaper.ShowConsoleMsg("[MAXIMIZE] _toggle_maximize called, is_maximized = " .. tostring(self._is_maximized) .. "\n")
-    
     if self._is_maximized then
-      reaper.ShowConsoleMsg("[MAXIMIZE] Restoring window\n")
       self._is_maximized = false
       self._pending_restore = true
     else
-      -- Save current window position and size
       local wx, wy = ImGui.GetWindowPos(ctx)
       local ww, wh = ImGui.GetWindowSize(ctx)
       self._pre_max_pos = { x = floor(wx), y = floor(wy) }
       self._pre_max_size = { w = floor(ww), h = floor(wh) }
       
-      reaper.ShowConsoleMsg(string.format("[MAXIMIZE] Saved pre-max: pos(%d,%d) size(%d,%d)\n", 
-        self._pre_max_pos.x, self._pre_max_pos.y, self._pre_max_size.w, self._pre_max_size.h))
-      
-      -- Try JS_ReaScriptAPI for proper monitor detection
       local js_success = false
       if reaper.JS_Window_GetViewportFromRect then
         local left, top, right, bottom = reaper.JS_Window_GetViewportFromRect(
@@ -198,19 +232,14 @@ function M.new(opts)
             w = right - left, 
             h = bottom - top 
           }
-          reaper.ShowConsoleMsg(string.format("[MAXIMIZE] JS_API monitor: pos(%d,%d) size(%dx%d)\n",
-            left, top, right - left, bottom - top))
           js_success = true
         end
       end
       
-      -- Fallback: Estimate monitor based on position
       if not js_success then
-        reaper.ShowConsoleMsg("[MAXIMIZE] JS_ReaScriptAPI not available, using fallback\n")
         local monitor_width = 1920
         local monitor_height = 1080
         local taskbar_offset = 40
-        
         local monitor_index = math.floor((self._pre_max_pos.x + monitor_width / 2) / monitor_width)
         local monitor_left = monitor_index * monitor_width
         local monitor_top = 0
@@ -221,48 +250,33 @@ function M.new(opts)
           w = monitor_width, 
           h = monitor_height - taskbar_offset 
         }
-        
-        reaper.ShowConsoleMsg(string.format("[MAXIMIZE] Estimated monitor %d: pos(%d,%d) size(%dx%d)\n",
-          monitor_index, monitor_left, monitor_top, self._max_viewport.w, self._max_viewport.h))
       end
       
       self._is_maximized = true
     end
     
-    -- Update titlebar state
     if self._titlebar then
       self._titlebar:set_maximized(self._is_maximized)
     end
     
-    -- Save maximize state
     if self.settings then
       self.settings:set("window.maximized", self._is_maximized)
     end
   end
 
   function win:_apply_geometry(ctx)
-    reaper.ShowConsoleMsg(string.format("[MAXIMIZE] _apply_geometry: is_maximized=%s, has_viewport=%s, pending_restore=%s\n",
-      tostring(self._is_maximized), tostring(self._max_viewport ~= nil), tostring(self._pending_restore)))
-    
-    -- Apply maximize geometry BEFORE Begin() using SetNextWindow*
     if self._is_maximized and self._max_viewport then
-      reaper.ShowConsoleMsg(string.format("[MAXIMIZE] Applying maximized geometry: pos(%d,%d) size(%dx%d)\n",
-        self._max_viewport.x or 0, self._max_viewport.y or 0, self._max_viewport.w, self._max_viewport.h))
       if self._max_viewport.x and self._max_viewport.y then
         ImGui.SetNextWindowPos(ctx, self._max_viewport.x, self._max_viewport.y, ImGui.Cond_Always)
       end
       ImGui.SetNextWindowSize(ctx, self._max_viewport.w, self._max_viewport.h, ImGui.Cond_Always)
       self._pos_size_set = true
     elseif self._pending_restore and self._pre_max_pos then
-      reaper.ShowConsoleMsg(string.format("[MAXIMIZE] Restoring geometry: pos(%d,%d) size(%d,%d)\n",
-        self._pre_max_pos.x, self._pre_max_pos.y, self._pre_max_size.w, self._pre_max_size.h))
-      -- Restore both position and size
       ImGui.SetNextWindowPos(ctx, self._pre_max_pos.x, self._pre_max_pos.y, ImGui.Cond_Always)
       ImGui.SetNextWindowSize(ctx, self._pre_max_size.w, self._pre_max_size.h, ImGui.Cond_Always)
       self._pending_restore = false
       self._pos_size_set = true
     elseif not self._pos_size_set then
-      -- Only set initial geometry on first frame
       local pos  = self._saved_pos  or self.initial_pos
       local size = self._saved_size or self.initial_size
       if pos  and pos.x  and pos.y  then ImGui.SetNextWindowPos(ctx,  pos.x,  pos.y) end
@@ -294,35 +308,189 @@ function M.new(opts)
     end
   end
 
-  -- Draw outer window
+  -- Profiling functions
+  function win:toggle_profiling()
+    self.profiling.show_metrics = not self.profiling.show_metrics
+    self.profiling.show_custom = self.profiling.show_metrics
+  end
+  
+  function win:start_timer(name)
+    self.profiling.custom_timers[name] = reaper.time_precise()
+  end
+  
+  function win:end_timer(name)
+    if self.profiling.custom_timers[name] then
+      local elapsed = (reaper.time_precise() - self.profiling.custom_timers[name]) * 1000
+      self.profiling.custom_timers[name] = elapsed
+      return elapsed
+    end
+    return 0
+  end
+  
+  function win:update_profiling_data()
+    local current_time = reaper.time_precise()
+    
+    -- Update frame time
+    if self.profiling.last_frame_time > 0 then
+      local frame_time = (current_time - self.profiling.last_frame_time) * 1000
+      table.insert(self.profiling.frame_times, frame_time)
+      if #self.profiling.frame_times > self.profiling.max_frame_samples then
+        table.remove(self.profiling.frame_times, 1)
+      end
+    end
+    self.profiling.last_frame_time = current_time
+    self.profiling.total_frames = self.profiling.total_frames + 1
+    
+    -- Update memory usage periodically
+    if current_time - self.profiling.last_memory_time > 0.5 then
+      local mem_usage = collectgarbage("count")
+      table.insert(self.profiling.memory_samples, mem_usage)
+      if #self.profiling.memory_samples > self.profiling.max_memory_samples then
+        table.remove(self.profiling.memory_samples, 1)
+      end
+      self.profiling.last_memory_time = current_time
+    end
+  end
+  
+  function win:draw_custom_profiling(ctx)
+    if not self.profiling.show_custom then return end
+    
+    local flags = ImGui.WindowFlags_NoCollapse | ImGui.WindowFlags_AlwaysAutoResize
+    local visible, open = ImGui.Begin(ctx, "Custom Profiling##profiling", true, flags)
+    
+    if visible then
+      ImGui.Text(ctx, string.format("Total Frames: %d", self.profiling.total_frames))
+      ImGui.Separator(ctx)
+      
+      -- Frame time statistics
+      if #self.profiling.frame_times > 0 then
+        local sum, min_ft, max_ft = 0, 999999, 0
+        for _, ft in ipairs(self.profiling.frame_times) do
+          sum = sum + ft
+          min_ft = math.min(min_ft, ft)
+          max_ft = math.max(max_ft, ft)
+        end
+        local avg_ft = sum / #self.profiling.frame_times
+        local fps = 1000 / avg_ft
+        
+        ImGui.Text(ctx, string.format("FPS: %.1f", fps))
+        ImGui.Text(ctx, string.format("Frame Time: %.2f ms (avg)", avg_ft))
+        ImGui.Text(ctx, string.format("  Min: %.2f ms | Max: %.2f ms", min_ft, max_ft))
+        
+        -- Frame time graph - FIXED: Convert to reaper.array
+        if ImGui.PlotLines and reaper.new_array then
+          local values = reaper.new_array(self.profiling.frame_times)
+          ImGui.PlotLines(ctx, "##frametime", values, 0, "Frame Time (ms)", 0, max_ft * 1.2, 0, 50)
+        end
+      end
+      
+      ImGui.Separator(ctx)
+      
+      -- Memory usage
+      if #self.profiling.memory_samples > 0 then
+        local current_mem = self.profiling.memory_samples[#self.profiling.memory_samples]
+        local min_mem, max_mem = current_mem, current_mem
+        for _, mem in ipairs(self.profiling.memory_samples) do
+          min_mem = math.min(min_mem, mem)
+          max_mem = math.max(max_mem, mem)
+        end
+        
+        ImGui.Text(ctx, string.format("Memory: %.2f MB", current_mem / 1024))
+        ImGui.Text(ctx, string.format("  Min: %.2f MB | Max: %.2f MB", min_mem / 1024, max_mem / 1024))
+        
+        -- Memory graph - FIXED: Convert to reaper.array
+        if ImGui.PlotLines and reaper.new_array then
+          local values = reaper.new_array(self.profiling.memory_samples)
+          ImGui.PlotLines(ctx, "##memory", values, 0, "Memory (KB)", min_mem * 0.9, max_mem * 1.1, 0, 50)
+        end
+      end
+      
+      ImGui.Separator(ctx)
+      
+      -- Custom timers
+      if next(self.profiling.custom_timers) then
+        ImGui.Text(ctx, "Custom Timers:")
+        for name, time in pairs(self.profiling.custom_timers) do
+          if type(time) == "number" then
+            ImGui.Text(ctx, string.format("  %s: %.3f ms", name, time))
+          end
+        end
+      end
+      
+      ImGui.Separator(ctx)
+      
+      -- Garbage collection controls
+      if ImGui.Button(ctx, "Collect Garbage") then
+        collectgarbage("collect")
+      end
+      ImGui.SameLine(ctx)
+      if ImGui.Button(ctx, "Clear Profiling Data") then
+        self.profiling.frame_times = {}
+        self.profiling.memory_samples = {}
+        self.profiling.custom_timers = {}
+        self.profiling.total_frames = 0
+      end
+    end
+    
+    ImGui.End(ctx)
+    
+    self.profiling.show_custom = open
+  end
+
   function win:Begin(ctx)
     self._body_open = false
     self._should_close = false
     self._current_ctx = ctx
     
+    -- Update profiling data
+    self:update_profiling_data()
+    
     self:_apply_geometry(ctx)
 
-    -- Outer: zero padding
+    if self.status_bar and self.status_bar.apply_pending_resize then
+      self.status_bar.apply_pending_resize(ctx)
+    end
+
     ImGui.PushStyleVar(ctx, ImGui.StyleVar_WindowPadding, 0, 0)
+    
+    -- Apply background color based on docking state from previous frame
+    local bg_color = self._was_docked and self.bg_color_docked or self.bg_color_floating
+    if bg_color then
+      ImGui.PushStyleColor(ctx, ImGui.Col_WindowBg, bg_color)
+      self._bg_color_pushed = true
+    end
 
     local visible, open = ImGui.Begin(ctx, self.title .. "##main", true, self.flags)
     self._begun = true
 
     if visible then
-      -- Handle pending maximize request AFTER window exists
+      -- Update docking state for next frame
+      if ImGui.IsWindowDocked then
+        self._was_docked = ImGui.IsWindowDocked(ctx)
+      end
+      
       if self._pending_maximize then
-        reaper.ShowConsoleMsg("[MAXIMIZE] Processing pending_maximize in Begin()\n")
         self:_toggle_maximize()
         self._pending_maximize = false
       end
       
-      -- Draw custom titlebar only when NOT docked
-      if self._titlebar and not ImGui.IsWindowDocked(ctx) then
+      local titlebar_rendered = false
+      if self._titlebar and not self._was_docked then
         local win_w, _ = ImGui.GetWindowSize(ctx)
         local keep_open = self._titlebar:render(ctx, win_w)
         if not keep_open then
           self._should_close = true
         end
+        titlebar_rendered = true
+      end
+      
+      if self.tabs then
+        if titlebar_rendered then
+          local cursor_x = ImGui.GetCursorPosX(ctx)
+          ImGui.SetCursorPos(ctx, cursor_x, self.titlebar_opts.height)
+        end
+        local active, index = self.tabs:draw(ctx)
+        self.active_tab = active
       end
       
       self:_save_geometry(ctx)
@@ -330,7 +498,6 @@ function M.new(opts)
 
     ImGui.PopStyleVar(ctx)
     
-    -- Override open state if close button was clicked
     if self._should_close then
       open = false
     end
@@ -338,16 +505,16 @@ function M.new(opts)
     return visible, open
   end
 
-  -- Body child: padded content area, height adjusted for status bar
   function win:BeginBody(ctx)
     if self._body_open then return false end
-    local _, avail_h = ImGui.GetContentRegionAvail(ctx)
-    local status_h   = (self.status_bar and self.status_bar.height) or 0
-    local body_h     = floor(avail_h - status_h)
-    if body_h < 24 then return false end
+    
+    local status_h = (self.status_bar and not self._was_docked and self.status_bar.height) or 0
+    local body_h = -status_h
 
     ImGui.PushStyleVar(ctx, ImGui.StyleVar_WindowPadding, self.content_padding, self.content_padding)
-    local success = ImGui.BeginChild(ctx, "##body", 0, body_h)
+    local child_flags = ImGui.ChildFlags_AlwaysUseWindowPadding or 0
+    local window_flags = ImGui.WindowFlags_NoScrollbar
+    local success = ImGui.BeginChild(ctx, "##body", 0, body_h, child_flags, window_flags)
     self._body_open = true
     return success
   end
@@ -359,26 +526,40 @@ function M.new(opts)
     self._body_open = false
   end
 
-  -- Optional hooks for a tabs area (kept for API parity)
   function win:BeginTabs(_) return true end
   function win:EndTabs(_) end
 
   function win:End(ctx)
-    -- Status bar: flush bottom, full width, no spacing
-    if self.status_bar and self.status_bar.render then
-      local _, avail_h = ImGui.GetContentRegionAvail(ctx)
-      if avail_h >= 0 then
-        local x, y = ImGui.GetCursorPos(ctx)
-        if y < 0 then y = 0 end
-        ImGui.SetCursorPos(ctx, 0, y)
-        ImGui.PushStyleVar(ctx, ImGui.StyleVar_ItemSpacing, 0, 0)
-        self.status_bar.render(ctx)
-        ImGui.PopStyleVar(ctx)
-      end
+    if self.status_bar and self.status_bar.render and not self._was_docked then
+      ImGui.SetCursorPosX(ctx, 0)
+      ImGui.PushStyleVar(ctx, ImGui.StyleVar_ItemSpacing, 0, 0)
+      self.status_bar.render(ctx)
+      ImGui.PopStyleVar(ctx)
     end
 
-    if self._begun then ImGui.End(ctx) end
-    self._begun = false
+    if self.overlay and self.overlay.render then
+      local dt = 1/60
+      self.overlay:render(ctx, dt)
+    end
+    
+    -- Draw ImGui metrics window if enabled
+    if self.profiling.show_metrics and ImGui.ShowMetricsWindow then
+      ImGui.ShowMetricsWindow(ctx, self.profiling.show_metrics)
+    end
+    
+    -- Draw custom profiling window
+    self:draw_custom_profiling(ctx)
+
+    if self._begun then 
+      ImGui.End(ctx)
+      self._begun = false
+    end
+    
+    -- Pop background color if we pushed it
+    if self._bg_color_pushed then
+      ImGui.PopStyleColor(ctx)
+      self._bg_color_pushed = false
+    end
   end
 
   return win

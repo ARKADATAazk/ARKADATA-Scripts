@@ -1,12 +1,8 @@
--- ReArkitekt/gui/widgets/hue_slider.lua
--- Color sliders: Hue, Saturation, and Gamma (Brightness)
--- Usage: 
---   changed, new_hue = M.draw_hue(ctx, id, hue, opt)
---   changed, new_sat = M.draw_saturation(ctx, id, saturation, base_hue, opt)
---   changed, new_gamma = M.draw_gamma(ctx, id, gamma, opt)
+-- ReArkitekt/gui/widgets/sliders/hue.lua
+-- Enhanced color sliders with proper rounded gradients
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
-local ImGui = require 'imgui' '0.9'
+local ImGui = require 'imgui' '0.10'
 
 local palette
 local Colors
@@ -23,11 +19,8 @@ do
 end
 
 local M = {}
-
--- Shared state
 local _locks = {}
 
--- Utility functions
 local function clamp(v, lo, hi)
   if v < lo then return lo elseif v > hi then return hi else return v end
 end
@@ -51,28 +44,50 @@ local function hsv_rgba_u32(h, s, v, a)
   local G = math.floor(g * 255 + 0.5)
   local B = math.floor(b * 255 + 0.5)
   local A = math.floor((a or 1) * 255 + 0.5)
-  local col = (R << 24) | (G << 16) | (B << 8) | A
-  
-  if Colors then
-    col = Colors.desaturate(col, 0.15)
-    col = Colors.adjust_brightness(col, 0.85)
-  end
-  
-  return col
+  return (R << 24) | (G << 16) | (B << 8) | A
 end
 
--- Core slider drawing function (used by all slider types)
+-- Render slider background (ROUNDED)
+local function render_slider(dl, x0, y0, x1, y1, gradient_fn, opt)
+  local rounding = 4.0
+  local border_thickness = 1.0
+  local inset = border_thickness
+  
+  -- Dark base
+  ImGui.DrawList_AddRectFilled(dl, x0, y0, x1, y1, 0x1A1A1AFF, rounding)
+  
+  -- Gradient (drawn inset to not interfere with rounded corners)
+  gradient_fn(dl, x0 + inset, y0 + inset, x1 - inset, y1 - inset, opt)
+  
+  -- Border
+  ImGui.DrawList_AddRect(dl, x0, y0, x1, y1, 0x000000FF, rounding, 0, border_thickness)
+end
+
+-- Render grab handle (ROUNDED, DARKER)
+local function render_grab(dl, gx, y0, y1, GRAB_W, active, hovered)
+  local x_left = gx - GRAB_W / 2
+  local x_right = gx + GRAB_W / 2
+  local rounding = 3.0
+  
+  -- Shadow (rounded)
+  ImGui.DrawList_AddRectFilled(dl, x_left + 1, y0 + 1, x_right + 1, y1 + 1, 
+    0x00000050, rounding)
+  
+  -- Base (darker bluish-greys, rounded)
+  local grab_col = active and 0x585C65FF or (hovered and 0x484C55FF or 0x383C45FF)
+  ImGui.DrawList_AddRectFilled(dl, x_left, y0, x_right, y1, grab_col, rounding)
+  
+  -- Border (rounded)
+  ImGui.DrawList_AddRect(dl, x_left, y0, x_right, y1, 0x000000FF, rounding, 0, 1.0)
+end
+
+-- Core slider
 local function draw_slider_base(ctx, id, value, min_val, max_val, default_val, gradient_fn, tooltip_fn, opt)
   opt = opt or {}
   
-  local W = opt.w or 240
+  local W = opt.w or 200
   local H = opt.h or 20
-  local GRAB_W = opt.grab_w or 12
-  
-  local BORDER = (opt.border ~= nil) and opt.border or (palette and palette.border_soft) or 0x000000DD
-  local GRAB_COL = (opt.grab_color ~= nil) and opt.grab_color or 0x00FFA7FF
-  local GRAB_ACTIVE_COL = (opt.grab_active_color ~= nil) and opt.grab_active_color or (palette and palette.red) or 0xE04141FF
-  local FRAME_BG_ALPHA = opt.frame_bg_alpha or 0x00
+  local GRAB_W = opt.grab_w or 13
   
   value = clamp(value or default_val, min_val, max_val)
   
@@ -90,19 +105,20 @@ local function draw_slider_base(ctx, id, value, min_val, max_val, default_val, g
   local locked = (_locks[id] or 0) > now
   
   local changed = false
-  local double_clicked = false
+  local double_clicked = false -- Define a flag for the double-click event
   
+  -- Double-click to reset
   if hovered and not locked and ImGui.IsMouseDoubleClicked(ctx, 0) then
     value = default_val
     changed = true
-    double_clicked = true
+    double_clicked = true -- Set the flag to true
     _locks[id] = now + 0.3
   end
   
+  -- Drag to adjust (now checks the double_clicked flag)
   if not double_clicked and not locked and active then
     local mx = select(1, ImGui.GetMousePos(ctx))
-    local t = (mx - x0) / W
-    t = clamp(t, 0, 1)
+    local t = clamp((mx - x0) / W, 0, 1)
     local nv = min_val + t * (max_val - min_val)
     if math.abs(nv - value) > 1e-3 then
       value = nv
@@ -110,6 +126,7 @@ local function draw_slider_base(ctx, id, value, min_val, max_val, default_val, g
     end
   end
   
+  -- Keyboard
   if ImGui.IsItemFocused(ctx) or active then
     local step = (max_val - min_val) / 100
     if ImGui.IsKeyPressed(ctx, ImGui.Key_LeftArrow, false) then
@@ -124,28 +141,15 @@ local function draw_slider_base(ctx, id, value, min_val, max_val, default_val, g
   
   value = clamp(value, min_val, max_val)
   
-  if FRAME_BG_ALPHA and FRAME_BG_ALPHA > 0 then
-    local frame_bg_col = (palette and palette.grey_06) or 0x0F0F0FFF
-    frame_bg_col = (frame_bg_col & 0xFFFFFF00) | (FRAME_BG_ALPHA & 0xFF)
-    ImGui.DrawList_AddRectFilled(dl, x0, y0, x1, y1, frame_bg_col, 0)
-  end
+  -- Render slider background
+  render_slider(dl, x0, y0, x1, y1, gradient_fn, opt)
   
-  gradient_fn(dl, x0, y0, x1, y1, W, opt)
-  
-  if BORDER and BORDER ~= 0 then
-    ImGui.DrawList_AddRect(dl, x0, y0, x1, y1, BORDER, 0, 0, 1)
-  end
-  
+  -- Render grab
   local t = (value - min_val) / (max_val - min_val)
   local gx = clamp(x0 + t * W, x0 + GRAB_W / 2, x1 - GRAB_W / 2)
-  local grab_col = active and GRAB_ACTIVE_COL or GRAB_COL
+  render_grab(dl, gx, y0, y1, GRAB_W, active, hovered)
   
-  ImGui.DrawList_AddRectFilled(dl, gx - GRAB_W / 2, y0, gx + GRAB_W / 2, y1, grab_col, 0)
-  
-  if BORDER and BORDER ~= 0 then
-    ImGui.DrawList_AddRect(dl, gx - GRAB_W / 2, y0, gx + GRAB_W / 2, y1, BORDER, 0, 0, 1)
-  end
-  
+  -- Tooltip
   if hovered then
     if ImGui.BeginTooltip(ctx) then
       ImGui.Text(ctx, tooltip_fn(value))
@@ -156,22 +160,29 @@ local function draw_slider_base(ctx, id, value, min_val, max_val, default_val, g
   return changed, value
 end
 
--- HUE SLIDER (0-360 degrees)
+-- HUE SLIDER
 function M.draw_hue(ctx, id, hue, opt)
   opt = opt or {}
-  local SATURATION = clamp(opt.saturation or 88, 0, 100)
-  local BRIGHTNESS = clamp(opt.brightness or 92, 0, 100)
-  local SEG = math.max(24, opt.segments or 72)
+  local SAT = clamp(opt.saturation or 75, 0, 100) / 100.0
+  local VAL = clamp(opt.brightness or 80, 0, 100) / 100.0
+  local SEG = 120
   
-  local gradient_fn = function(dl, x0, y0, x1, y1, W, opt)
-    local SAT = SATURATION / 100.0
-    local VAL = BRIGHTNESS / 100.0
+  local gradient_fn = function(dl, x0, y0, x1, y1, opt)
+    local W = x1 - x0
     local segw = W / SEG
     for i = 0, SEG - 1 do
       local t0 = i / SEG
       local t1 = (i + 1) / SEG
       local c0 = hsv_rgba_u32(t0, SAT, VAL, 1)
       local c1 = hsv_rgba_u32(t1, SAT, VAL, 1)
+      
+      if Colors then
+        c0 = Colors.desaturate(c0, 0.10)
+        c1 = Colors.desaturate(c1, 0.10)
+        c0 = Colors.adjust_brightness(c0, 0.88)
+        c1 = Colors.adjust_brightness(c1, 0.88)
+      end
+      
       local sx0 = x0 + i * segw
       local sx1 = x0 + (i + 1) * segw
       ImGui.DrawList_AddRectFilledMultiColor(dl, sx0, y0, sx1, y1, c0, c1, c1, c0)
@@ -182,19 +193,18 @@ function M.draw_hue(ctx, id, hue, opt)
     return string.format("Hue: %.1f°", v)
   end
   
-  local default_hue = opt.default or 180.0
-  return draw_slider_base(ctx, id, hue, 0, 359.999, default_hue, gradient_fn, tooltip_fn, opt)
+  return draw_slider_base(ctx, id, hue, 0, 359.999, opt.default or 180.0, gradient_fn, tooltip_fn, opt)
 end
 
--- SATURATION SLIDER (0-100%)
+-- SATURATION SLIDER
 function M.draw_saturation(ctx, id, saturation, base_hue, opt)
   opt = opt or {}
   base_hue = base_hue or 210
-  local BRIGHTNESS = clamp(opt.brightness or 92, 0, 100)
-  local SEG = math.max(24, opt.segments or 72)
+  local VAL = clamp(opt.brightness or 80, 0, 100) / 100.0
+  local SEG = 120
   
-  local gradient_fn = function(dl, x0, y0, x1, y1, W, opt)
-    local VAL = BRIGHTNESS / 100.0
+  local gradient_fn = function(dl, x0, y0, x1, y1, opt)
+    local W = x1 - x0
     local h = (base_hue % 360) / 360.0
     local segw = W / SEG
     for i = 0, SEG - 1 do
@@ -202,6 +212,12 @@ function M.draw_saturation(ctx, id, saturation, base_hue, opt)
       local t1 = (i + 1) / SEG
       local c0 = hsv_rgba_u32(h, t0, VAL, 1)
       local c1 = hsv_rgba_u32(h, t1, VAL, 1)
+      
+      if Colors then
+        c0 = Colors.adjust_brightness(c0, 0.88)
+        c1 = Colors.adjust_brightness(c1, 0.88)
+      end
+      
       local sx0 = x0 + i * segw
       local sx1 = x0 + (i + 1) * segw
       ImGui.DrawList_AddRectFilledMultiColor(dl, sx0, y0, sx1, y1, c0, c1, c1, c0)
@@ -212,16 +228,16 @@ function M.draw_saturation(ctx, id, saturation, base_hue, opt)
     return string.format("Saturation: %.0f%%", v)
   end
   
-  local default_sat = opt.default or 50
-  return draw_slider_base(ctx, id, saturation, 0, 100, default_sat, gradient_fn, tooltip_fn, opt)
+  return draw_slider_base(ctx, id, saturation, 0, 100, opt.default or 50, gradient_fn, tooltip_fn, opt)
 end
 
--- GAMMA/BRIGHTNESS SLIDER (0-100%)
+-- BRIGHTNESS SLIDER
 function M.draw_gamma(ctx, id, gamma, opt)
   opt = opt or {}
-  local SEG = math.max(24, opt.segments or 72)
+  local SEG = 120
   
-  local gradient_fn = function(dl, x0, y0, x1, y1, W, opt)
+  local gradient_fn = function(dl, x0, y0, x1, y1, opt)
+    local W = x1 - x0
     local segw = W / SEG
     for i = 0, SEG - 1 do
       local t0 = i / SEG
@@ -234,8 +250,8 @@ function M.draw_gamma(ctx, id, gamma, opt)
       local c1 = (gray1 << 24) | (gray1 << 16) | (gray1 << 8) | 0xFF
       
       if Colors then
-        c0 = Colors.adjust_brightness(c0, 0.85)
-        c1 = Colors.adjust_brightness(c1, 0.85)
+        c0 = Colors.adjust_brightness(c0, 0.88)
+        c1 = Colors.adjust_brightness(c1, 0.88)
       end
       
       local sx0 = x0 + i * segw
@@ -248,11 +264,10 @@ function M.draw_gamma(ctx, id, gamma, opt)
     return string.format("Brightness: %.0f%%", v)
   end
   
-  local default_gamma = opt.default or 50
-  return draw_slider_base(ctx, id, gamma, 0, 100, default_gamma, gradient_fn, tooltip_fn, opt)
+  return draw_slider_base(ctx, id, gamma, 0, 100, opt.default or 50, gradient_fn, tooltip_fn, opt)
 end
 
--- Legacy compatibility (calls draw_hue)
+-- Legacy
 function M.draw(ctx, id, hue, opt)
   return M.draw_hue(ctx, id, hue, opt)
 end
