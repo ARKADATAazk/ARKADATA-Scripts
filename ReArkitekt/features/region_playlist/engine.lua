@@ -1,5 +1,5 @@
 -- ReArkitekt/features/region_playlist/engine.lua
--- Simplified Region Playlist Engine with SnM-style smooth transitions
+-- Region Playlist Engine with recursive playlist-in-playlist support
 
 local Regions = require('ReArkitekt.reaper.regions')
 local Transport = require('ReArkitekt.reaper.transport')
@@ -41,6 +41,9 @@ function M.new(opts)
   self.transport_override = (opts.transport_override == true)
   self.loop_playlist = (opts.loop_playlist == true)
   self.on_repeat_cycle = opts.on_repeat_cycle
+  self.playlist_lookup = opts.playlist_lookup
+  
+  self.context_stack = {}
   
   self.state_change_count = 0
   self.is_playing = false
@@ -117,27 +120,48 @@ function Engine:set_order(new_order)
   self.playlist_metadata = {}
   
   for _, entry in ipairs(new_order) do
-    local rid = type(entry) == "table" and entry.rid or entry
-    if self.region_cache[rid] then
-      self.playlist_order[#self.playlist_order + 1] = rid
-      self.playlist_metadata[#self.playlist_metadata + 1] = {
-        key = type(entry) == "table" and entry.key or nil,
-        reps = type(entry) == "table" and entry.reps or 1,
-        current_loop = 1,
-      }
-    end
+    self.playlist_order[#self.playlist_order + 1] = entry
+    self.playlist_metadata[#self.playlist_metadata + 1] = {
+      key = entry.key,
+      current_loop = 1,
+    }
   end
   
   self.playlist_pointer = _clamp(self.playlist_pointer, 1, math.max(1, #self.playlist_order))
   self.current_idx = -1
   self.next_idx = -1
+  self.context_stack = {}
+end
+
+function Engine:_get_current_item_from_context()
+  if #self.context_stack == 0 then
+    if self.current_idx >= 1 and self.current_idx <= #self.playlist_order then
+      return self.playlist_order[self.current_idx]
+    end
+    return nil
+  end
+  
+  local top_context = self.context_stack[#self.context_stack]
+  if top_context.index >= 1 and top_context.index <= #top_context.items then
+    return top_context.items[top_context.index]
+  end
+  return nil
 end
 
 function Engine:get_current_rid()
-  if self.playlist_pointer < 1 or self.playlist_pointer > #self.playlist_order then
-    return nil
+  local item = self:_get_current_item_from_context()
+  if not item then return nil end
+  
+  while item and item.type == "playlist" do
+    if not self.playlist_lookup then return nil end
+    
+    local playlist = self.playlist_lookup(item.playlist_id)
+    if not playlist or #playlist.items == 0 then return nil end
+    
+    item = playlist.items[1]
   end
-  return self.playlist_order[self.playlist_pointer]
+  
+  return item and item.rid or nil
 end
 
 function Engine:get_region_by_rid(rid)
@@ -166,10 +190,27 @@ function Engine:_seek_to_region(region_num)
   return true
 end
 
+function Engine:_resolve_to_region(item)
+  if not item then return nil end
+  
+  if item.type == "region" then
+    return self:get_region_by_rid(item.rid)
+  end
+  
+  if item.type == "playlist" and self.playlist_lookup then
+    local playlist = self.playlist_lookup(item.playlist_id)
+    if playlist and #playlist.items > 0 then
+      return self:_resolve_to_region(playlist.items[1])
+    end
+  end
+  
+  return nil
+end
+
 function Engine:_update_bounds()
   if self.current_idx >= 1 and self.current_idx <= #self.playlist_order then
-    local rid = self.playlist_order[self.current_idx]
-    local region = self:get_region_by_rid(rid)
+    local item = self.playlist_order[self.current_idx]
+    local region = self:_resolve_to_region(item)
     if region then
       self.current_bounds.start_pos = region.start
       self.current_bounds.end_pos = region["end"]
@@ -180,8 +221,8 @@ function Engine:_update_bounds()
   end
   
   if self.next_idx >= 1 and self.next_idx <= #self.playlist_order then
-    local rid = self.playlist_order[self.next_idx]
-    local region = self:get_region_by_rid(rid)
+    local item = self.playlist_order[self.next_idx]
+    local region = self:_resolve_to_region(item)
     if region then
       self.next_bounds.start_pos = region.start
       self.next_bounds.end_pos = region["end"]
@@ -194,8 +235,8 @@ end
 
 function Engine:_find_index_at_position(pos)
   for i = 1, #self.playlist_order do
-    local rid = self.playlist_order[i]
-    local region = self:get_region_by_rid(rid)
+    local item = self.playlist_order[i]
+    local region = self:_resolve_to_region(item)
     if region and pos >= region.start and pos < region["end"] - 1e-9 then
       return i
     end
@@ -204,10 +245,12 @@ function Engine:_find_index_at_position(pos)
 end
 
 function Engine:play()
-  local rid = self:get_current_rid()
-  if not rid then return false end
+  if #self.playlist_order == 0 then return false end
+  
+  local item = self.playlist_order[self.playlist_pointer]
+  if not item then return false end
 
-  local region = self:get_region_by_rid(rid)
+  local region = self:_resolve_to_region(item)
   if not region then return false end
 
   self:_enter_playlist_mode_if_needed()
@@ -223,6 +266,7 @@ function Engine:play()
   self.is_playing = true
   self.current_idx = -1
   self.next_idx = self.playlist_pointer
+  self.context_stack = {}
   self:_update_bounds()
   
   return true
@@ -233,6 +277,7 @@ function Engine:stop()
   self.is_playing = false
   self.current_idx = -1
   self.next_idx = -1
+  self.context_stack = {}
   self:_leave_playlist_mode_if_needed()
 end
 
@@ -242,8 +287,8 @@ function Engine:next()
   self.playlist_pointer = self.playlist_pointer + 1
 
   if _is_playing(self.proj) then
-    local rid = self:get_current_rid()
-    local region = self:get_region_by_rid(rid)
+    local item = self.playlist_order[self.playlist_pointer]
+    local region = self:_resolve_to_region(item)
     if region then
       return self:_seek_to_region(region.rid)
     end
@@ -260,8 +305,8 @@ function Engine:prev()
   self.playlist_pointer = self.playlist_pointer - 1
 
   if _is_playing(self.proj) then
-    local rid = self:get_current_rid()
-    local region = self:get_region_by_rid(rid)
+    local item = self.playlist_order[self.playlist_pointer]
+    local region = self:_resolve_to_region(item)
     if region then
       return self:_seek_to_region(region.rid)
     end
@@ -278,34 +323,8 @@ function Engine:jump_to_index(idx)
   self.playlist_pointer = idx
 
   if _is_playing(self.proj) then
-    local rid = self:get_current_rid()
-    local region = self:get_region_by_rid(rid)
-    if region then
-      return self:_seek_to_region(region.rid)
-    end
-  else
-    return self:play()
-  end
-  
-  return false
-end
-
-function Engine:jump_to_rid(rid)
-  if #self.playlist_order == 0 or not rid then return false end
-  
-  local found = nil
-  for i, r in ipairs(self.playlist_order) do
-    if r == rid then 
-      found = i 
-      break 
-    end
-  end
-  if not found then return false end
-  
-  self.playlist_pointer = found
-
-  if _is_playing(self.proj) then
-    local region = self:get_region_by_rid(rid)
+    local item = self.playlist_order[idx]
+    local region = self:_resolve_to_region(item)
     if region then
       return self:_seek_to_region(region.rid)
     end
@@ -324,8 +343,9 @@ function Engine:poll_transport_sync()
   
   local playpos = _get_play_pos(self.proj)
   
-  for i, rid in ipairs(self.playlist_order) do
-    local region = self:get_region_by_rid(rid)
+  for i = 1, #self.playlist_order do
+    local item = self.playlist_order[i]
+    local region = self:_resolve_to_region(item)
     if region then
       if playpos >= region.start and playpos < region["end"] then
         self.playlist_pointer = i
@@ -333,7 +353,7 @@ function Engine:poll_transport_sync()
         self.current_idx = i
         
         local meta = self.playlist_metadata[i]
-        local should_loop = meta and meta.current_loop < meta.reps
+        local should_loop = meta and meta.current_loop < (item.reps or 1)
         
         if should_loop then
           self.next_idx = i
@@ -365,17 +385,17 @@ function Engine:_handle_smooth_transitions()
      playpos >= self.next_bounds.start_pos and 
      playpos < self.next_bounds.end_pos + self.boundary_epsilon then
     
-    local entering_different_region = (self.current_idx ~= self.next_idx)
-    local playhead_went_backward = (playpos < self.last_play_pos - 0.1)
+    local entering_different = (self.current_idx ~= self.next_idx)
+    local playhead_backward = (playpos < self.last_play_pos - 0.1)
     
-    if entering_different_region or playhead_went_backward then
-      reaper.ShowConsoleMsg(string.format("[LOOP] Transition: different=%s backward=%s\n", 
-        tostring(entering_different_region), tostring(playhead_went_backward)))
-      
+    if entering_different or playhead_backward then
       self.current_idx = self.next_idx
       self.playlist_pointer = self.current_idx
-      local rid = self.playlist_order[self.current_idx]
-      local region = self:get_region_by_rid(rid)
+      
+      local item = self.playlist_order[self.current_idx]
+      if not item then goto skip_transition end
+      
+      local region = self:_resolve_to_region(item)
       if region then
         self.current_bounds.start_pos = region.start
         self.current_bounds.end_pos = region["end"]
@@ -383,23 +403,14 @@ function Engine:_handle_smooth_transitions()
       
       local meta = self.playlist_metadata[self.current_idx]
       
-      if meta then
-        reaper.ShowConsoleMsg(string.format("[LOOP] idx=%d loop=%d/%d\n", 
-          self.current_idx, meta.current_loop, meta.reps))
-      end
-      
-      if meta and meta.current_loop < meta.reps then
+      if meta and meta.current_loop < (item.reps or 1) then
         meta.current_loop = meta.current_loop + 1
-        reaper.ShowConsoleMsg(string.format("[LOOP] LOOPING! new loop=%d/%d\n", 
-          meta.current_loop, meta.reps))
         
         if self.on_repeat_cycle and meta.key then
-          self.on_repeat_cycle(meta.key, meta.current_loop, meta.reps)
+          self.on_repeat_cycle(meta.key, meta.current_loop, item.reps or 1)
         end
         
         self.next_idx = self.current_idx
-        local rid = self.playlist_order[self.current_idx]
-        local region = self:get_region_by_rid(rid)
         if region then
           self.next_bounds.start_pos = region.start
           self.next_bounds.end_pos = region["end"]
@@ -408,7 +419,6 @@ function Engine:_handle_smooth_transitions()
       else
         if meta then
           meta.current_loop = 1
-          reaper.ShowConsoleMsg("[LOOP] ADVANCING to next region\n")
         end
         
         local next_candidate
@@ -416,25 +426,26 @@ function Engine:_handle_smooth_transitions()
           next_candidate = self.current_idx + 1
         elseif self.loop_playlist and #self.playlist_order > 0 then
           next_candidate = 1
-          reaper.ShowConsoleMsg("[LOOP] WRAPPING to start\n")
         else
           next_candidate = -1
         end
         
         if next_candidate >= 1 then
           self.next_idx = next_candidate
-          local rid = self.playlist_order[self.next_idx]
-          local region = self:get_region_by_rid(rid)
-          if region then
-            self.next_bounds.start_pos = region.start
-            self.next_bounds.end_pos = region["end"]
-            self:_seek_to_region(region.rid)
+          local next_item = self.playlist_order[self.next_idx]
+          local next_region = self:_resolve_to_region(next_item)
+          if next_region then
+            self.next_bounds.start_pos = next_region.start
+            self.next_bounds.end_pos = next_region["end"]
+            self:_seek_to_region(next_region.rid)
           end
         else
           self.next_idx = -1
         end
       end
     end
+    
+    ::skip_transition::
     
   elseif self.current_bounds.end_pos > self.current_bounds.start_pos and
          playpos >= self.current_bounds.start_pos and 
@@ -445,24 +456,18 @@ function Engine:_handle_smooth_transitions()
     if found_idx >= 1 then
       local was_uninitialized = (self.current_idx == -1)
       
-      reaper.ShowConsoleMsg(string.format("[LOOP] Init at idx=%d\n", found_idx))
-      
       self.current_idx = found_idx
       self.playlist_pointer = found_idx
-      local rid = self.playlist_order[found_idx]
-      local region = self:get_region_by_rid(rid)
+      
+      local item = self.playlist_order[found_idx]
+      local region = self:_resolve_to_region(item)
       if region then
         self.current_bounds.start_pos = region.start
         self.current_bounds.end_pos = region["end"]
       end
       
       local meta = self.playlist_metadata[found_idx]
-      local should_advance = not meta or meta.current_loop >= meta.reps
-      
-      if meta then
-        reaper.ShowConsoleMsg(string.format("[LOOP] Init metadata: loop=%d/%d should_advance=%s\n", 
-          meta.current_loop, meta.reps, tostring(should_advance)))
-      end
+      local should_advance = not meta or meta.current_loop >= (item.reps or 1)
       
       if should_advance then
         local next_candidate
@@ -476,27 +481,30 @@ function Engine:_handle_smooth_transitions()
         
         if next_candidate >= 1 then
           self.next_idx = next_candidate
-          local rid_next = self.playlist_order[self.next_idx]
-          local region_next = self:get_region_by_rid(rid_next)
-          if region_next then
-            self.next_bounds.start_pos = region_next.start
-            self.next_bounds.end_pos = region_next["end"]
+          local next_item = self.playlist_order[self.next_idx]
+          local next_region = self:_resolve_to_region(next_item)
+          if next_region then
+            self.next_bounds.start_pos = next_region.start
+            self.next_bounds.end_pos = next_region["end"]
             
             if was_uninitialized then
-              self:_seek_to_region(region_next.rid)
+              self:_seek_to_region(next_region.rid)
             end
           end
         end
       else
         self.next_idx = found_idx
-        self.next_bounds.start_pos = region.start
-        self.next_bounds.end_pos = region["end"]
-        if was_uninitialized then
-          self:_seek_to_region(region.rid)
+        if region then
+          self.next_bounds.start_pos = region.start
+          self.next_bounds.end_pos = region["end"]
+          if was_uninitialized then
+            self:_seek_to_region(region.rid)
+          end
         end
       end
     elseif #self.playlist_order > 0 then
-      local first_region = self:get_region_by_rid(self.playlist_order[1])
+      local first_item = self.playlist_order[1]
+      local first_region = self:_resolve_to_region(first_item)
       if first_region and playpos < first_region.start then
         self.current_idx = -1
         self.next_idx = 1
@@ -517,6 +525,7 @@ function Engine:update()
       self.is_playing = false
       self.current_idx = -1
       self.next_idx = -1
+      self.context_stack = {}
       self:_leave_playlist_mode_if_needed()
     end
     return
@@ -568,6 +577,7 @@ function Engine:get_state()
     _playlist_mode = self._playlist_mode,
     current_idx = self.current_idx,
     next_idx = self.next_idx,
+    context_depth = #self.context_stack,
   }
 end
 

@@ -38,6 +38,7 @@ function M.create(State, Config, settings)
   })
   
   State.state.bridge:set_controller(self.controller)
+  State.state.bridge:set_playlist_lookup(State.get_playlist_by_id)
   
   if not State.state.separator_position_horizontal then
     State.state.separator_position_horizontal = self.default_separator_horizontal
@@ -56,15 +57,28 @@ function M.create(State, Config, settings)
     end
   end
   
+  State.state.on_repeat_cycle = function(key, current_loop, total_reps)
+    reaper.ShowConsoleMsg(string.format("[GUI] Repeat cycle: %s (%d/%d)\n", key, current_loop, total_reps))
+  end
+  
   self.region_tiles = RegionTiles.create({
     get_region_by_rid = function(rid)
       return State.state.region_index[rid]
+    end,
+    
+    get_playlist_by_id = function(playlist_id)
+      return State.get_playlist_by_id(playlist_id)
+    end,
+    
+    detect_circular_ref = function(target_playlist_id, source_playlist_id)
+      return State.detect_circular_reference(target_playlist_id, source_playlist_id)
     end,
     
     allow_pool_reorder = true,
     enable_active_tabs = true,
     tabs = State.get_tabs(),
     active_tab_id = State.state.active_playlist,
+    pool_mode = State.state.pool_mode,
     config = Config.get_region_tiles_config(State.state.layout_mode),
     
     on_tab_create = function()
@@ -109,7 +123,13 @@ function M.create(State, Config, settings)
     on_pool_sort_direction = function(direction)
       State.state.sort_direction = direction
       State.persist_ui_prefs()
-    end,    
+    end,
+    
+    on_pool_mode_changed = function(mode)
+      State.state.pool_mode = mode
+      self.region_tiles:set_pool_mode(mode)
+      State.persist_ui_prefs()
+    end,
     
     on_active_reorder = function(new_order)
       self.controller:reorder_items(State.state.active_playlist, new_order)
@@ -148,6 +168,11 @@ function M.create(State, Config, settings)
       return success and key or nil
     end,
     
+    on_pool_playlist_to_active = function(playlist_id, insert_index)
+      local success, key = self.controller:add_playlist_item(State.state.active_playlist, playlist_id, insert_index)
+      return success and key or nil
+    end,
+    
     on_pool_reorder = function(new_rids)
       State.state.pool_order = new_rids
       State.persist_ui_prefs()
@@ -180,6 +205,7 @@ function M.create(State, Config, settings)
   self.region_tiles:set_pool_sort_mode(State.state.sort_mode)
   self.region_tiles:set_pool_sort_direction(State.state.sort_direction)
   self.region_tiles:set_app_bridge(State.state.bridge)
+  self.region_tiles:set_pool_mode(State.state.pool_mode)
   
   State.state.active_search_filter = ""
   
@@ -318,9 +344,7 @@ function GUI:draw_loop_playlist_checkbox(ctx)
 end
 
 function GUI:draw_horizontal_separator(ctx, x, y, width, height)
-  local dl = ImGui.GetWindowDrawList(ctx)
   local separator_thickness = 6
-  local handle_height = 2
   
   local mx, my = ImGui.GetMousePos(ctx)
   local is_hovered = mx >= x and mx < x + width and 
@@ -330,14 +354,8 @@ function GUI:draw_horizontal_separator(ctx, x, y, width, height)
     ImGui.SetMouseCursor(ctx, ImGui.MouseCursor_ResizeNS)
   end
   
-  local handle_y = y - handle_height/2
-  local handle_color = is_hovered and 0x666666FF or 0x444444FF
-  
-  if self.separator_drag_state.is_dragging then
-    handle_color = 0x888888FF
-  end
-  
-  ImGui.DrawList_AddRectFilled(dl, x, handle_y, x + width, handle_y + handle_height, handle_color, 0)
+  -- The visible handle has been removed to make the separator invisible.
+  -- The InvisibleButton below handles the interaction.
   
   ImGui.SetCursorScreenPos(ctx, x, y - separator_thickness/2)
   ImGui.InvisibleButton(ctx, "##hseparator", width, separator_thickness)
@@ -362,9 +380,7 @@ function GUI:draw_horizontal_separator(ctx, x, y, width, height)
 end
 
 function GUI:draw_vertical_separator(ctx, x, y, width, height)
-  local dl = ImGui.GetWindowDrawList(ctx)
   local separator_thickness = 6
-  local handle_width = 2
   
   local mx, my = ImGui.GetMousePos(ctx)
   local is_hovered = mx >= x - separator_thickness/2 and mx < x + separator_thickness/2 and 
@@ -374,14 +390,8 @@ function GUI:draw_vertical_separator(ctx, x, y, width, height)
     ImGui.SetMouseCursor(ctx, ImGui.MouseCursor_ResizeEW)
   end
   
-  local handle_x = x - handle_width/2
-  local handle_color = is_hovered and 0x666666FF or 0x444444FF
-  
-  if self.separator_drag_state.is_dragging then
-    handle_color = 0x888888FF
-  end
-  
-  ImGui.DrawList_AddRectFilled(dl, handle_x, y, handle_x + handle_width, y + height, handle_color, 0)
+  -- The visible handle has been removed to make the separator invisible.
+  -- The InvisibleButton below handles the interaction.
   
   ImGui.SetCursorScreenPos(ctx, x - separator_thickness/2, y)
   ImGui.InvisibleButton(ctx, "##vseparator", separator_thickness, height)
@@ -416,11 +426,18 @@ function GUI:get_filtered_active_items(playlist)
   local filter_lower = filter:lower()
   
   for _, item in ipairs(playlist.items) do
-    local region = self.State.state.region_index[item.rid]
-    if region then
-      local name_lower = region.name:lower()
+    if item.type == "playlist" then
+      local name_lower = (item.playlist_name or ""):lower()
       if name_lower:find(filter_lower, 1, true) then
         filtered[#filtered + 1] = item
+      end
+    else
+      local region = self.State.state.region_index[item.rid]
+      if region then
+        local name_lower = region.name:lower()
+        if name_lower:find(filter_lower, 1, true) then
+          filtered[#filtered + 1] = item
+        end
       end
     end
   end
@@ -474,7 +491,7 @@ function GUI:draw(ctx)
   
   self:draw_transport_section(ctx)
   
-  ImGui.Dummy(ctx, 1, 16)
+  ImGui.Dummy(ctx, 1, 8) -- Separator gap between transport and main content
   
   local pl = self.State.get_active_playlist()
   local filtered_active_items = self:get_filtered_active_items(pl)
@@ -483,7 +500,13 @@ function GUI:draw(ctx)
     name = pl.name,
     items = filtered_active_items,
   }
-  local filtered_regions = self.State.get_filtered_pool_regions()
+  
+  local pool_data
+  if self.State.state.pool_mode == "playlists" then
+    pool_data = self.State.get_playlists_for_pool()
+  else
+    pool_data = self.State.get_filtered_pool_regions()
+  end
   
   if self.State.state.layout_mode == 'horizontal' then
     local content_w, content_h = ImGui.GetContentRegionAvail(ctx)
@@ -533,7 +556,7 @@ function GUI:draw(ctx)
     
     ImGui.SetCursorScreenPos(ctx, start_x, start_y + active_height + separator_gap)
     
-    self.region_tiles:draw_pool(ctx, filtered_regions, pool_height)
+    self.region_tiles:draw_pool(ctx, pool_data, pool_height)
   else
     local content_w, content_h = ImGui.GetContentRegionAvail(ctx)
     
@@ -592,7 +615,7 @@ function GUI:draw(ctx)
     ImGui.PushStyleVar(ctx, ImGui.StyleVar_ItemSpacing, 0, 0)
     
     if ImGui.BeginChild(ctx, "##right_column", pool_width, content_h, ImGui.ChildFlags_None, 0) then
-      self.region_tiles:draw_pool(ctx, filtered_regions, content_h)
+      self.region_tiles:draw_pool(ctx, pool_data, content_h)
     end
     ImGui.EndChild(ctx)
     
@@ -601,6 +624,5 @@ function GUI:draw(ctx)
   
   self.region_tiles:draw_ghosts(ctx)
 end
-
 
 return M

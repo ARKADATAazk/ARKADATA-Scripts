@@ -1,12 +1,12 @@
 # FOLDER FLOW: ReArkitekt
-Generated: 2025-10-09 05:08:11
+Generated: 2025-10-09 15:17:47
 Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
 
 ## Overview
-- **Files**: 98
-- **Total Lines**: 18,590
-- **Public Functions**: 278
-- **Classes**: 65
+- **Files**: 99
+- **Total Lines**: 19,223
+- **Public Functions**: 284
+- **Classes**: 67
 
 ## Files
 
@@ -78,7 +78,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.override(overrides)`
     - `M.reset()`
 
-### config.lua (181 lines)
+### config.lua (202 lines)
   **Modules**: M
   **Exports**:
     - `M.get_region_tiles_config(layout_mode)`
@@ -105,7 +105,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.draw_playback_info(ctx, bridge, x, y, width)`
     - `M.draw_complete_controls(ctx, bridge, x, y, available_width)`
 
-### coordinator.lua (854 lines)
+### coordinator.lua (897 lines)
   **Modules**: M, result, RegionTiles, copy, spawned_keys, rids, colors, keys_to_adjust
   **Classes**: RegionTiles, M
   **Exports**:
@@ -238,18 +238,18 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   **Exports**:
     - `M.new(config)`
 
-### gui.lua (606 lines)
+### gui.lua (621 lines)
   **Modules**: M, GUI, filtered
   **Classes**: GUI, M
   **Exports**:
     - `M.create(State, Config, settings)`
   **Requires**: ReArkitekt.gui.widgets.region_tiles.coordinator, ReArkitekt.core.colors, Region_Playlist.app.shortcuts, ReArkitekt.features.region_playlist.playlist_controller, ReArkitekt.gui.widgets.transport.transport_container
 
-### header.lua (49 lines)
+### header.lua (41 lines)
   **Modules**: M
   **Exports**:
-    - `M.draw(ctx, dl, x, y, width, height, state, cfg, container_rounding)`
-  **Requires**: ReArkitekt.gui.widgets.tiles_container.modes.tabs, ReArkitekt.gui.widgets.tiles_container.modes.search_sort
+    - `M.draw(ctx, dl, x, y, w, h, state, config, rounding)`
+  **Requires**: ReArkitekt.gui.widgets.tiles_container.modes.search_sort, ReArkitekt.gui.widgets.tiles_container.modes.tabs
 
 ### height_stabilizer.lua (73 lines)
   **Modules**: M, HeightStabilizer
@@ -278,13 +278,13 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   **Exports**:
     - `M.new(opts)`
 
-### init.lua (451 lines)
-  **Modules**: M, Container, old_ids
+### init.lua (537 lines)
+  **Modules**: M, result, Container, old_ids
   **Classes**: Container, M
   **Exports**:
     - `M.new(opts)`
     - `M.draw(ctx, id, width, height, content_fn, config, on_search_changed, on_sort_changed)`
-  **Requires**: ReArkitekt.gui.widgets.tiles_container.header, ReArkitekt.gui.widgets.tiles_container.content, ReArkitekt.gui.widgets.tiles_container.background, ReArkitekt.gui.widgets.tiles_container.tab_animator, ReArkitekt.gui.widgets.tiles_container.modes.tabs
+  **Requires**: ReArkitekt.gui.widgets.tiles_container.header, ReArkitekt.gui.widgets.tiles_container.content, ReArkitekt.gui.widgets.tiles_container.background, ReArkitekt.gui.widgets.tiles_container.tab_animator, ReArkitekt.gui.widgets.controls.scrollbar
 
 ### input.lua (236 lines)
   **Modules**: M, keys_to_adjust, order, order
@@ -328,7 +328,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.draw_auto(ctx, items, opts)`
   **Requires**: ReArkitekt.gui.widgets.chip_list.chip, ReArkitekt.gui.systems.responsive_grid
 
-### manager.lua (144 lines)
+### manager.lua (163 lines)
   **Modules**: M
   **Classes**: M
   **Exports**:
@@ -384,13 +384,15 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   **Exports**:
     - `M.new(state_module, settings, undo_manager)`
 
-### pool.lua (146 lines)
+### pool.lua (235 lines)
   **Modules**: M, k
   **Exports**:
-    - `M.render(ctx, rect, region, state, animator, hover_config, tile_height, border_thickness)`
+    - `M.render(ctx, rect, item, state, animator, hover_config, tile_height, border_thickness)`
+    - `M.render_region(ctx, rect, region, state, animator, hover_config, tile_height, border_thickness)`
+    - `M.render_playlist(ctx, rect, playlist, state, animator, hover_config, tile_height, border_thickness)`
   **Requires**: ReArkitekt.gui.draw, ReArkitekt.core.colors, ReArkitekt.gui.fx.tile_fx, ReArkitekt.gui.fx.tile_fx_config, ReArkitekt.gui.fx.marching_ants
 
-### pool_grid_factory.lua (122 lines)
+### pool_grid_factory.lua (129 lines)
   **Modules**: M, rids, rids
   **Classes**: M
   **Exports**:
@@ -442,11 +444,17 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   **Exports**:
     - `M.new(opts)`
 
-### search_sort.lua (144 lines)
+### scrollbar.lua (238 lines)
+  **Modules**: M, Scrollbar
+  **Classes**: Scrollbar, M
+  **Exports**:
+    - `M.new(opts)`
+
+### search_sort.lua (215 lines)
   **Modules**: M
   **Exports**:
-    - `M.draw(ctx, dl, x, y, width, height, state, cfg)`
-  **Requires**: ReArkitekt.gui.widgets.controls.dropdown
+    - `M.draw(ctx, dl, x, y, width, height, state, cfg, current_mode, on_mode_changed)`
+  **Requires**: ReArkitekt.gui.draw, ReArkitekt.gui.widgets.controls.dropdown
 
 ### selection.lua (141 lines)
   **Modules**: M, Selection, out, out
@@ -517,8 +525,8 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.get_or_create_default_playlist(playlists, regions)`
   **Requires**: ReArkitekt.core.json
 
-### state.lua (305 lines)
-  **Modules**: M, tabs, result, reversed
+### state.lua (368 lines)
+  **Modules**: M, tabs, result, reversed, pool_playlists
   **Exports**:
     - `M.initialize(settings)`
     - `M.load_project_state()`
@@ -705,7 +713,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   **Modules**: t, arr
   **Requires**: ReArkitekt.app.shell, ReArkitekt.gui.widgets.colorblocks, ReArkitekt.gui.draw, ReArkitekt.gui.fx.effects, ReArkitekt.*
 
-### window.lua (568 lines)
+### window.lua (557 lines)
   **Modules**: M, DEFAULTS
   **Classes**: M
   **Exports**:
@@ -897,17 +905,19 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   → ReArkitekt.gui.fx.tile_motion
 
 ### header.lua
-  → ReArkitekt.gui.widgets.tiles_container.modes.tabs
   → ReArkitekt.gui.widgets.tiles_container.modes.search_sort
+  → ReArkitekt.gui.widgets.tiles_container.modes.tabs
 
 ### init.lua
   → ReArkitekt.gui.widgets.tiles_container.header
   → ReArkitekt.gui.widgets.tiles_container.content
   → ReArkitekt.gui.widgets.tiles_container.background
   → ReArkitekt.gui.widgets.tiles_container.tab_animator
+  → ReArkitekt.gui.widgets.controls.scrollbar
   → ReArkitekt.gui.widgets.tiles_container.modes.tabs
 
 ### search_sort.lua
+  → ReArkitekt.gui.draw
   → ReArkitekt.gui.widgets.controls.dropdown
 
 ### tabs.lua

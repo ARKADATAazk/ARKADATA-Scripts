@@ -1,5 +1,5 @@
 -- ReArkitekt/features/region_playlist/coordinator_bridge.lua
--- Unified bridge with loop-aware playlist sync
+-- Unified bridge with loop-aware playlist sync and nested playlist support
 
 local Engine = require("ReArkitekt.features.region_playlist.engine")
 local Playback = require("ReArkitekt.features.region_playlist.playback")
@@ -15,6 +15,7 @@ function M.create(opts)
   local bridge = {
     proj = opts.proj or 0,
     controller = nil,
+    get_playlist_by_id = opts.get_playlist_by_id,
   }
   
   bridge.engine = Engine.new({
@@ -24,6 +25,7 @@ function M.create(opts)
     transport_override = saved_settings.transport_override or false,
     loop_playlist = saved_settings.loop_playlist or false,
     on_repeat_cycle = opts.on_repeat_cycle,
+    playlist_lookup = opts.get_playlist_by_id,
   })
   
   bridge.playback = Playback.new(bridge.engine, {
@@ -37,6 +39,11 @@ function M.create(opts)
     self.controller = controller
   end
   
+  function bridge:set_playlist_lookup(fn)
+    self.get_playlist_by_id = fn
+    self.engine.playlist_lookup = fn
+  end
+  
   function bridge:update()
     self.playback:update()
   end
@@ -44,12 +51,22 @@ function M.create(opts)
   function bridge:sync_from_ui_playlist(playlist_items)
     local order = {}
     for _, item in ipairs(playlist_items) do
-      if item.rid and item.enabled ~= false then
-        order[#order + 1] = {
-          rid = item.rid,
-          key = item.key,
-          reps = item.reps or 1,
-        }
+      if item.enabled ~= false then
+        if item.type == "playlist" then
+          order[#order + 1] = {
+            type = "playlist",
+            playlist_id = item.playlist_id,
+            reps = item.reps or 1,
+            key = item.key,
+          }
+        else
+          order[#order + 1] = {
+            type = "region",
+            rid = item.rid,
+            reps = item.reps or 1,
+            key = item.key,
+          }
+        end
       end
     end
     self.engine:set_order(order)
@@ -122,6 +139,7 @@ function M.create(opts)
       playlist_pointer = engine_state.playlist_pointer,
       playlist_order = engine_state.playlist_order,
       quantize_mode = engine_state.quantize_mode,
+      context_depth = engine_state.context_depth,
     }
   end
   
@@ -131,7 +149,7 @@ function M.create(opts)
     local engine_index = 0
     
     for _, item in ipairs(playlist_items) do
-      if item.rid and item.enabled ~= false then
+      if item.enabled ~= false then
         if item.key == item_key then
           return engine_index + 1
         end

@@ -78,6 +78,27 @@ function M.get_region_tiles_config(layout_mode)
         
         mode = 'search_sort',
         
+        mode_toggle = {
+          enabled = true,
+          width = 100,
+          height = 20,
+          bg_color = 0x252525FF,
+          bg_hover_color = 0x303030FF,
+          bg_active_color = 0x3A3A3AFF,
+          text_color = 0xCCCCCCFF,
+          text_hover_color = 0xFFFFFFFF,
+          border_color = 0x353535FF,
+          border_hover_color = 0x454545FF,
+          rounding = 4,
+          padding_x = 10,
+          padding_y = 6,
+          
+          options = {
+            { value = "regions", label = "Regions", icon = "🎵" },
+            { value = "playlists", label = "Playlists", icon = "📁" },
+          },
+        },
+        
         tabs = {
           enabled = true,
           plus_button = {

@@ -51,18 +51,22 @@ function Controller:_generate_playlist_id()
   return tostring(max_id + 1)
 end
 
-function Controller:_generate_item_key(rid, suffix)
-  local base = "item_" .. rid .. "_" .. reaper.time_precise()
+function Controller:_generate_item_key(identifier, suffix)
+  local base = "item_" .. tostring(identifier) .. "_" .. reaper.time_precise()
   return suffix and (base .. "_" .. suffix) or base
 end
 
 function Controller:create_playlist(name)
   return self:_with_undo(function()
     local new_id = self:_generate_playlist_id()
+    
+    local RegionState = require("ReArkitekt.features.region_playlist.state")
+    
     local new_playlist = {
       id = new_id,
       name = name or ("Playlist " .. new_id),
       items = {},
+      chip_color = RegionState.generate_chip_color(),
     }
     
     self.state.playlists[#self.state.playlists + 1] = new_playlist
@@ -118,6 +122,7 @@ function Controller:add_item(playlist_id, rid, insert_index)
     end
     
     local new_item = {
+      type = "region",
       rid = rid,
       reps = 1,
       enabled = true,
@@ -125,6 +130,34 @@ function Controller:add_item(playlist_id, rid, insert_index)
     }
     
     table.insert(pl.items, insert_index or (#pl.items + 1), new_item)
+    return new_item.key
+  end)
+end
+
+function Controller:add_playlist_item(target_playlist_id, source_playlist_id, insert_index)
+  return self:_with_undo(function()
+    local target_pl = self:_get_playlist(target_playlist_id)
+    if not target_pl then
+      error("Target playlist not found")
+    end
+    
+    local source_pl = self:_get_playlist(source_playlist_id)
+    if not source_pl then
+      error("Source playlist not found")
+    end
+    
+    local new_item = {
+      type = "playlist",
+      playlist_id = source_playlist_id,
+      playlist_name = source_pl.name,
+      playlist_item_count = #source_pl.items,
+      reps = 1,
+      enabled = true,
+      key = self:_generate_item_key("playlist_" .. source_playlist_id),
+      chip_color = source_pl.chip_color,
+    }
+    
+    table.insert(target_pl.items, insert_index or (#target_pl.items + 1), new_item)
     return new_item.key
   end)
 end
@@ -141,6 +174,7 @@ function Controller:add_items_batch(playlist_id, rids, insert_index)
     
     for i, rid in ipairs(rids) do
       local new_item = {
+        type = "region",
         rid = rid,
         reps = 1,
         enabled = true,
@@ -166,10 +200,15 @@ function Controller:copy_items(playlist_id, items, insert_index)
     
     for i, item in ipairs(items) do
       local new_item = {
+        type = item.type or "region",
         rid = item.rid,
+        playlist_id = item.playlist_id,
+        playlist_name = item.playlist_name,
+        playlist_item_count = item.playlist_item_count,
         reps = item.reps or 1,
         enabled = item.enabled ~= false,
-        key = self:_generate_item_key(item.rid, i),
+        key = self:_generate_item_key(item.rid or ("playlist_" .. (item.playlist_id or "unknown")), i),
+        chip_color = item.chip_color,
       }
       table.insert(pl.items, idx + i - 1, new_item)
       keys[#keys + 1] = new_item.key

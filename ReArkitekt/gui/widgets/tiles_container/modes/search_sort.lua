@@ -1,12 +1,77 @@
 -- ReArkitekt/gui/widgets/tiles_container/modes/search_sort.lua
--- Search + sort mode rendering
+-- Search + sort mode rendering with pool mode toggle
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
 
+local Draw = require('ReArkitekt.gui.draw')
 local Dropdown = require('ReArkitekt.gui.widgets.controls.dropdown')
 
 local M = {}
+
+local function draw_mode_toggle(ctx, dl, x, y, width, height, cfg, current_mode, on_mode_changed)
+  if not cfg.mode_toggle or not cfg.mode_toggle.enabled then
+    return x
+  end
+  
+  local toggle_cfg = cfg.mode_toggle
+  
+  local current_option = nil
+  for _, opt in ipairs(toggle_cfg.options) do
+    if opt.value == current_mode then
+      current_option = opt
+      break
+    end
+  end
+  
+  if not current_option then
+    current_option = toggle_cfg.options[1]
+  end
+  
+  local btn_w = toggle_cfg.width
+  local btn_h = height
+  
+  local mx, my = ImGui.GetMousePos(ctx)
+  local is_hovered = mx >= x and mx < x + btn_w and my >= y and my < y + btn_h
+  
+  local bg_color = is_hovered and toggle_cfg.bg_hover_color or toggle_cfg.bg_color
+  local border_color = is_hovered and toggle_cfg.border_hover_color or toggle_cfg.border_color
+  local text_color = is_hovered and toggle_cfg.text_hover_color or toggle_cfg.text_color
+  
+  ImGui.DrawList_AddRectFilled(dl, x, y, x + btn_w, y + btn_h, bg_color, toggle_cfg.rounding)
+  ImGui.DrawList_AddRect(dl, x + 0.5, y + 0.5, x + btn_w - 0.5, y + btn_h - 0.5, 
+                         border_color, toggle_cfg.rounding, 0, 1)
+  
+  local label = (current_option.icon or "") .. " " .. current_option.label
+  local text_w = ImGui.CalcTextSize(ctx, label)
+  local text_x = x + (btn_w - text_w) * 0.5
+  local text_y = y + (btn_h - ImGui.GetTextLineHeight(ctx)) * 0.5
+  
+  Draw.text(dl, text_x, text_y, text_color, label)
+  
+  ImGui.SetCursorScreenPos(ctx, x, y)
+  ImGui.InvisibleButton(ctx, "##mode_toggle", btn_w, btn_h)
+  
+  if ImGui.IsItemClicked(ctx, 0) then
+    local next_index = 1
+    for i, opt in ipairs(toggle_cfg.options) do
+      if opt.value == current_mode then
+        next_index = (i % #toggle_cfg.options) + 1
+        break
+      end
+    end
+    
+    if on_mode_changed then
+      on_mode_changed(toggle_cfg.options[next_index].value)
+    end
+  end
+  
+  if ImGui.IsItemHovered(ctx) then
+    ImGui.SetTooltip(ctx, "Toggle between Regions and Playlists")
+  end
+  
+  return x + btn_w + cfg.spacing
+end
 
 local function draw_search_bar(ctx, dl, x, y, width, height, state, cfg)
   local search_cfg = cfg.search
@@ -118,10 +183,16 @@ local function draw_sort_dropdown(ctx, x, y, element_height, state, cfg)
   return x + dropdown_cfg.width
 end
 
-function M.draw(ctx, dl, x, y, width, height, state, cfg)
+function M.draw(ctx, dl, x, y, width, height, state, cfg, current_mode, on_mode_changed)
   local element_height = cfg.element_height or 20
   local cursor_x = x + cfg.padding_x
   local cursor_y = y + (height - element_height) * 0.5
+  
+  if cfg.mode_toggle and cfg.mode_toggle.enabled then
+    cursor_x = draw_mode_toggle(ctx, dl, cursor_x, cursor_y, width, element_height, 
+                                 cfg, current_mode or "regions", on_mode_changed)
+    cursor_x = cursor_x + cfg.spacing
+  end
   
   if cfg.search and cfg.search.enabled then
     local search_width = math.max(

@@ -98,7 +98,14 @@ function M.create(rt, config)
     min_col_w = function() return PoolTile.CONFIG.tile_width end,
     fixed_tile_h = base_tile_height,
     get_items = function() return {} end,
-    key = function(region) return "pool_" .. tostring(region.rid) end,
+    
+    key = function(item)
+      if item.id and item.items then
+        return "pool_playlist_" .. tostring(item.id)
+      else
+        return "pool_" .. tostring(item.rid)
+      end
+    end,
     
     external_drag_check = create_external_drag_check(rt),
     is_copy_mode_check = create_copy_mode_check(rt),

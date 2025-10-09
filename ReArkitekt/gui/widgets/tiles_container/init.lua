@@ -1,5 +1,5 @@
 -- ReArkitekt/gui/widgets/tiles_container/init.lua
--- Main container API with tab animation support
+-- Main container API with tab animation and mode toggle support
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
@@ -80,6 +80,27 @@ local DEFAULTS = {
     padding_x = 12,
     spacing = 8,
     mode = 'search_sort',
+    
+    mode_toggle = {
+      enabled = false,
+      width = 100,
+      height = 20,
+      bg_color = 0x252525FF,
+      bg_hover_color = 0x303030FF,
+      bg_active_color = 0x3A3A3AFF,
+      text_color = 0xCCCCCCFF,
+      text_hover_color = 0xFFFFFFFF,
+      border_color = 0x353535FF,
+      border_hover_color = 0x454545FF,
+      rounding = 4,
+      padding_x = 10,
+      padding_y = 6,
+      
+      options = {
+        { value = "regions", label = "Regions", icon = "🎵" },
+        { value = "playlists", label = "Playlists", icon = "📁" },
+      },
+    },
     
     tabs = {
       enabled = true,
@@ -187,6 +208,8 @@ function M.new(opts)
     sort_direction = "asc",
     sort_dropdown = nil,
     
+    current_mode = opts.current_mode or "regions",
+    
     tabs = {},
     active_tab_id = opts.active_tab_id,
     temp_search_mode = false,
@@ -201,6 +224,7 @@ function M.new(opts)
     on_search_changed = opts.on_search_changed,
     on_sort_changed = opts.on_sort_changed,
     on_sort_direction_changed = opts.on_sort_direction_changed,
+    on_mode_changed = opts.on_mode_changed,
     on_tab_create = opts.on_tab_create,
     on_tab_change = opts.on_tab_change,
     on_tab_delete = opts.on_tab_delete,
@@ -229,18 +253,15 @@ function M.new(opts)
     })
   end
   
-  -- Create custom scrollbar if enabled
   if container.config.scroll.custom_scrollbar then
     container.scrollbar = Scrollbar.new({
       id = container.id .. "_scrollbar",
       config = container.config.scroll.scrollbar_config,
       on_scroll = function(scroll_pos)
-        -- Scroll position is handled in end_draw
       end,
     })
   end
   
-  -- Auto-assign random colors to initial tabs
   if opts.tabs then
     local TabsMode = require('ReArkitekt.gui.widgets.tiles_container.modes.tabs')
     for _, tab in ipairs(opts.tabs) do
@@ -271,7 +292,6 @@ function Container:get_effective_child_width(ctx, base_width)
 end
 
 function Container:begin_draw(ctx)
-  -- Auto-update animations
   local dt = ImGui.GetDeltaTime(ctx)
   self:update(dt)
   
@@ -302,7 +322,6 @@ function Container:begin_draw(ctx)
   
   Background.draw(dl, x1, content_y1, x2, y2, self.config.background_pattern)
   
-  -- Only draw border if border_thickness > 0
   if self.config.border_thickness > 0 then
     ImGui.DrawList_AddRect(
       dl,
@@ -315,16 +334,13 @@ function Container:begin_draw(ctx)
     )
   end
   
-  -- Position child window based on actual border thickness
   local border_inset = self.config.border_thickness
   local child_x = x1 + border_inset
   local child_y = content_y1 + border_inset
   
-  -- Store for scrollbar drawing
   self.child_x = child_x
   self.child_y = child_y
   
-  -- Account for scrollbar width if custom scrollbar is enabled
   local scrollbar_width = 0
   if self.scrollbar then
     scrollbar_width = self.config.scroll.scrollbar_config.width
@@ -332,7 +348,6 @@ function Container:begin_draw(ctx)
   
   ImGui.SetCursorScreenPos(ctx, child_x, child_y)
   
-  -- Child window size accounts for borders on both sides and scrollbar
   local child_w = w - (border_inset * 2) - scrollbar_width
   local child_h = (h - header_height) - (border_inset * 2)
   
@@ -340,10 +355,8 @@ function Container:begin_draw(ctx)
   self.child_height = child_h
   self.actual_child_height = child_h
   
-  -- Begin child
   local success = Content.begin_child(ctx, self.id, child_w, child_h, self.config.scroll)
   
-  -- Apply content padding inside the child window (independent of border)
   if success and self.config.padding > 0 then
     ImGui.SetCursorPos(ctx, self.config.padding, self.config.padding)
   end
@@ -352,18 +365,15 @@ function Container:begin_draw(ctx)
 end
 
 function Container:end_draw(ctx)
-  -- Get content and scroll info BEFORE ending child
   local content_height = ImGui.GetCursorPosY(ctx)
   local scroll_y = ImGui.GetScrollY(ctx)
   local scroll_max_y = ImGui.GetScrollMaxY(ctx)
   
-  -- Handle custom scrollbar interaction before ending child
   if self.scrollbar then
     self.scrollbar:set_content_height(content_height)
     self.scrollbar:set_visible_height(self.child_height)
     self.scrollbar:set_scroll_pos(scroll_y)
     
-    -- If scrollbar was dragged, update ImGui scroll position
     if self.scrollbar.is_dragging then
       ImGui.SetScrollY(ctx, self.scrollbar:get_scroll_pos())
     end
@@ -371,7 +381,6 @@ function Container:end_draw(ctx)
   
   Content.end_child(ctx, self)
   
-  -- Draw custom scrollbar on top (after ending child, on parent window)
   if self.scrollbar and self.scrollbar:is_scrollable() then
     local scrollbar_x = self.child_x + self.child_width - self.config.scroll.scrollbar_config.width
     local scrollbar_y = self.child_y
@@ -435,6 +444,14 @@ function Container:set_sort_direction(direction)
   end
 end
 
+function Container:set_current_mode(mode)
+  self.current_mode = mode
+end
+
+function Container:get_current_mode()
+  return self.current_mode
+end
+
 function Container:set_tabs(tabs, active_id)
   local old_ids = {}
   for _, tab in ipairs(self.tabs) do
@@ -443,7 +460,6 @@ function Container:set_tabs(tabs, active_id)
   
   self.tabs = tabs or {}
   
-  -- Auto-assign random colors to tabs if they don't have one
   local TabsMode = require('ReArkitekt.gui.widgets.tiles_container.modes.tabs')
   for _, tab in ipairs(self.tabs) do
     TabsMode.assign_random_color(tab)
@@ -473,7 +489,6 @@ function Container:set_active_tab_id(id)
 end
 
 function Container:add_tab(tab_data)
-  -- Auto-assign random color if not specified
   local TabsMode = require('ReArkitekt.gui.widgets.tiles_container.modes.tabs')
   TabsMode.assign_random_color(tab_data)
   
@@ -518,39 +533,5 @@ function M.draw(ctx, id, width, height, content_fn, config, on_search_changed, o
   
   return container
 end
-
---[[
-  EXAMPLE: Creating a container with tabs (colors auto-assigned randomly)
-  
-  local container = TilesContainer.new({
-    id = "my_container",
-    tabs = {
-      { id = "main", label = "Main" },           -- Will get random color (40% grey, 60% colored)
-      { id = "playlist1", label = "Playlist 1" }, -- Will get random color
-      { id = "playlist2", label = "Playlist 2" }, -- Will get random color
-      { id = "playlist3", label = "Playlist 3" }, -- Will get random color
-    },
-    active_tab_id = "main",
-    config = your_config,
-  })
-  
-  To force a specific color, add it to the tab data:
-  { id = "playlist1", label = "Playlist 1", color = 0x42E896FF }  -- Green
-  
-  To force grey (no color):
-  { id = "main", label = "Main", color = nil }
-  
-  Available palette colors:
-  0x42E896FF -- Green
-  0xE84C3DFF -- Red
-  0x3D9EE8FF -- Blue
-  0xE89C42FF -- Orange
-  0xA742E8FF -- Purple
-  0xE842A7FF -- Pink
-  0x42E8D4FF -- Cyan
-  0xE8D442FF -- Yellow
-  0x8E42E8FF -- Violet
-  0xE86542FF -- Coral
-]]
 
 return M

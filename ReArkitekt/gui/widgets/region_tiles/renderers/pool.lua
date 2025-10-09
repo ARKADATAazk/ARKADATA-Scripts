@@ -37,7 +37,15 @@ M.CONFIG = {
   },
 }
 
-function M.render(ctx, rect, region, state, animator, hover_config, tile_height, border_thickness)
+function M.render(ctx, rect, item, state, animator, hover_config, tile_height, border_thickness)
+  if item.id and item.items then
+    return M.render_playlist(ctx, rect, item, state, animator, hover_config, tile_height, border_thickness)
+  else
+    return M.render_region(ctx, rect, item, state, animator, hover_config, tile_height, border_thickness)
+  end
+end
+
+function M.render_region(ctx, rect, region, state, animator, hover_config, tile_height, border_thickness)
   local dl = ImGui.GetWindowDrawList(ctx)
   local x1, y1, x2, y2 = rect[1], rect[2], rect[3], rect[4]
   
@@ -140,6 +148,87 @@ function M.render(ctx, rect, region, state, animator, hover_config, tile_height,
       fx_config.duration_alpha)
     
     Draw.text(dl, length_text_x, length_text_y, length_color, length_str)
+  end
+end
+
+function M.render_playlist(ctx, rect, playlist, state, animator, hover_config, tile_height, border_thickness)
+  local dl = ImGui.GetWindowDrawList(ctx)
+  local x1, y1, x2, y2 = rect[1], rect[2], rect[3], rect[4]
+  
+  local actual_height = tile_height or (y2 - y1)
+  local key = "pool_playlist_" .. tostring(playlist.id)
+  
+  local animation_speed = hover_config and hover_config.animation_speed_hover or 12.0
+  animator:track(key, 'hover', state.hover and 1.0 or 0.0, animation_speed)
+  local hover_factor = animator:get(key, 'hover')
+  
+  local base_color = 0x3A3A3AFF
+  
+  local fx_config = TileFXConfig.get()
+  TileFX.render_complete(dl, x1, y1, x2, y2, base_color, fx_config, state.selected, hover_factor)
+  
+  if state.selected and fx_config.ants_enabled then
+    local ants_color = Colors.same_hue_variant(playlist.chip_color or base_color, 
+      fx_config.border_saturation, 
+      fx_config.border_brightness, 
+      fx_config.ants_alpha or 0xFF)
+    
+    local inset = fx_config.ants_inset or 0.5
+    MarchingAnts.draw(dl, x1 + inset, y1 + inset, x2 - inset, y2 - inset, ants_color, 
+      fx_config.ants_thickness,
+      M.CONFIG.rounding,
+      fx_config.ants_dash,
+      fx_config.ants_gap,
+      fx_config.ants_speed)
+  end
+  
+  local show_text = actual_height >= M.CONFIG.responsive.hide_text_below
+  local height_factor = math.min(1.0, math.max(0.0, (actual_height - 20) / (72 - 20)))
+  
+  if show_text then
+    local chip_x = x1 + 8
+    local chip_y = y1 + (actual_height - 10) * 0.5
+    local chip_radius = 5
+    
+    local chip_color = playlist.chip_color or 0xFF5733FF
+    if state.hover or state.selected then
+      chip_color = Colors.adjust_brightness(chip_color, 1.3)
+    end
+    
+    ImGui.DrawList_AddCircleFilled(dl, chip_x, chip_y, chip_radius + 1, Colors.with_alpha(0x000000FF, 80))
+    ImGui.DrawList_AddCircleFilled(dl, chip_x, chip_y, chip_radius, chip_color)
+    
+    if state.selected or state.hover then
+      for i = 1, 2 do
+        local glow_alpha = math.floor(100 / (i * 1.5))
+        local glow_radius = chip_radius + (i * 2)
+        local glow_color = Colors.with_alpha(chip_color, glow_alpha)
+        ImGui.DrawList_AddCircle(dl, chip_x, chip_y, glow_radius, glow_color, 0, 1.5)
+      end
+    end
+    
+    local name_str = playlist.name or "Unnamed Playlist"
+    local name_color = 0xCCCCCCFF
+    if state.hover or state.selected then
+      name_color = 0xFFFFFFFF
+    end
+    
+    local text_x = chip_x + chip_radius + 12
+    local text_y = y1 + (actual_height - ImGui.CalcTextSize(ctx, name_str)) / 2
+    Draw.text(dl, text_x, text_y, name_color, name_str)
+    
+    local item_count = #playlist.items
+    local badge_text = string.format("[%d]", item_count)
+    local badge_w = ImGui.CalcTextSize(ctx, badge_text)
+    local badge_x = x2 - badge_w - 12
+    local badge_y = text_y
+    
+    local badge_color = Colors.with_alpha(0x999999FF, 200)
+    if state.hover or state.selected then
+      badge_color = 0xAAAAAAFF
+    end
+    
+    Draw.text(dl, badge_x, badge_y, badge_color, badge_text)
   end
 end
 

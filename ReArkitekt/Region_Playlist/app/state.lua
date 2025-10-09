@@ -1,5 +1,5 @@
 -- Region_Playlist/app/state.lua
--- Pure data layer with repeat cycle tracking
+-- Pure data layer with repeat cycle tracking and nested playlist support
 
 local CoordinatorBridge = require("ReArkitekt.features.region_playlist.coordinator_bridge")
 local RegionState = require("ReArkitekt.features.region_playlist.state")
@@ -15,6 +15,7 @@ M.state = {
   sort_mode = nil,
   sort_direction = "asc",
   layout_mode = 'horizontal',
+  pool_mode = 'regions',
   region_index = {},
   pool_order = {},
   pending_spawn = {},
@@ -38,9 +39,12 @@ function M.initialize(settings)
     M.state.sort_mode = settings:get('pool_sort')
     M.state.sort_direction = settings:get('pool_sort_direction') or "asc"
     M.state.layout_mode = settings:get('layout_mode') or 'horizontal'
+    M.state.pool_mode = settings:get('pool_mode') or 'regions'
   end
   
   M.load_project_state()
+  
+  M.ensure_playlist_colors()
   
   M.state.bridge = CoordinatorBridge.create({
     proj = 0,
@@ -71,6 +75,7 @@ function M.load_project_state()
         id = "Main",
         name = "Main",
         items = {},
+        chip_color = RegionState.generate_chip_color(),
       }
     }
     RegionState.save_playlists(M.playlists, 0)
@@ -87,6 +92,15 @@ function M.get_active_playlist()
     end
   end
   return M.playlists[1]
+end
+
+function M.get_playlist_by_id(playlist_id)
+  for _, pl in ipairs(M.playlists) do
+    if pl.id == playlist_id then
+      return pl
+    end
+  end
+  return nil
 end
 
 function M.get_tabs()
@@ -128,6 +142,7 @@ function M.persist_ui_prefs()
   M.settings:set('pool_sort', M.state.sort_mode)
   M.settings:set('pool_sort_direction', M.state.sort_direction)
   M.settings:set('layout_mode', M.state.layout_mode)
+  M.settings:set('pool_mode', M.state.pool_mode)
 end
 
 function M.capture_undo_snapshot()
@@ -252,6 +267,107 @@ function M.get_filtered_pool_regions()
   return result
 end
 
+function M.get_playlists_for_pool()
+  local pool_playlists = {}
+  for _, pl in ipairs(M.playlists) do
+    if pl.id ~= M.state.active_playlist then
+      pool_playlists[#pool_playlists + 1] = {
+        id = pl.id,
+        name = pl.name,
+        items = pl.items,
+        chip_color = pl.chip_color or RegionState.generate_chip_color(),
+      }
+    end
+  end
+  return pool_playlists
+end
+
+function M.ensure_playlist_colors()
+  local changed = false
+  for _, pl in ipairs(M.playlists) do
+    if not pl.chip_color then
+      pl.chip_color = RegionState.generate_chip_color()
+      changed = true
+    end
+  end
+  if changed then
+    M.persist()
+  end
+end
+
+function M.detect_circular_reference(target_playlist_id, playlist_id_to_add)
+  if target_playlist_id == playlist_id_to_add then
+    return true, {target_playlist_id}
+  end
+  
+  local visited = {}
+  local path = {}
+  
+  local function dfs(current_id)
+    if visited[current_id] then
+      return false
+    end
+    
+    visited[current_id] = true
+    path[#path + 1] = current_id
+    
+    if current_id == target_playlist_id then
+      return true, path
+    end
+    
+    local pl = M.get_playlist_by_id(current_id)
+    if not pl then
+      table.remove(path)
+      return false
+    end
+    
+    for _, item in ipairs(pl.items) do
+      if item.type == "playlist" and item.playlist_id then
+        local circular, circular_path = dfs(item.playlist_id)
+        if circular then
+          return true, circular_path
+        end
+      end
+    end
+    
+    table.remove(path)
+    return false
+  end
+  
+  local playlist_to_add = M.get_playlist_by_id(playlist_id_to_add)
+  if not playlist_to_add then
+    return false
+  end
+  
+  for _, item in ipairs(playlist_to_add.items) do
+    if item.type == "playlist" and item.playlist_id then
+      local circular, circular_path = dfs(item.playlist_id)
+      if circular then
+        table.insert(circular_path, 1, playlist_id_to_add)
+        return true, circular_path
+      end
+    end
+  end
+  
+  return false
+end
+
+function M.create_playlist_item(playlist_id, reps)
+  local playlist = M.get_playlist_by_id(playlist_id)
+  if not playlist then
+    return nil
+  end
+  
+  return {
+    type = "playlist",
+    playlist_id = playlist_id,
+    reps = reps or 1,
+    enabled = true,
+    key = "playlist_" .. playlist_id .. "_" .. reaper.time_precise(),
+    chip_color = playlist.chip_color,
+  }
+end
+
 function M.cleanup_deleted_regions()
   local removed_any = false
   
@@ -259,7 +375,7 @@ function M.cleanup_deleted_regions()
     local i = 1
     while i <= #pl.items do
       local item = pl.items[i]
-      if not M.state.region_index[item.rid] then
+      if item.type == "region" and not M.state.region_index[item.rid] then
         table.remove(pl.items, i)
         removed_any = true
         M.state.pending_destroy[item.key] = true
