@@ -37,7 +37,16 @@ end
 function M.new()
   local self = setmetatable({}, M)
   self.stack = {}
+  self.titlebar_height = 0
+  self.statusbar_height = 0
+  self.is_docked = false
   return self
+end
+
+function M:set_ui_bounds(titlebar_h, statusbar_h, docked)
+  self.titlebar_height = titlebar_h or 0
+  self.statusbar_height = statusbar_h or 0
+  self.is_docked = docked or false
 end
 
 function M:push(opts)
@@ -90,8 +99,18 @@ function M:render(ctx, dt)
   local parent_x, parent_y = ImGui.GetWindowPos(ctx)
   local parent_w, parent_h = ImGui.GetWindowSize(ctx)
   
-  ImGui.SetNextWindowPos(ctx, parent_x, parent_y)
-  ImGui.SetNextWindowSize(ctx, parent_w, parent_h)
+  -- Adjust for titlebar and status bar when not docked
+  local offset_y = 0
+  local adjusted_h = parent_h
+  
+  if not self.is_docked then
+    offset_y = self.titlebar_height
+    -- Add 4 pixel overlap to account for borders/spacing and ensure no gaps
+    adjusted_h = parent_h - self.titlebar_height - self.statusbar_height + 4
+  end
+  
+  ImGui.SetNextWindowPos(ctx, parent_x, parent_y + offset_y)
+  ImGui.SetNextWindowSize(ctx, parent_w, adjusted_h)
   
   local window_flags = ImGui.WindowFlags_NoTitleBar
                      | ImGui.WindowFlags_NoResize

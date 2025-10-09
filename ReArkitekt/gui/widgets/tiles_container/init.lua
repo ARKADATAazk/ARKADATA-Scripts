@@ -8,8 +8,30 @@ local Header = require('ReArkitekt.gui.widgets.tiles_container.header')
 local Content = require('ReArkitekt.gui.widgets.tiles_container.content')
 local Background = require('ReArkitekt.gui.widgets.tiles_container.background')
 local TabAnimator = require('ReArkitekt.gui.widgets.tiles_container.tab_animator')
+local Scrollbar = require('ReArkitekt.gui.widgets.controls.scrollbar')
 
 local M = {}
+
+local function deep_merge(base, override)
+  if not override then return base end
+  if not base then return override end
+  
+  local result = {}
+  
+  for k, v in pairs(base) do
+    result[k] = v
+  end
+  
+  for k, v in pairs(override) do
+    if type(v) == 'table' and type(result[k]) == 'table' then
+      result[k] = deep_merge(result[k], v)
+    else
+      result[k] = v
+    end
+  end
+  
+  return result
+end
 
 local DEFAULTS = {
   bg_color = 0x1C1C1CFF,
@@ -153,7 +175,7 @@ function M.new(opts)
   
   local container = setmetatable({
     id = opts.id or "tiles_container",
-    config = opts.config or DEFAULTS,
+    config = deep_merge(DEFAULTS, opts.config),
     
     width = opts.width,
     height = opts.height,
@@ -187,8 +209,12 @@ function M.new(opts)
     had_scrollbar_last_frame = false,
     last_content_height = 0,
     scrollbar_size = 0,
-    
+    scrollbar = nil,
     actual_child_height = 0,
+    child_width = 0,
+    child_height = 0,
+    child_x = 0,
+    child_y = 0,
   }, Container)
   
   if container.enable_tab_animations then
@@ -199,6 +225,17 @@ function M.new(opts)
         if container.pending_delete_id == tab_id then
           container.pending_delete_id = nil
         end
+      end,
+    })
+  end
+  
+  -- Create custom scrollbar if enabled
+  if container.config.scroll.custom_scrollbar then
+    container.scrollbar = Scrollbar.new({
+      id = container.id .. "_scrollbar",
+      config = container.config.scroll.scrollbar_config,
+      on_scroll = function(scroll_pos)
+        -- Scroll position is handled in end_draw
       end,
     })
   end
@@ -234,6 +271,10 @@ function Container:get_effective_child_width(ctx, base_width)
 end
 
 function Container:begin_draw(ctx)
+  -- Auto-update animations
+  local dt = ImGui.GetDeltaTime(ctx)
+  self:update(dt)
+  
   local avail_w, avail_h = ImGui.GetContentRegionAvail(ctx)
   local w = self.width or avail_w
   local h = self.height or avail_h
@@ -254,35 +295,89 @@ function Container:begin_draw(ctx)
   local header_height = 0
   
   if header_cfg.enabled then
-    header_height = Header.draw(ctx, dl, x1, y1, w, header_cfg.height, self, self.config)
+    header_height = Header.draw(ctx, dl, x1, y1, w, header_cfg.height, self, self.config, self.config.rounding)
   end
   
   local content_y1 = y1 + header_height
   
   Background.draw(dl, x1, content_y1, x2, y2, self.config.background_pattern)
   
-  ImGui.DrawList_AddRect(
-    dl,
-    x1 + 0.5, y1 + 0.5,
-    x2 - 0.5, y2 - 0.5,
-    self.config.border_color,
-    self.config.rounding,
-    0,
-    self.config.border_thickness
-  )
+  -- Only draw border if border_thickness > 0
+  if self.config.border_thickness > 0 then
+    ImGui.DrawList_AddRect(
+      dl,
+      x1, y1,
+      x2, y2,
+      self.config.border_color,
+      self.config.rounding,
+      0,
+      self.config.border_thickness
+    )
+  end
   
-  ImGui.SetCursorScreenPos(ctx, x1 + self.config.padding, content_y1 + self.config.padding)
+  -- Position child window based on actual border thickness
+  local border_inset = self.config.border_thickness
+  local child_x = x1 + border_inset
+  local child_y = content_y1 + border_inset
   
-  local child_w = w - (self.config.padding * 2)
-  local child_h = (h - header_height) - (self.config.padding * 2)
+  -- Store for scrollbar drawing
+  self.child_x = child_x
+  self.child_y = child_y
   
+  -- Account for scrollbar width if custom scrollbar is enabled
+  local scrollbar_width = 0
+  if self.scrollbar then
+    scrollbar_width = self.config.scroll.scrollbar_config.width
+  end
+  
+  ImGui.SetCursorScreenPos(ctx, child_x, child_y)
+  
+  -- Child window size accounts for borders on both sides and scrollbar
+  local child_w = w - (border_inset * 2) - scrollbar_width
+  local child_h = (h - header_height) - (border_inset * 2)
+  
+  self.child_width = child_w
+  self.child_height = child_h
   self.actual_child_height = child_h
   
-  return Content.begin_child(ctx, self.id, child_w, child_h, self.config.scroll)
+  -- Begin child
+  local success = Content.begin_child(ctx, self.id, child_w, child_h, self.config.scroll)
+  
+  -- Apply content padding inside the child window (independent of border)
+  if success and self.config.padding > 0 then
+    ImGui.SetCursorPos(ctx, self.config.padding, self.config.padding)
+  end
+  
+  return success
 end
 
 function Container:end_draw(ctx)
+  -- Get content and scroll info BEFORE ending child
+  local content_height = ImGui.GetCursorPosY(ctx)
+  local scroll_y = ImGui.GetScrollY(ctx)
+  local scroll_max_y = ImGui.GetScrollMaxY(ctx)
+  
+  -- Handle custom scrollbar interaction before ending child
+  if self.scrollbar then
+    self.scrollbar:set_content_height(content_height)
+    self.scrollbar:set_visible_height(self.child_height)
+    self.scrollbar:set_scroll_pos(scroll_y)
+    
+    -- If scrollbar was dragged, update ImGui scroll position
+    if self.scrollbar.is_dragging then
+      ImGui.SetScrollY(ctx, self.scrollbar:get_scroll_pos())
+    end
+  end
+  
   Content.end_child(ctx, self)
+  
+  -- Draw custom scrollbar on top (after ending child, on parent window)
+  if self.scrollbar and self.scrollbar:is_scrollable() then
+    local scrollbar_x = self.child_x + self.child_width - self.config.scroll.scrollbar_config.width
+    local scrollbar_y = self.child_y
+    
+    self.scrollbar:draw(ctx, scrollbar_x, scrollbar_y, self.child_height)
+  end
 end
 
 function Container:reset()
@@ -301,6 +396,16 @@ function Container:reset()
   
   if self.tab_animator then
     self.tab_animator:clear()
+  end
+  
+  if self.scrollbar then
+    self.scrollbar:set_scroll_pos(0)
+  end
+end
+
+function Container:update(dt)
+  if self.scrollbar then
+    self.scrollbar:update(dt or 0.016)
   end
 end
 

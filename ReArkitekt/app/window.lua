@@ -97,7 +97,6 @@ function M.new(opts)
     
     overlay         = nil,
     
-    -- Profiling state
     profiling       = {
       show_metrics    = false,
       show_custom     = false,
@@ -308,7 +307,6 @@ function M.new(opts)
     end
   end
 
-  -- Profiling functions
   function win:toggle_profiling()
     self.profiling.show_metrics = not self.profiling.show_metrics
     self.profiling.show_custom = self.profiling.show_metrics
@@ -330,7 +328,6 @@ function M.new(opts)
   function win:update_profiling_data()
     local current_time = reaper.time_precise()
     
-    -- Update frame time
     if self.profiling.last_frame_time > 0 then
       local frame_time = (current_time - self.profiling.last_frame_time) * 1000
       table.insert(self.profiling.frame_times, frame_time)
@@ -341,7 +338,6 @@ function M.new(opts)
     self.profiling.last_frame_time = current_time
     self.profiling.total_frames = self.profiling.total_frames + 1
     
-    -- Update memory usage periodically
     if current_time - self.profiling.last_memory_time > 0.5 then
       local mem_usage = collectgarbage("count")
       table.insert(self.profiling.memory_samples, mem_usage)
@@ -362,7 +358,6 @@ function M.new(opts)
       ImGui.Text(ctx, string.format("Total Frames: %d", self.profiling.total_frames))
       ImGui.Separator(ctx)
       
-      -- Frame time statistics
       if #self.profiling.frame_times > 0 then
         local sum, min_ft, max_ft = 0, 999999, 0
         for _, ft in ipairs(self.profiling.frame_times) do
@@ -377,7 +372,6 @@ function M.new(opts)
         ImGui.Text(ctx, string.format("Frame Time: %.2f ms (avg)", avg_ft))
         ImGui.Text(ctx, string.format("  Min: %.2f ms | Max: %.2f ms", min_ft, max_ft))
         
-        -- Frame time graph - FIXED: Convert to reaper.array
         if ImGui.PlotLines and reaper.new_array then
           local values = reaper.new_array(self.profiling.frame_times)
           ImGui.PlotLines(ctx, "##frametime", values, 0, "Frame Time (ms)", 0, max_ft * 1.2, 0, 50)
@@ -386,7 +380,6 @@ function M.new(opts)
       
       ImGui.Separator(ctx)
       
-      -- Memory usage
       if #self.profiling.memory_samples > 0 then
         local current_mem = self.profiling.memory_samples[#self.profiling.memory_samples]
         local min_mem, max_mem = current_mem, current_mem
@@ -398,7 +391,6 @@ function M.new(opts)
         ImGui.Text(ctx, string.format("Memory: %.2f MB", current_mem / 1024))
         ImGui.Text(ctx, string.format("  Min: %.2f MB | Max: %.2f MB", min_mem / 1024, max_mem / 1024))
         
-        -- Memory graph - FIXED: Convert to reaper.array
         if ImGui.PlotLines and reaper.new_array then
           local values = reaper.new_array(self.profiling.memory_samples)
           ImGui.PlotLines(ctx, "##memory", values, 0, "Memory (KB)", min_mem * 0.9, max_mem * 1.1, 0, 50)
@@ -407,7 +399,6 @@ function M.new(opts)
       
       ImGui.Separator(ctx)
       
-      -- Custom timers
       if next(self.profiling.custom_timers) then
         ImGui.Text(ctx, "Custom Timers:")
         for name, time in pairs(self.profiling.custom_timers) do
@@ -419,7 +410,6 @@ function M.new(opts)
       
       ImGui.Separator(ctx)
       
-      -- Garbage collection controls
       if ImGui.Button(ctx, "Collect Garbage") then
         collectgarbage("collect")
       end
@@ -442,7 +432,6 @@ function M.new(opts)
     self._should_close = false
     self._current_ctx = ctx
     
-    -- Update profiling data
     self:update_profiling_data()
     
     self:_apply_geometry(ctx)
@@ -453,7 +442,6 @@ function M.new(opts)
 
     ImGui.PushStyleVar(ctx, ImGui.StyleVar_WindowPadding, 0, 0)
     
-    -- Apply background color based on docking state from previous frame
     local bg_color = self._was_docked and self.bg_color_docked or self.bg_color_floating
     if bg_color then
       ImGui.PushStyleColor(ctx, ImGui.Col_WindowBg, bg_color)
@@ -464,7 +452,6 @@ function M.new(opts)
     self._begun = true
 
     if visible then
-      -- Update docking state for next frame
       if ImGui.IsWindowDocked then
         self._was_docked = ImGui.IsWindowDocked(ctx)
       end
@@ -538,16 +525,19 @@ function M.new(opts)
     end
 
     if self.overlay and self.overlay.render then
+      local titlebar_h = (self._titlebar and not self._was_docked) and self.titlebar_opts.height or 0
+      local statusbar_h = (self.status_bar and not self._was_docked) and self.status_bar.height or 0
+      
+      self.overlay:set_ui_bounds(titlebar_h, statusbar_h, self._was_docked)
+      
       local dt = 1/60
       self.overlay:render(ctx, dt)
     end
     
-    -- Draw ImGui metrics window if enabled
     if self.profiling.show_metrics and ImGui.ShowMetricsWindow then
       ImGui.ShowMetricsWindow(ctx, self.profiling.show_metrics)
     end
     
-    -- Draw custom profiling window
     self:draw_custom_profiling(ctx)
 
     if self._begun then 
@@ -555,7 +545,6 @@ function M.new(opts)
       self._begun = false
     end
     
-    -- Pop background color if we pushed it
     if self._bg_color_pushed then
       ImGui.PopStyleColor(ctx)
       self._bg_color_pushed = false
