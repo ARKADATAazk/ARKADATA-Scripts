@@ -285,6 +285,7 @@ function M.get_filtered_pool_regions()
   local sort_mode = M.state.sort_mode
   local sort_dir = M.state.sort_direction or "asc"
   
+  -- ONLY sort if there's an active sort mode
   if sort_mode == "color" then
     table.sort(result, compare_by_color)
   elseif sort_mode == "index" then
@@ -295,7 +296,8 @@ function M.get_filtered_pool_regions()
     table.sort(result, compare_by_length)
   end
   
-  if sort_dir == "desc" then
+  -- CRITICAL FIX: Only reverse if we have an active sort mode AND direction is desc
+  if sort_mode and sort_mode ~= "" and sort_dir == "desc" then
     local reversed = {}
     for i = #result, 1, -1 do
       reversed[#reversed + 1] = result[i]
@@ -305,6 +307,7 @@ function M.get_filtered_pool_regions()
   
   return result
 end
+
 
 local function compare_playlists_by_alpha(a, b)
   local name_a = (a.name or ""):lower()

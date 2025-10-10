@@ -135,6 +135,8 @@ local function draw_sort_dropdown(ctx, x, y, element_height, state, cfg)
   local dropdown_cfg = cfg.sort_dropdown
   if not dropdown_cfg or not dropdown_cfg.enabled then return x end
   
+  local current_direction = state.sort_direction or "asc"
+  
   if not state.sort_dropdown then
     state.sort_dropdown = Dropdown.new({
       id = "sort_dropdown_" .. state.id,
@@ -142,15 +144,17 @@ local function draw_sort_dropdown(ctx, x, y, element_height, state, cfg)
       tooltip_delay = dropdown_cfg.tooltip_delay,
       options = dropdown_cfg.options,
       current_value = state.sort_mode,
-      sort_direction = state.sort_direction or "asc",
+      sort_direction = current_direction,
       on_change = function(value)
         state.sort_mode = value
+        
         if state.on_sort_changed then
           state.on_sort_changed(value)
         end
       end,
       on_direction_change = function(direction)
         state.sort_direction = direction
+        
         if state.on_sort_direction_changed then
           state.on_sort_direction_changed(direction)
         end
@@ -176,6 +180,11 @@ local function draw_sort_dropdown(ctx, x, y, element_height, state, cfg)
         popup = dropdown_cfg.popup,
       },
     })
+  else
+    local current_dir = state.sort_direction or "asc"
+    if state.sort_dropdown.sort_direction ~= current_dir then
+      state.sort_dropdown:set_direction(current_dir)
+    end
   end
   
   state.sort_dropdown:draw(ctx, x, y)

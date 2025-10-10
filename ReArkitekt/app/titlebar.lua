@@ -80,6 +80,40 @@ function M.new(opts)
     icon_double_click_threshold = 0.3, -- 300ms
   }
   
+  --[[*
+  * Truncates text with an ellipsis if it exceeds the maximum width.
+  * @param ctx table The ImGui context.
+  * @param text string The text to truncate.
+  * @param max_width number The maximum allowed width.
+  * @return string The truncated text.
+  ]]
+  function titlebar:_truncate_text(ctx, text, max_width)
+    if not text then return "" end
+
+    local text_w = ImGui.CalcTextSize(ctx, text)
+    if text_w <= max_width then
+      return text
+    end
+
+    local ellipsis = "..."
+    local ellipsis_w = ImGui.CalcTextSize(ctx, ellipsis)
+
+    if max_width < ellipsis_w then
+      return "" -- Not enough space for even "..."
+    end
+
+    -- Iterate backwards to find the right crop point
+    for i = #text, 1, -1 do
+      local sub = text:sub(1, i)
+      local sub_w = ImGui.CalcTextSize(ctx, sub)
+      if sub_w + ellipsis_w <= max_width then
+        return sub .. ellipsis
+      end
+    end
+
+    return ellipsis
+  end
+
   function titlebar:_draw_icon(ctx, x, y, color)
     if self.icon_draw then
       self.icon_draw(ctx, x, y, self.icon_size, color)
@@ -156,24 +190,20 @@ function M.new(opts)
         ImGui.InvisibleButton(ctx, "##icon_button", self.icon_size, self.icon_size)
         
         local icon_hovered = ImGui.IsItemHovered(ctx)
-        -- FIXED: Use IsItemClicked instead of the complex condition
         local icon_clicked = ImGui.IsItemClicked(ctx, ImGui.MouseButton_Left)
         
-        -- Detect double-click
         if icon_clicked then
           local current_time = reaper.time_precise()
           if current_time - self.icon_last_click_time < self.icon_double_click_threshold then
             icon_double_clicked = true
-            self.icon_last_click_time = 0  -- Reset to prevent triple-click detection
+            self.icon_last_click_time = 0
           else
             self.icon_last_click_time = current_time
           end
         end
         
-        -- Modify icon color on hover
         local draw_color = icon_color
         if icon_hovered then
-          -- Brighten on hover
           local r = (draw_color >> 24) & 0xFF
           local g = (draw_color >> 16) & 0xFF
           local b = (draw_color >> 8) & 0xFF
@@ -186,7 +216,6 @@ function M.new(opts)
         
         self:_draw_icon(ctx, icon_x, icon_y, draw_color)
         
-        -- Show tooltip on hover
         if icon_hovered then
           ImGui.SetTooltip(ctx, "Double-click to toggle profiling")
         end
@@ -195,16 +224,23 @@ function M.new(opts)
         ImGui.SetCursorPos(ctx, self.pad_h + title_x_offset, y_center)
       end
       
+      -- Calculate available width before drawing title
+      local num_buttons = 1 + (self.enable_maximize and 1 or 0)
+      local total_button_width = (self.button_width * num_buttons) + (self.button_spacing * (num_buttons - 1))
+      
+      -- Set font and color for text calculation and drawing
       ImGui.PushStyleColor(ctx, ImGui.Col_Text, text_color)
       if self.title_font then ImGui.PushFont(ctx, self.title_font) end
       
-      ImGui.Text(ctx, self.title)
+      -- NEW: Truncate title text
+      local title_start_x = ImGui.GetCursorPosX(ctx)
+      local available_width = (win_w - total_button_width) - title_start_x - self.pad_h
+      local display_title = self:_truncate_text(ctx, self.title, available_width)
+      
+      ImGui.Text(ctx, display_title)
       
       if self.title_font then ImGui.PopFont(ctx) end
       ImGui.PopStyleColor(ctx)
-      
-      local num_buttons = 1 + (self.enable_maximize and 1 or 0)
-      local total_button_width = (self.button_width * num_buttons) + (self.button_spacing * (num_buttons - 1))
       
       ImGui.SetCursorPos(ctx, win_w - total_button_width, 0)
       
@@ -223,7 +259,6 @@ function M.new(opts)
       ImGui.Separator(ctx)
     end
     
-    -- Handle icon double-click
     if icon_double_clicked and self.on_icon_double_click then
       self.on_icon_double_click()
     end

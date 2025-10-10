@@ -1,25 +1,25 @@
 # FOLDER FLOW: ReArkitekt
-Generated: 2025-10-09 19:01:23
+Generated: 2025-10-10 20:52:51
 Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
 
 ## Overview
-- **Files**: 101
-- **Total Lines**: 20,042
-- **Public Functions**: 297
-- **Classes**: 67
+- **Files**: 107
+- **Total Lines**: 20,994
+- **Public Functions**: 309
+- **Classes**: 77
 
 ## Files
 
 ### ARK_Region_Playlist.lua (51 lines)
   **Requires**: ReArkitekt.app.shell, Region_Playlist.app.config, Region_Playlist.app.state, Region_Playlist.app.gui, Region_Playlist.app.status
 
-### active.lua (382 lines)
-  **Modules**: M, k
+### active.lua (186 lines)
+  **Modules**: M, right_elements, right_elements
   **Exports**:
     - `M.render(ctx, rect, item, state, get_region_by_rid, animator, on_repeat_cycle, hover_config, tile_height, border_thickness, bridge, get_playlist_by_id)`
     - `M.render_region(ctx, rect, item, state, get_region_by_rid, animator, on_repeat_cycle, hover_config, tile_height, border_thickness, bridge)`
     - `M.render_playlist(ctx, rect, item, state, animator, on_repeat_cycle, hover_config, tile_height, border_thickness, get_playlist_by_id)`
-  **Requires**: ReArkitekt.gui.draw, ReArkitekt.core.colors, ReArkitekt.gui.fx.tile_fx, ReArkitekt.gui.fx.tile_fx_config, ReArkitekt.gui.fx.marching_ants
+  **Requires**: ReArkitekt.core.colors, ReArkitekt.gui.draw, ReArkitekt.gui.fx.tile_fx_config, ReArkitekt.gui.widgets.region_tiles.renderers.base, ReArkitekt.gui.systems.playback_manager
 
 ### active_grid_factory.lua (212 lines)
   **Modules**: M, item_map, items_by_key, dragged_items, items_by_key, new_items
@@ -40,12 +40,24 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   **Exports**:
     - `M.draw(dl, x1, y1, x2, y2, pattern_cfg)`
 
-### chip.lua (207 lines)
+### base.lua (186 lines)
   **Modules**: M
   **Exports**:
-    - `M.calculate_min_width(ctx, label, opts)`
-    - `M.draw(ctx, label, color, opts)`
-    - `M.draw_with_dot(ctx, label, color, opts)`
+    - `M.calculate_right_elements_width(ctx, elements)`
+    - `M.create_element(visible, width, margin)`
+    - `M.calculate_text_right_bound(ctx, x2, text_margin, right_elements)`
+    - `M.draw_base_tile(dl, rect, base_color, fx_config, state, hover_factor, playback_progress, playback_fade)`
+    - `M.draw_marching_ants(dl, rect, color, fx_config)`
+    - `M.draw_region_text(ctx, dl, pos, region, base_color, text_alpha, right_bound_x)`
+    - `M.draw_playlist_text(ctx, dl, pos, playlist_data, state, text_alpha, right_bound_x, name_color_override)`
+    - `M.draw_length_display(ctx, dl, rect, region, base_color, text_alpha)`
+  **Requires**: ReArkitekt.gui.draw, ReArkitekt.core.colors, ReArkitekt.gui.fx.tile_fx, ReArkitekt.gui.fx.tile_fx_config, ReArkitekt.gui.fx.marching_ants
+
+### chip.lua (243 lines)
+  **Modules**: M
+  **Exports**:
+    - `M.calculate_width(ctx, label, opts)`
+    - `M.draw(ctx, opts)`
   **Requires**: ReArkitekt.gui.draw, ReArkitekt.core.colors, ReArkitekt.gui.fx.tile_fx, ReArkitekt.gui.fx.tile_fx_config
 
 ### colors.lua (514 lines)
@@ -85,7 +97,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   **Exports**:
     - `M.merge_config(defaults, custom)`
 
-### config.lua (202 lines)
+### config.lua (200 lines)
   **Modules**: M
   **Exports**:
     - `M.get_region_tiles_config(layout_mode)`
@@ -119,12 +131,12 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.create(opts)`
   **Requires**: ReArkitekt.gui.widgets.region_tiles.config, ReArkitekt.gui.widgets.region_tiles.coordinator_render, ReArkitekt.gui.draw, ReArkitekt.core.colors, ReArkitekt.gui.fx.tile_motion
 
-### coordinator_bridge.lua (166 lines)
+### coordinator_bridge.lua (170 lines)
   **Modules**: M, order, regions
   **Classes**: M
   **Exports**:
     - `M.create(opts)`
-  **Requires**: ReArkitekt.features.region_playlist.engine, ReArkitekt.features.region_playlist.playback, ReArkitekt.features.region_playlist.state
+  **Requires**: ReArkitekt.features.region_playlist.engine.engine, ReArkitekt.features.region_playlist.playback, ReArkitekt.features.region_playlist.state
 
 ### coordinator_render.lua (189 lines)
   **Modules**: M, keys_to_adjust
@@ -234,14 +246,21 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.soft_glow(dl, x1, y1, x2, y2, color, intensity, radius)`
     - `M.pulse_glow(dl, x1, y1, x2, y2, color, time, speed, radius)`
 
-### engine.lua (629 lines)
+### engine.lua (167 lines)
+  **Modules**: M, Engine
+  **Classes**: Engine, M
+  **Exports**:
+    - `M.new(opts)`
+  **Requires**: ReArkitekt.features.region_playlist.engine.state, ReArkitekt.features.region_playlist.engine.transport, ReArkitekt.features.region_playlist.engine.transitions, ReArkitekt.features.region_playlist.engine.quantize
+
+### engine.lua (672 lines)
   **Modules**: M, Engine
   **Classes**: Engine, M
   **Exports**:
     - `M.new(opts)`
   **Requires**: ReArkitekt.reaper.regions, ReArkitekt.reaper.transport
 
-### grid.lua (196 lines)
+### grid.lua (226 lines)
   **Modules**: M
   **Classes**: M
   **Exports**:
@@ -254,7 +273,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   **Exports**:
     - `M.new(config)`
 
-### gui.lua (643 lines)
+### gui.lua (771 lines)
   **Modules**: M, GUI, filtered
   **Classes**: GUI, M
   **Exports**:
@@ -294,7 +313,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   **Exports**:
     - `M.new(opts)`
 
-### init.lua (537 lines)
+### init.lua (547 lines)
   **Modules**: M, result, Container, old_ids
   **Classes**: Container, M
   **Exports**:
@@ -334,15 +353,15 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   **Exports**:
     - `M.new()`
 
-### list.lua (433 lines)
-  **Modules**: M, filtered_items, min_widths, filtered_items, filtered_items, min_widths
+### list.lua (302 lines)
+  **Modules**: M, filtered, min_widths, min_widths
   **Exports**:
     - `M.draw(ctx, items, opts)`
     - `M.draw_vertical(ctx, items, opts)`
     - `M.draw_columns(ctx, items, opts)`
     - `M.draw_grid(ctx, items, opts)`
     - `M.draw_auto(ctx, items, opts)`
-  **Requires**: ReArkitekt.gui.widgets.chip_list.chip, ReArkitekt.gui.systems.responsive_grid
+  **Requires**: ReArkitekt.gui.widgets.component.chip, ReArkitekt.gui.systems.responsive_grid
 
 ### manager.lua (163 lines)
   **Modules**: M
@@ -401,13 +420,13 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.new(state_module, settings, undo_manager)`
   **Requires**: ReArkitekt.features.region_playlist.state
 
-### pool.lua (313 lines)
-  **Modules**: M, k
+### pool.lua (147 lines)
+  **Modules**: M, right_elements, right_elements
   **Exports**:
     - `M.render(ctx, rect, item, state, animator, hover_config, tile_height, border_thickness)`
     - `M.render_region(ctx, rect, region, state, animator, hover_config, tile_height, border_thickness)`
     - `M.render_playlist(ctx, rect, playlist, state, animator, hover_config, tile_height, border_thickness)`
-  **Requires**: ReArkitekt.gui.draw, ReArkitekt.core.colors, ReArkitekt.gui.fx.tile_fx, ReArkitekt.gui.fx.tile_fx_config, ReArkitekt.gui.fx.marching_ants
+  **Requires**: ReArkitekt.core.colors, ReArkitekt.gui.draw, ReArkitekt.gui.fx.tile_fx_config, ReArkitekt.gui.systems.tile_utilities, ReArkitekt.gui.widgets.region_tiles.renderers.base
 
 ### pool_grid_factory.lua (185 lines)
   **Modules**: M, items_by_key, filtered_keys, rids, rids, items_by_key
@@ -415,6 +434,12 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   **Exports**:
     - `M.create(rt, config)`
   **Requires**: ReArkitekt.gui.widgets.grid.core, ReArkitekt.gui.widgets.region_tiles.renderers.pool
+
+### quantize.lua (336 lines)
+  **Modules**: M, Quantize
+  **Classes**: Quantize, M
+  **Exports**:
+    - `M.new(opts)`
 
 ### rect_track.lua (135 lines)
   **Modules**: M, RectTrack
@@ -430,7 +455,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.get_region_by_rid(proj, target_rid)`
     - `M.go_to_region(proj, target_rid)`
 
-### renderer.lua (232 lines)
+### renderer.lua (233 lines)
   **Modules**: M
   **Requires**: ReArkitekt.gui.draw, ReArkitekt.gui.fx.marching_ants, ReArkitekt.core.colors
 
@@ -467,7 +492,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   **Exports**:
     - `M.new(opts)`
 
-### search_sort.lua (215 lines)
+### search_sort.lua (251 lines)
   **Modules**: M
   **Exports**:
     - `M.draw(ctx, dl, x, y, width, height, state, cfg, current_mode, on_mode_changed)`
@@ -511,10 +536,11 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.run(opts)`
   **Requires**: ReArkitekt.app.runtime, ReArkitekt.app.window
 
-### shortcuts.lua (68 lines)
+### shortcuts.lua (82 lines)
   **Modules**: M
   **Exports**:
-    - `M.handle_shortcuts(ctx, bridge)`
+    - `M.handle_keyboard_shortcuts(ctx, state, region_tiles)`
+  **Requires**: Region_Playlist.app.state
 
 ### shortcuts.lua (82 lines)
   **Modules**: M
@@ -529,7 +555,14 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.new(config)`
   **Requires**: ReArkitekt.gui.fx.easing
 
-### state.lua (172 lines)
+### state.lua (147 lines)
+  **Modules**: M, State
+  **Classes**: State, M
+  **Exports**:
+    - `M.new(opts)`
+  **Requires**: ReArkitekt.reaper.regions, ReArkitekt.reaper.transport
+
+### state.lua (151 lines)
   **Modules**: M, default_items
   **Exports**:
     - `M.save_playlists(playlists, proj)`
@@ -541,9 +574,9 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.clear_all(proj)`
     - `M.get_or_create_default_playlist(playlists, regions)`
     - `M.generate_chip_color()`
-  **Requires**: ReArkitekt.core.json
+  **Requires**: ReArkitekt.core.json, ReArkitekt.core.colors
 
-### state.lua (592 lines)
+### state.lua (593 lines)
   **Modules**: M, tabs, result, reversed, all_deps, visited, pool_playlists, filtered, reversed, new_path, path_array
   **Exports**:
     - `M.initialize(settings)`
@@ -592,12 +625,12 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.new(opts)`
   **Requires**: ReArkitekt.gui.fx.easing
 
-### tabs.lua (597 lines)
+### tabs.lua (478 lines)
   **Modules**: M, positions
   **Exports**:
-    - `M.assign_random_color(tab_data)`
+    - `M.assign_random_color(tab)`
     - `M.draw(ctx, dl, x, y, width, height, state, cfg)`
-  **Requires**: ReArkitekt.gui.widgets.controls.context_menu, ReArkitekt.gui.fx.easing
+  **Requires**: ReArkitekt.gui.widgets.controls.context_menu, ReArkitekt.gui.widgets.component.chip
 
 ### temp_search.lua (1 lines)
 
@@ -673,6 +706,18 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   **Exports**:
     - `M.new(initial_value, speed)`
   **Requires**: ReArkitekt.core.math
+
+### transitions.lua (210 lines)
+  **Modules**: M, Transitions
+  **Classes**: Transitions, M
+  **Exports**:
+    - `M.new(opts)`
+
+### transport.lua (238 lines)
+  **Modules**: M, Transport
+  **Classes**: Transport, M
+  **Exports**:
+    - `M.new(opts)`
 
 ### transport.lua (96 lines)
   **Modules**: M
@@ -768,9 +813,19 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   → ReArkitekt.gui.widgets.overlay.config
 
 ### coordinator_bridge.lua
-  → ReArkitekt.features.region_playlist.engine
+  → ReArkitekt.features.region_playlist.engine.engine
   → ReArkitekt.features.region_playlist.playback
   → ReArkitekt.features.region_playlist.state
+
+### engine.lua
+  → ReArkitekt.features.region_playlist.engine.state
+  → ReArkitekt.features.region_playlist.engine.transport
+  → ReArkitekt.features.region_playlist.engine.transitions
+  → ReArkitekt.features.region_playlist.engine.quantize
+
+### state.lua
+  → ReArkitekt.reaper.regions
+  → ReArkitekt.reaper.transport
 
 ### engine.lua
   → ReArkitekt.reaper.regions
@@ -782,8 +837,12 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
 ### playlist_controller.lua
   → ReArkitekt.features.region_playlist.state
 
+### shortcuts.lua
+  → Region_Playlist.app.state
+
 ### state.lua
   → ReArkitekt.core.json
+  → ReArkitekt.core.colors
 
 ### rect_track.lua
   → ReArkitekt.core.math
@@ -811,15 +870,15 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
 ### tile_motion.lua
   → ReArkitekt.gui.fx.animation.track
 
+### list.lua
+  → ReArkitekt.gui.widgets.component.chip
+  → ReArkitekt.gui.systems.responsive_grid
+
 ### chip.lua
   → ReArkitekt.gui.draw
   → ReArkitekt.core.colors
   → ReArkitekt.gui.fx.tile_fx
   → ReArkitekt.gui.fx.tile_fx_config
-
-### list.lua
-  → ReArkitekt.gui.widgets.chip_list.chip
-  → ReArkitekt.gui.systems.responsive_grid
 
 ### dropdown.lua
   → ReArkitekt.gui.widgets.controls.tooltip
@@ -875,6 +934,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   → ReArkitekt.gui.fx.tile_motion
   → ReArkitekt.gui.widgets.package_tiles.renderer
   → ReArkitekt.gui.widgets.package_tiles.micromanage
+  → ReArkitekt.gui.systems.height_stabilizer
 
 ### renderer.lua
   → ReArkitekt.gui.draw
@@ -908,21 +968,27 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   → ReArkitekt.gui.widgets.region_tiles.renderers.pool
 
 ### active.lua
-  → ReArkitekt.gui.draw
   → ReArkitekt.core.colors
-  → ReArkitekt.gui.fx.tile_fx
+  → ReArkitekt.gui.draw
   → ReArkitekt.gui.fx.tile_fx_config
-  → ReArkitekt.gui.fx.marching_ants
-  → ReArkitekt.gui.systems.tile_utilities
+  → ReArkitekt.gui.widgets.region_tiles.renderers.base
   → ReArkitekt.gui.systems.playback_manager
 
-### pool.lua
+### base.lua
   → ReArkitekt.gui.draw
   → ReArkitekt.core.colors
   → ReArkitekt.gui.fx.tile_fx
   → ReArkitekt.gui.fx.tile_fx_config
   → ReArkitekt.gui.fx.marching_ants
   → ReArkitekt.gui.systems.tile_utilities
+  → ReArkitekt.gui.widgets.component.chip
+
+### pool.lua
+  → ReArkitekt.core.colors
+  → ReArkitekt.gui.draw
+  → ReArkitekt.gui.fx.tile_fx_config
+  → ReArkitekt.gui.systems.tile_utilities
+  → ReArkitekt.gui.widgets.region_tiles.renderers.base
 
 ### selector.lua
   → ReArkitekt.gui.draw
@@ -947,7 +1013,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
 
 ### tabs.lua
   → ReArkitekt.gui.widgets.controls.context_menu
-  → ReArkitekt.gui.fx.easing
+  → ReArkitekt.gui.widgets.component.chip
 
 ### tab_animator.lua
   → ReArkitekt.gui.fx.easing

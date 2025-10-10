@@ -257,15 +257,70 @@ function GUI:draw_transport_section(ctx)
   
   ImGui.Dummy(ctx, 1, 10)
   
-  ImGui.Text(ctx, "Jump Lookahead (ms):")
+  -- Quantize mode selection
+  local engine = self.State.state.bridge.engine
+  if engine and engine.quantize then
+    local current_mode = engine.quantize:get_quantize_mode()
+    
+    -- Grid options: measure, 1 bar, 1/2, 1/4, 1/8, 1/16, 1/32, 1/64
+    local grid_options = {
+      { label = "Measure", value = "measure" },
+      { label = "1 Bar (4/4)", value = "4.0" },
+      { label = "1/2 Note", value = "2.0" },
+      { label = "1/4 Note", value = "1.0" },
+      { label = "1/8 Note", value = "0.5" },
+      { label = "1/16 Note", value = "0.25" },
+      { label = "1/32 Note", value = "0.125" },
+      { label = "1/64 Note", value = "0.0625" },
+    }
+    
+    -- Find current selection index
+    local current_idx = 1
+    for i, opt in ipairs(grid_options) do
+      if opt.value == current_mode then
+        current_idx = i
+        break
+      end
+    end
+    
+    ImGui.Text(ctx, "Jump Mode:")
+    ImGui.SameLine(ctx, 0, 8)
+    ImGui.SetNextItemWidth(ctx, 140)
+    
+    if ImGui.BeginCombo(ctx, "##quantize_mode", grid_options[current_idx].label) then
+      for i, opt in ipairs(grid_options) do
+        local is_selected = (i == current_idx)
+        if ImGui.Selectable(ctx, opt.label, is_selected) then
+          engine.quantize:set_quantize_mode(opt.value)
+        end
+        if is_selected then
+          ImGui.SetItemDefaultFocus(ctx)
+        end
+      end
+      ImGui.EndCombo(ctx)
+    end
+    
+    ImGui.SameLine(ctx, 0, 12)
+  end
+  
+  -- Lookahead slider with proper range from quantize module
+  local min_lookahead = 10  -- 10ms
+  local max_lookahead = 200 -- 200ms
+  
+  if engine and engine.quantize then
+    min_lookahead = engine.quantize.min_lookahead * 1000
+    max_lookahead = engine.quantize.max_lookahead * 1000
+  end
+  
+  ImGui.Text(ctx, "Lookahead (ms):")
   ImGui.SameLine(ctx, 0, 8)
   ImGui.SetNextItemWidth(ctx, 120)
   local changed, new_val = ImGui.SliderDouble(
     ctx, 
     "##lookahead", 
     self.quantize_lookahead * 1000, 
-    self.Config.QUANTIZE.min_lookahead * 1000, 
-    self.Config.QUANTIZE.max_lookahead * 1000,
+    min_lookahead,
+    max_lookahead,
     "%.0f"
   )
   if changed then
@@ -281,7 +336,36 @@ function GUI:draw_transport_section(ctx)
     ImGui.BeginDisabled(ctx)
   end
   
-  if ImGui.Button(ctx, "Jump on Next Measure") then
+  -- Dynamic button label based on mode
+  local button_label = "Jump to Next"
+  if engine and engine.quantize then
+    local mode = engine.quantize:get_quantize_mode()
+    if mode == "measure" then
+      button_label = "Jump on Next Measure"
+    else
+      local grid_val = tonumber(mode)
+      if grid_val == 4.0 then
+        button_label = "Jump on Next Bar"
+      elseif grid_val == 2.0 then
+        button_label = "Jump on Next 1/2"
+      elseif grid_val == 1.0 then
+        button_label = "Jump on Next 1/4"
+      elseif grid_val == 0.5 then
+        button_label = "Jump on Next 1/8"
+      elseif grid_val == 0.25 then
+        button_label = "Jump on Next 1/16"
+      elseif grid_val == 0.125 then
+        button_label = "Jump on Next 1/32"
+      elseif grid_val == 0.0625 then
+        button_label = "Jump on Next 1/64"
+      else
+        button_label = "Jump on Next Grid"
+      end
+    end
+  end
+  
+  -- 🎯 HERE'S YOUR BUTTON! 🎯
+  if ImGui.Button(ctx, button_label) then
     self.State.state.bridge:jump_to_next_quantized(self.quantize_lookahead)
   end
   
@@ -293,7 +377,7 @@ function GUI:draw_transport_section(ctx)
     if is_disabled then
       ImGui.SetTooltip(ctx, "Start playback to enable")
     else
-      ImGui.SetTooltip(ctx, "Jump to next measure boundary")
+      ImGui.SetTooltip(ctx, "Jump to next quantize point")
     end
   end
   

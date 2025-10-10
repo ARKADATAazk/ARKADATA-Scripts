@@ -1,5 +1,5 @@
 -- ReArkitekt/features/region_playlist/engine/transitions.lua
--- Smooth transition logic between regions
+-- Smooth transition logic between regions - FIXED to delay GoToRegion
 
 local M = {}
 local Transitions = {}
@@ -33,15 +33,25 @@ function Transitions:handle_smooth_transitions()
   
   local playpos = _get_play_pos(self.proj)
   
-  -- Branch 1: In next_bounds region
+  reaper.ShowConsoleMsg(string.format("[TRANS] playpos=%.3f curr_idx=%d next_idx=%d curr_bounds=[%.3f-%.3f] next_bounds=[%.3f-%.3f]\n",
+    playpos, self.state.current_idx, self.state.next_idx,
+    self.state.current_bounds.start_pos, self.state.current_bounds.end_pos,
+    self.state.next_bounds.start_pos, self.state.next_bounds.end_pos))
+  
+  -- Branch 1: In next_bounds region - EXECUTE THE TRANSITION
   if self.state.next_idx >= 1 and 
      playpos >= self.state.next_bounds.start_pos and 
      playpos < self.state.next_bounds.end_pos + self.state.boundary_epsilon then
+    
+    reaper.ShowConsoleMsg("[TRANS] Branch 1: In next_bounds\n")
     
     local entering_different_region = (self.state.current_idx ~= self.state.next_idx)
     local playhead_went_backward = (playpos < self.state.last_play_pos - 0.1)
     
     if entering_different_region or playhead_went_backward then
+      reaper.ShowConsoleMsg(string.format("[TRANS] TRANSITION FIRING: %d -> %d\n", 
+        self.state.current_idx, self.state.next_idx))
+      
       self.state.current_idx = self.state.next_idx
       self.state.playlist_pointer = self.state.current_idx
       local rid = self.state.playlist_order[self.state.current_idx]
@@ -67,7 +77,8 @@ function Transitions:handle_smooth_transitions()
         if region then
           self.state.next_bounds.start_pos = region.start
           self.state.next_bounds.end_pos = region["end"]
-          self.transport:_seek_to_region(region.rid)
+          -- Queue GoToRegion only when transition is imminent
+          self:_queue_next_region_if_near_end(playpos)
         end
       else
         -- Advance to next item
@@ -91,22 +102,27 @@ function Transitions:handle_smooth_transitions()
           if region then
             self.state.next_bounds.start_pos = region.start
             self.state.next_bounds.end_pos = region["end"]
-            self.transport:_seek_to_region(region.rid)
+            -- Queue GoToRegion only when transition is imminent
+            self:_queue_next_region_if_near_end(playpos)
           end
         else
           self.state.next_idx = -1
+          reaper.ShowConsoleMsg("[TRANS] No next candidate\n")
         end
       end
     end
     
-  -- Branch 2: In current_bounds region
+  -- Branch 2: In current_bounds region - CHECK IF NEAR END
   elseif self.state.current_bounds.end_pos > self.state.current_bounds.start_pos and
          playpos >= self.state.current_bounds.start_pos and 
          playpos < self.state.current_bounds.end_pos + self.state.boundary_epsilon then
-    -- Inside current region, no action needed
+    
+    -- Queue GoToRegion only when close to end
+    self:_queue_next_region_if_near_end(playpos)
     
   -- Branch 3: Neither - need to sync
   else
+    reaper.ShowConsoleMsg("[TRANS] Branch 3: Out of bounds, syncing\n")
     local found_idx = self.state:find_index_at_position(playpos)
     if found_idx >= 1 then
       local was_uninitialized = (self.state.current_idx == -1)
@@ -142,7 +158,7 @@ function Transitions:handle_smooth_transitions()
             self.state.next_bounds.end_pos = region_next["end"]
             
             if was_uninitialized then
-              self.transport:_seek_to_region(region_next.rid)
+              self:_queue_next_region_if_near_end(playpos)
             end
           end
         end
@@ -151,7 +167,7 @@ function Transitions:handle_smooth_transitions()
         self.state.next_bounds.start_pos = region.start
         self.state.next_bounds.end_pos = region["end"]
         if was_uninitialized then
-          self.transport:_seek_to_region(region.rid)
+          self:_queue_next_region_if_near_end(playpos)
         end
       end
     elseif #self.state.playlist_order > 0 then
@@ -166,6 +182,28 @@ function Transitions:handle_smooth_transitions()
   end
   
   self.state.last_play_pos = playpos
+end
+
+function Transitions:_queue_next_region_if_near_end(playpos)
+  -- Only queue GoToRegion when within 0.5 seconds of current region end
+  local time_to_end = self.state.current_bounds.end_pos - playpos
+  
+  if time_to_end < 0.5 and time_to_end > 0 and self.state.next_idx >= 1 then
+    if not self.state.goto_region_queued or self.state.goto_region_target ~= self.state.next_idx then
+      local rid = self.state.playlist_order[self.state.next_idx]
+      local region = self.state:get_region_by_rid(rid)
+      if region then
+        reaper.ShowConsoleMsg(string.format("[TRANS] Queuing GoToRegion(%d) - %.2fs to end\n", region.rid, time_to_end))
+        self.transport:_seek_to_region(region.rid)
+        self.state.goto_region_queued = true
+        self.state.goto_region_target = self.state.next_idx
+      end
+    end
+  elseif time_to_end > 0.5 then
+    -- Reset if we're far from end (allows quantize to work)
+    self.state.goto_region_queued = false
+    self.state.goto_region_target = nil
+  end
 end
 
 M.Transitions = Transitions

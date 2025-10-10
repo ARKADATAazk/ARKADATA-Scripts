@@ -38,9 +38,9 @@ M.LAYOUT_BUTTON = {
 }
 
 M.QUANTIZE = {
-  default_lookahead = 0.25,
-  min_lookahead = 0.1,
-  max_lookahead = 1.0,
+  default_lookahead = 0.30,  -- 50ms (matching quantize module)
+  min_lookahead = 0.20,      -- 10ms
+  max_lookahead = 3.0,       -- 200ms
 }
 
 function M.get_region_tiles_config(layout_mode)

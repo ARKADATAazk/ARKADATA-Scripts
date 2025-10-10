@@ -4,6 +4,7 @@
 local EngineState = require('ReArkitekt.features.region_playlist.engine.state')
 local EngineTransport = require('ReArkitekt.features.region_playlist.engine.transport')
 local EngineTransitions = require('ReArkitekt.features.region_playlist.engine.transitions')
+local EngineQuantize = require('ReArkitekt.features.region_playlist.engine.quantize')
 
 local M = {}
 local Engine = {}
@@ -28,6 +29,12 @@ function M.new(opts)
     state = self.state,
     transport = self.transport,
     on_repeat_cycle = opts.on_repeat_cycle,
+  })
+  
+  self.quantize = EngineQuantize.new({
+    proj = self.proj,
+    state = self.state,
+    transport = self.transport,
   })
   
   self.follow_playhead = (opts.follow_playhead ~= false)
@@ -81,6 +88,10 @@ function Engine:prev()
   return self.transport:prev()
 end
 
+function Engine:jump_to_next_quantized(lookahead)
+  return self.quantize:jump_to_next_quantized(lookahead)
+end
+
 function Engine:update()
   self:check_for_changes()
   
@@ -98,6 +109,7 @@ function Engine:update()
   if #self.state.playlist_order == 0 then return end
   
   self.transitions:handle_smooth_transitions()
+  self.quantize:update()
 end
 
 function Engine:set_follow_playhead(enabled)

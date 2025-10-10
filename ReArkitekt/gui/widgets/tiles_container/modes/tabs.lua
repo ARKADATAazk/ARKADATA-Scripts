@@ -94,6 +94,42 @@ local function draw_plus_button(ctx, dl, x, y, state, cfg)
   return clicked, x + w
 end
 
+local function draw_tabs_track(ctx, dl, plus_x, tabs_start_x, tabs_end_x, y, height, cfg)
+  if not cfg or not cfg.tabs or not cfg.tabs.track then return end
+  
+  local track_cfg = cfg.tabs.track
+  if not track_cfg.enabled then return end
+  
+  local track_start_x = plus_x - track_cfg.extend_left
+  if not track_cfg.include_plus_button then
+    track_start_x = tabs_start_x - track_cfg.extend_left
+  end
+  
+  local track_end_x = tabs_end_x + track_cfg.extend_right
+  local track_y = y - track_cfg.extend_top
+  local track_height = height + track_cfg.extend_top + track_cfg.extend_bottom
+  
+  ImGui.DrawList_AddRectFilled(
+    dl,
+    track_start_x, track_y,
+    track_end_x, track_y + track_height,
+    track_cfg.bg_color,
+    track_cfg.rounding
+  )
+  
+  if track_cfg.border_thickness > 0 then
+    ImGui.DrawList_AddRect(
+      dl,
+      track_start_x, track_y,
+      track_end_x, track_y + track_height,
+      track_cfg.border_color,
+      track_cfg.rounding,
+      0,
+      track_cfg.border_thickness
+    )
+  end
+end
+
 local function apply_spawn_animation(x, y, w, h, spawn_factor)
   local target_w = w * spawn_factor
   local offset_x = (w - target_w) * 0.5
@@ -248,7 +284,7 @@ local function draw_tab(ctx, dl, tab_data, is_active, tab_index, y, state, cfg)
   local content_x = render_x + tab_cfg.padding_x
   
   if has_chip then
-    local chip_x = content_x + 5
+    local chip_x = content_x + 2
     local chip_y = render_y + render_h * 0.5
     
     Chip.draw(ctx, {
@@ -265,7 +301,7 @@ local function draw_tab(ctx, dl, tab_data, is_active, tab_index, y, state, cfg)
       alpha_factor = alpha_factor,
     })
     
-    content_x = content_x + 15
+    content_x = content_x + 12
   end
 
   local text_w, text_h = ImGui.CalcTextSize(ctx, label)
@@ -332,8 +368,22 @@ function M.draw(ctx, dl, x, y, width, height, state, cfg)
   local cursor_x = x + cfg.padding_x
   local cursor_y = y + (height - element_height) * 0.5
 
+  local tabs_start_x = cursor_x + tabs_cfg.plus_button.width + tabs_cfg.tab.spacing
+  
+  local tabs_end_x = tabs_start_x
+  for i, tab in ipairs(state.tabs) do
+    local has_chip = tab.chip_color ~= nil
+    local tab_width = calculate_tab_width(ctx, tab.label or "Tab", tabs_cfg.tab, has_chip)
+    tabs_end_x = tabs_end_x + tab_width
+    if i < #state.tabs then
+      tabs_end_x = tabs_end_x + tabs_cfg.tab.spacing
+    end
+  end
+  
+  draw_tabs_track(ctx, dl, cursor_x, tabs_start_x, tabs_end_x, cursor_y, element_height, cfg)
+
   local plus_clicked, new_x = draw_plus_button(ctx, dl, cursor_x, cursor_y, state, cfg)
-  local tabs_start_x = new_x + tabs_cfg.tab.spacing
+  tabs_start_x = new_x + tabs_cfg.tab.spacing
 
   if plus_clicked and state.on_tab_create then
     state.on_tab_create()
@@ -399,8 +449,6 @@ function M.draw(ctx, dl, x, y, width, height, state, cfg)
   end
 
   update_tab_positions(ctx, state, cfg, tabs_start_x)
-
-  local available_width = width - (cursor_x - x) - tabs_cfg.reserved_right_space
   
   local id_to_delete = nil
   local clicked_tab_id = nil

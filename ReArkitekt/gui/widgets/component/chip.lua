@@ -17,63 +17,81 @@ local STYLE = {
   INDICATOR = "indicator",
 }
 
+local SHAPE = {
+  CIRCLE = "circle",
+  SQUARE = "square",
+}
+
 M.STYLE = STYLE
+M.SHAPE = SHAPE
 
--- [[ REWRITTEN GLOW LOGIC START ]]
--- Renders a soft, multi-layered glow for circles.
 local function _render_glow(dl, center_x, center_y, radius, color, layers)
-  layers = layers or 8       -- Increased layers for a smoother gradient
-  local max_alpha = 90       -- Controls the overall intensity of the glow
-  local spread = 5           -- How many pixels the glow extends outwards
-  local base_color_rgb = color & 0xFFFFFF00 -- Isolate RGB channels, ignore original alpha
+  layers = layers or 8
+  local max_alpha = 90
+  local spread = 5
+  local base_color_rgb = color & 0xFFFFFF00
 
-  -- We draw from the outside in (largest, most transparent layer first)
-  -- to ensure correct blending.
   for i = layers, 1, -1 do
-    local t = i / layers -- Normalized step, from 1 (outermost) to near 0 (innermost)
-    
-    -- A quadratic curve creates a smooth, natural-looking falloff for the alpha.
+    local t = i / layers
     local alpha_multiplier = (1.0 - t) * (1.0 - t)
     local current_alpha = math.floor(max_alpha * alpha_multiplier)
-    
-    -- Radius increases linearly for each layer.
     local current_radius = radius + (t * spread)
     
     if current_alpha > 0 then
       local glow_color = base_color_rgb | current_alpha
-      -- CRITICAL: Use AddCircleFilled for a solid glow, not just an outline.
       ImGui.DrawList_AddCircleFilled(dl, center_x, center_y, current_radius, glow_color)
     end
   end
 end
 
--- Renders a soft, multi-layered glow for rounded rectangles.
-local function _render_border_glow(dl, x1, y1, x2, y2, color, rounding, layers)
-  layers = layers or 6      -- More layers for a smoother effect
-  local max_alpha = 70      -- Controls the glow intensity
-  local spread = 4          -- How many pixels the glow expands outwards
-  local base_color_rgb = color & 0xFFFFFF00 -- Isolate RGB channels
+local function _render_square_glow(dl, center_x, center_y, size, color, rounding, layers)
+  layers = layers or 8
+  local max_alpha = 90
+  local spread = 5
+  local base_color_rgb = color & 0xFFFFFF00
 
-  -- Draw from the largest, most transparent layer first.
+  local half_size = size * 0.5
+
   for i = layers, 1, -1 do
-    local t = i / layers -- Normalized step from 1 to near 0
-    
-    -- Use the same smooth quadratic falloff for alpha.
+    local t = i / layers
     local alpha_multiplier = (1.0 - t) * (1.0 - t)
     local current_alpha = math.floor(max_alpha * alpha_multiplier)
+    local expand = t * spread
+    local current_size = size + (expand * 2)
+    local current_half = current_size * 0.5
     
-    -- The glow expands outwards for each layer.
+    if current_alpha > 0 then
+      local glow_color = base_color_rgb | current_alpha
+      Draw.rect_filled(dl, 
+        center_x - current_half, 
+        center_y - current_half, 
+        center_x + current_half, 
+        center_y + current_half, 
+        glow_color, 
+        rounding + (expand * 0.3))
+    end
+  end
+end
+
+local function _render_border_glow(dl, x1, y1, x2, y2, color, rounding, layers)
+  layers = layers or 6
+  local max_alpha = 70
+  local spread = 4
+  local base_color_rgb = color & 0xFFFFFF00
+
+  for i = layers, 1, -1 do
+    local t = i / layers
+    local alpha_multiplier = (1.0 - t) * (1.0 - t)
+    local current_alpha = math.floor(max_alpha * alpha_multiplier)
     local expand = t * spread
     
     if current_alpha > 0 then
       local glow_color = base_color_rgb | current_alpha
-      -- Use a filled rectangle for the glow effect.
       Draw.rect_filled(dl, x1 - expand, y1 - expand, x2 + expand, y2 + expand, 
         glow_color, rounding + expand)
     end
   end
 end
--- [[ REWRITTEN GLOW LOGIC END ]]
 
 local function _apply_state(color, is_active, is_hovered, is_selected)
   if is_active then return Colors.adjust_brightness(color, 1.4) end
@@ -113,11 +131,21 @@ function M.draw(ctx, opts)
     local dl = opts.draw_list or ImGui.GetWindowDrawList(ctx)
     local x = opts.x or 0
     local y = opts.y or 0
+    local shape = opts.shape or SHAPE.CIRCLE
     local radius = opts.radius or 5
+    local size = opts.size or (radius * 2)
+    local rounding = opts.rounding or 0
     local show_glow = opts.show_glow
-    local glow_layers = opts.glow_layers or 5 -- Using rewritten function's default is fine
+    local glow_layers = opts.glow_layers or 5
     local shadow = opts.shadow ~= false
+    local shadow_offset_x = opts.shadow_offset_x or 0
+    local shadow_offset_y = opts.shadow_offset_y or 0
+    local shadow_blur = opts.shadow_blur or 1
+    local shadow_alpha = opts.shadow_alpha or 80
     local alpha_factor = opts.alpha_factor or 1.0
+    local border = opts.border or false
+    local border_color = opts.border_color or 0x000000FF
+    local border_thickness = opts.border_thickness or 1.0
     
     local draw_color = _apply_state(color, is_active, is_hovered, is_selected)
     if alpha_factor < 1.0 then
@@ -125,17 +153,53 @@ function M.draw(ctx, opts)
       draw_color = (draw_color & 0xFFFFFF00) | math.floor(current_alpha * alpha_factor)
     end
     
-    if shadow then
-      local shadow_alpha = math.floor(80 * alpha_factor)
-      ImGui.DrawList_AddCircleFilled(dl, x, y, radius + 1, Colors.with_alpha(0x000000FF, shadow_alpha))
+    if shape == SHAPE.CIRCLE then
+      if shadow then
+        local shadow_alpha_final = math.floor(shadow_alpha * alpha_factor)
+        ImGui.DrawList_AddCircleFilled(dl, 
+          x + shadow_offset_x, 
+          y + shadow_offset_y, 
+          radius + shadow_blur, 
+          Colors.with_alpha(0x000000FF, shadow_alpha_final))
+      end
+      
+      if show_glow then
+        _render_glow(dl, x, y, radius, draw_color, glow_layers)
+      end
+      
+      ImGui.DrawList_AddCircleFilled(dl, x, y, radius, draw_color)
+      
+      if border then
+        ImGui.DrawList_AddCircle(dl, x, y, radius, border_color, 0, border_thickness)
+      end
+    elseif shape == SHAPE.SQUARE then
+      local half_size = size * 0.5
+      local x1 = x - half_size
+      local y1 = y - half_size
+      local x2 = x + half_size
+      local y2 = y + half_size
+      
+      if shadow then
+        local shadow_alpha_final = math.floor(shadow_alpha * alpha_factor)
+        Draw.rect_filled(dl, 
+          x1 + shadow_offset_x - shadow_blur, 
+          y1 + shadow_offset_y - shadow_blur, 
+          x2 + shadow_offset_x + shadow_blur, 
+          y2 + shadow_offset_y + shadow_blur, 
+          Colors.with_alpha(0x000000FF, shadow_alpha_final), 
+          rounding)
+      end
+      
+      if show_glow then
+        _render_square_glow(dl, x, y, size, draw_color, rounding, glow_layers)
+      end
+      
+      Draw.rect_filled(dl, x1, y1, x2, y2, draw_color, rounding)
+      
+      if border then
+        Draw.rect(dl, x1, y1, x2, y2, border_color, rounding, border_thickness)
+      end
     end
-    
-    if show_glow then
-      -- Pass the base radius and let the new function handle the spread.
-      _render_glow(dl, x, y, radius, draw_color, glow_layers)
-    end
-    
-    ImGui.DrawList_AddCircleFilled(dl, x, y, radius, draw_color)
     
     return false, 0, 0
   end
@@ -166,6 +230,8 @@ function M.draw(ctx, opts)
     local bg_color = opts.bg_color or 0x1E1E1EFF
     local dot_size = opts.dot_size or 8
     local dot_spacing = opts.dot_spacing or 10
+    local dot_shape = opts.dot_shape or SHAPE.CIRCLE
+    local dot_rounding = opts.dot_rounding or 0
     
     local draw_bg = _apply_state(bg_color, is_active, is_hovered, is_selected)
     Draw.rect_filled(dl, start_x, start_y, start_x + chip_w, start_y + chip_h, draw_bg, rounding)
@@ -185,13 +251,36 @@ function M.draw(ctx, opts)
     local dot_y = start_y + chip_h * 0.5
     local dot_color = _apply_state(color, false, is_hovered, is_selected)
     
-    ImGui.DrawList_AddCircleFilled(dl, dot_x, dot_y, (dot_size * 0.5) + 1, Colors.with_alpha(0x000000FF, 80))
-    
-    if is_selected or is_hovered then
-      _render_glow(dl, dot_x, dot_y, dot_size * 0.5, dot_color, 4)
+    if dot_shape == SHAPE.CIRCLE then
+      ImGui.DrawList_AddCircleFilled(dl, dot_x, dot_y, (dot_size * 0.5) + 1, Colors.with_alpha(0x000000FF, 80))
+      
+      if is_selected or is_hovered then
+        _render_glow(dl, dot_x, dot_y, dot_size * 0.5, dot_color, 4)
+      end
+      
+      ImGui.DrawList_AddCircleFilled(dl, dot_x, dot_y, dot_size * 0.5, dot_color)
+    elseif dot_shape == SHAPE.SQUARE then
+      local half_dot = dot_size * 0.5
+      Draw.rect_filled(dl, 
+        dot_x - half_dot, 
+        dot_y - half_dot, 
+        dot_x + half_dot, 
+        dot_y + half_dot, 
+        Colors.with_alpha(0x000000FF, 80), 
+        dot_rounding)
+      
+      if is_selected or is_hovered then
+        _render_square_glow(dl, dot_x, dot_y, dot_size, dot_color, dot_rounding, 4)
+      end
+      
+      Draw.rect_filled(dl, 
+        dot_x - half_dot + 1, 
+        dot_y - half_dot + 1, 
+        dot_x + half_dot - 1, 
+        dot_y + half_dot - 1, 
+        dot_color, 
+        dot_rounding)
     end
-    
-    ImGui.DrawList_AddCircleFilled(dl, dot_x, dot_y, dot_size * 0.5, dot_color)
     
     local text_color = (is_hovered or is_selected) and 0xFFFFFFFF or Colors.with_alpha(0xFFFFFFFF, 200)
     local content_x = start_x + padding_h + dot_size + dot_spacing

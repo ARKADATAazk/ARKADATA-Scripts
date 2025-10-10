@@ -114,6 +114,10 @@ function M.create(opts)
     return self.engine:prev()
   end
   
+  function bridge:jump_to_next_quantized(lookahead)
+    return self.engine:jump_to_next_quantized(lookahead)
+  end
+  
   function bridge:set_quantize_mode(mode)
     self.engine:set_quantize_mode(mode)
     local settings = RegionState.load_settings(self.proj)
