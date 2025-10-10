@@ -1,126 +1,54 @@
 -- ReArkitekt/gui/widgets/tiles_container/modes/tabs.lua
--- Tab mode with smooth drag reordering and custom colors
+-- Tab mode with chip indicators instead of colored backgrounds
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
 local ContextMenu = require('ReArkitekt.gui.widgets.controls.context_menu')
-local Easing = require('ReArkitekt.gui.fx.easing')
+local Chip = require('ReArkitekt.gui.widgets.component.chip')
 
 local M = {}
 
-local TAB_SLIDE_SPEED = 15.0 -- Higher = faster animation
-local DRAG_THRESHOLD = 3.0 -- Pixels before drag starts
-
--- Random color palette (similar to region tiles)
-local COLOR_PALETTE = {
-  0x42E896FF,  -- Green
-  0xE84C3DFF,  -- Red
-  0x3D9EE8FF,  -- Blue
-  0xE89C42FF,  -- Orange
-  0xA742E8FF,  -- Purple
-  0xE842A7FF,  -- Pink
-  0x42E8D4FF,  -- Cyan
-  0xE8D442FF,  -- Yellow
-  0x8E42E8FF,  -- Violet
-  0xE86542FF,  -- Coral
-}
-
-local function generate_random_color()
-  -- 40% chance to be grey (nil), 60% chance to get a random color
-  if math.random() < 0.4 then
-    return nil
-  end
-  return COLOR_PALETTE[math.random(#COLOR_PALETTE)]
-end
-
--- Call this when creating new tabs to assign random colors
-function M.assign_random_color(tab_data)
-  if not tab_data.color then
-    tab_data.color = generate_random_color()
-  end
-  return tab_data
-end
-
-local function desaturate(color, factor)
-  local r = (color >> 24) & 0xFF
-  local g = (color >> 16) & 0xFF
-  local b = (color >> 8) & 0xFF
-  local a = color & 0xFF
-  
-  local gray = r * 0.299 + g * 0.587 + b * 0.114
-  
-  r = math.floor(r + (gray - r) * factor)
-  g = math.floor(g + (gray - g) * factor)
-  b = math.floor(b + (gray - b) * factor)
-  
-  return (r << 24) | (g << 16) | (b << 8) | a
-end
-
-local function adjust_brightness(color, factor)
-  local r = (color >> 24) & 0xFF
-  local g = (color >> 16) & 0xFF
-  local b = (color >> 8) & 0xFF
-  local a = color & 0xFF
-  
-  r = math.floor(math.min(255, r * factor))
-  g = math.floor(math.min(255, g * factor))
-  b = math.floor(math.min(255, b * factor))
-  
-  return (r << 24) | (g << 16) | (b << 8) | a
-end
+local TAB_SLIDE_SPEED = 15.0
+local DRAG_THRESHOLD = 3.0
 
 local function with_alpha(color, alpha)
   return (color & 0xFFFFFF00) | (alpha & 0xFF)
 end
 
-local function same_hue_variant(base_color, saturation, brightness, alpha)
-  local r = (base_color >> 24) & 0xFF
-  local g = (base_color >> 16) & 0xFF
-  local b = (base_color >> 8) & 0xFF
-  
-  local max_c = math.max(r, g, b)
-  local min_c = math.min(r, g, b)
-  local delta = max_c - min_c
-  
-  local h = 0
-  if delta > 0 then
-    if max_c == r then
-      h = ((g - b) / delta) % 6
-    elseif max_c == g then
-      h = ((b - r) / delta) + 2
+function M.assign_random_color(tab)
+  if not tab.chip_color then
+    local hue = math.random() * 360
+    local sat = 0.6 + math.random() * 0.3
+    local val = 0.7 + math.random() * 0.2
+    
+    local h = hue / 60
+    local i = math.floor(h)
+    local f = h - i
+    local p = val * (1 - sat)
+    local q = val * (1 - sat * f)
+    local t = val * (1 - sat * (1 - f))
+    
+    local r, g, b
+    if i == 0 then
+      r, g, b = val, t, p
+    elseif i == 1 then
+      r, g, b = q, val, p
+    elseif i == 2 then
+      r, g, b = p, val, t
+    elseif i == 3 then
+      r, g, b = p, q, val
+    elseif i == 4 then
+      r, g, b = t, p, val
     else
-      h = ((r - g) / delta) + 4
+      r, g, b = val, p, q
     end
-    h = h * 60
+    
+    local ri = math.floor(r * 255)
+    local gi = math.floor(g * 255)
+    local bi = math.floor(b * 255)
+    
+    tab.chip_color = (ri << 24) | (gi << 16) | (bi << 8) | 0xFF
   end
-  
-  local s = saturation
-  local v = brightness
-  
-  local c = v * s
-  local x = c * (1 - math.abs((h / 60) % 2 - 1))
-  local m = v - c
-  
-  local r1, g1, b1
-  if h < 60 then
-    r1, g1, b1 = c, x, 0
-  elseif h < 120 then
-    r1, g1, b1 = x, c, 0
-  elseif h < 180 then
-    r1, g1, b1 = 0, c, x
-  elseif h < 240 then
-    r1, g1, b1 = 0, x, c
-  elseif h < 300 then
-    r1, g1, b1 = x, 0, c
-  else
-    r1, g1, b1 = c, 0, x
-  end
-  
-  r = math.floor((r1 + m) * 255)
-  g = math.floor((g1 + m) * 255)
-  b = math.floor((b1 + m) * 255)
-  
-  return (r << 24) | (g << 16) | (b << 8) | alpha
 end
 
 local function draw_plus_button(ctx, dl, x, y, state, cfg)
@@ -183,9 +111,10 @@ local function apply_destroy_animation(x, y, w, h, destroy_factor, tab_cfg)
   return x + offset_x, y + offset_y, new_w, new_h
 end
 
-local function calculate_tab_width(ctx, label, tab_cfg)
+local function calculate_tab_width(ctx, label, tab_cfg, has_chip)
   local text_w = ImGui.CalcTextSize(ctx, label)
-  return math.min(tab_cfg.max_width, math.max(tab_cfg.min_width, text_w + tab_cfg.padding_x * 2))
+  local chip_width = has_chip and 20 or 0
+  return math.min(tab_cfg.max_width, math.max(tab_cfg.min_width, text_w + tab_cfg.padding_x * 2 + chip_width))
 end
 
 local function init_tab_positions(state)
@@ -210,9 +139,9 @@ local function update_tab_positions(ctx, state, cfg, start_x)
   local dt = ImGui.GetDeltaTime(ctx)
   local cursor_x = start_x
   
-  -- Calculate target positions
   for i, tab in ipairs(state.tabs) do
-    local tab_width = calculate_tab_width(ctx, tab.label or "Tab", tab_cfg)
+    local has_chip = tab.chip_color ~= nil
+    local tab_width = calculate_tab_width(ctx, tab.label or "Tab", tab_cfg, has_chip)
     local pos = state.tab_positions[tab.id]
     
     if not pos then
@@ -222,7 +151,6 @@ local function update_tab_positions(ctx, state, cfg, start_x)
     
     pos.target_x = cursor_x
     
-    -- Smooth interpolation
     local diff = pos.target_x - pos.current_x
     if math.abs(diff) > 0.5 then
       local move = diff * TAB_SLIDE_SPEED * dt
@@ -239,12 +167,14 @@ local function draw_tab(ctx, dl, tab_data, is_active, tab_index, y, state, cfg)
   local tab_cfg = cfg.tabs.tab
   local label = tab_data.label or "Tab"
   local id = tab_data.id
+  local chip_color = tab_data.chip_color
+  local has_chip = chip_color ~= nil
   
   local animator = state.tab_animator
   local is_spawning = animator and animator:is_spawning(id)
   local is_destroying = animator and animator:is_destroying(id)
 
-  local w = calculate_tab_width(ctx, label, tab_cfg)
+  local w = calculate_tab_width(ctx, label, tab_cfg, has_chip)
   local h = cfg.element_height or 20
   
   local pos = state.tab_positions[id]
@@ -255,7 +185,6 @@ local function draw_tab(ctx, dl, tab_data, is_active, tab_index, y, state, cfg)
   
   local x = pos.current_x
   
-  -- If dragging this tab, use mouse position
   if state.dragging_tab and state.dragging_tab.id == id then
     local mx = ImGui.GetMousePos(ctx)
     x = mx - state.dragging_tab.offset_x
@@ -285,54 +214,20 @@ local function draw_tab(ctx, dl, tab_data, is_active, tab_index, y, state, cfg)
 
   local bg_color, border_color, text_color
   
-  -- Use custom color system if tab has a color
-  if tab_cfg.use_custom_colors and tab_data.color then
-    local base_color = tab_data.color
-    
-    -- Derive fill color from base (like tiles)
-    bg_color = desaturate(base_color, tab_cfg.fill_desaturation or 0.4)
-    bg_color = adjust_brightness(bg_color, tab_cfg.fill_brightness or 0.50)
-    bg_color = with_alpha(bg_color, tab_cfg.fill_alpha or 0xDD)
-    
-    -- Derive border color
-    border_color = same_hue_variant(base_color, 
-      tab_cfg.border_saturation or 0.7, 
-      tab_cfg.border_brightness or 0.75, 
-      tab_cfg.border_alpha or 0xFF)
-    
-    -- Derive text color (index style from tiles)
-    text_color = same_hue_variant(base_color,
-      tab_cfg.text_index_saturation or 0.85,
-      tab_cfg.text_index_brightness or 0.95,
-      0xFF)
-    
-    -- Brighten on hover
-    if is_hovered or is_active then
-      bg_color = adjust_brightness(bg_color, 1.15)
-    end
-    
-    -- Brighten more when active
-    if is_active then
-      bg_color = adjust_brightness(bg_color, 1.10)
-      text_color = 0xFFFFFFFF
-    end
-  else
-    -- Use default grey colors
-    bg_color = tab_cfg.bg_color
-    border_color = tab_cfg.border_color
-    text_color = tab_cfg.text_color
-    
-    if is_active then
-      bg_color = tab_cfg.bg_active_color
-      border_color = tab_cfg.border_active_color
-      text_color = tab_cfg.text_active_color
-    elseif is_pressed then
-      bg_color = tab_cfg.bg_hover_color
-      text_color = tab_cfg.text_hover_color
-    elseif is_hovered then
-      bg_color = tab_cfg.bg_hover_color
-      text_color = tab_cfg.text_hover_color
-    end
+  bg_color = tab_cfg.bg_color
+  border_color = tab_cfg.border_color
+  text_color = tab_cfg.text_color
+  
+  if is_active then
+    bg_color = tab_cfg.bg_active_color
+    border_color = tab_cfg.border_active_color
+    text_color = tab_cfg.text_active_color
+  elseif is_pressed then
+    bg_color = tab_cfg.bg_hover_color
+    text_color = tab_cfg.text_hover_color
+  elseif is_hovered then
+    bg_color = tab_cfg.bg_hover_color
+    text_color = tab_cfg.text_hover_color
   end
   
   bg_color = apply_alpha(bg_color, alpha_factor)
@@ -350,14 +245,37 @@ local function draw_tab(ctx, dl, tab_data, is_active, tab_index, y, state, cfg)
   ImGui.DrawList_AddRect(dl, render_x, render_y, render_x + render_w, render_y + render_h, 
                          border_color, tab_cfg.rounding, corner_flags, 1)
 
+  local content_x = render_x + tab_cfg.padding_x
+  
+  if has_chip then
+    local chip_x = content_x + 5
+    local chip_y = render_y + render_h * 0.5
+    
+    Chip.draw(ctx, {
+      style = Chip.STYLE.INDICATOR,
+      color = chip_color,
+      draw_list = dl,
+      x = chip_x,
+      y = chip_y,
+      radius = tab_cfg.chip_radius or 4,
+      is_selected = is_active,
+      is_hovered = is_hovered,
+      show_glow = is_active or is_hovered,
+      glow_layers = 2,
+      alpha_factor = alpha_factor,
+    })
+    
+    content_x = content_x + 15
+  end
+
   local text_w, text_h = ImGui.CalcTextSize(ctx, label)
-  local text_x = render_x + (render_w - text_w) * 0.5
+  local text_x = content_x
   local text_y = render_y + (render_h - text_h) * 0.5
 
-  local text_max_w = render_w - 8
+  local text_max_w = render_x + render_w - text_x - tab_cfg.padding_x
   if text_w > text_max_w then
-    ImGui.DrawList_PushClipRect(dl, render_x + 4, render_y, 
-                                render_x + render_w - 4, render_y + render_h, true)
+    ImGui.DrawList_PushClipRect(dl, text_x, render_y, 
+                                render_x + render_w - tab_cfg.padding_x, render_y + render_h, true)
     ImGui.DrawList_AddText(dl, text_x, text_y, text_color, label)
     ImGui.DrawList_PopClipRect(dl)
   else
@@ -370,7 +288,6 @@ local function draw_tab(ctx, dl, tab_data, is_active, tab_index, y, state, cfg)
   local clicked = ImGui.IsItemClicked(ctx, 0)
   local right_clicked = ImGui.IsItemClicked(ctx, 1)
 
-  -- Start dragging only after threshold
   if ImGui.IsItemActive(ctx) and not state.dragging_tab then
     local drag_delta_x, drag_delta_y = ImGui.GetMouseDragDelta(ctx, 0)
     local drag_distance = math.sqrt(drag_delta_x * drag_delta_x + drag_delta_y * drag_delta_y)
@@ -422,23 +339,22 @@ function M.draw(ctx, dl, x, y, width, height, state, cfg)
     state.on_tab_create()
   end
 
-  -- Handle dragging reorder
   if state.dragging_tab and ImGui.IsMouseDragging(ctx, 0) then
     local mx = ImGui.GetMousePos(ctx)
     local dragged_tab = state.tabs[state.dragging_tab.index]
-    local dragged_width = calculate_tab_width(ctx, dragged_tab.label or "Tab", tabs_cfg.tab)
+    local has_chip = dragged_tab.chip_color ~= nil
+    local dragged_width = calculate_tab_width(ctx, dragged_tab.label or "Tab", tabs_cfg.tab, has_chip)
     
-    -- Calculate center of dragged tab based on mouse position and grab offset
     local drag_center_x = mx - state.dragging_tab.offset_x + dragged_width * 0.5
     
-    -- Build list of tab positions excluding dragged tab
     local positions = {}
     local current_x = tabs_start_x
     
     for i = 1, #state.tabs do
       if i ~= state.dragging_tab.index then
         local tab = state.tabs[i]
-        local tab_w = calculate_tab_width(ctx, tab.label or "Tab", tabs_cfg.tab)
+        local tab_has_chip = tab.chip_color ~= nil
+        local tab_w = calculate_tab_width(ctx, tab.label or "Tab", tabs_cfg.tab, tab_has_chip)
         
         table.insert(positions, {
           index = i,
@@ -452,28 +368,22 @@ function M.draw(ctx, dl, x, y, width, height, state, cfg)
       end
     end
     
-    -- Find insertion point based on drag center
     local target_index = 1
     
     for i, pos in ipairs(positions) do
       if drag_center_x > pos.center then
-        -- Drag center is past this tab's center, so we'd go after it
         target_index = pos.index + 1
       else
-        -- Drag center is before this tab's center
         break
       end
     end
     
-    -- Adjust for array removal
     if target_index > state.dragging_tab.index then
       target_index = target_index - 1
     end
     
-    -- Clamp
     target_index = math.max(1, math.min(#state.tabs, target_index))
     
-    -- Reorder immediately if position changed
     if target_index ~= state.dragging_tab.index then
       local dragged_tab_data = table.remove(state.tabs, state.dragging_tab.index)
       table.insert(state.tabs, target_index, dragged_tab_data)
@@ -481,7 +391,6 @@ function M.draw(ctx, dl, x, y, width, height, state, cfg)
     end
   end
 
-  -- End dragging
   if state.dragging_tab and not ImGui.IsMouseDown(ctx, 0) then
     if state.on_tab_reorder and state.dragging_tab.original_index ~= state.dragging_tab.index then
       state.on_tab_reorder(state.dragging_tab.original_index, state.dragging_tab.index)
@@ -489,7 +398,6 @@ function M.draw(ctx, dl, x, y, width, height, state, cfg)
     state.dragging_tab = nil
   end
 
-  -- Update positions with smooth animation
   update_tab_positions(ctx, state, cfg, tabs_start_x)
 
   local available_width = width - (cursor_x - x) - tabs_cfg.reserved_right_space
@@ -566,32 +474,5 @@ function M.draw(ctx, dl, x, y, width, height, state, cfg)
 
   return height
 end
-
---[[
-  TAB COLORS:
-  
-  Colors are automatically randomized when tabs are created via set_tabs() or add_tab().
-  - 40% chance to be grey (no color)
-  - 60% chance to get a random color from the palette
-  
-  To override the automatic color:
-  
-  container:add_tab({ id = "my_tab", label = "My Tab", color = 0x42E896FF })  -- Force green
-  container:add_tab({ id = "grey_tab", label = "Grey", color = nil })         -- Force grey
-  
-  To change a tab's color later:
-  
-  for _, tab in ipairs(container.tabs) do
-    if tab.id == "playlist1" then
-      tab.color = 0xE84C3DFF  -- Change to red
-      break
-    end
-  end
-  
-  Available colors in palette:
-  0x42E896FF (Green), 0xE84C3DFF (Red), 0x3D9EE8FF (Blue), 0xE89C42FF (Orange),
-  0xA742E8FF (Purple), 0xE842A7FF (Pink), 0x42E8D4FF (Cyan), 0xE8D442FF (Yellow),
-  0x8E42E8FF (Violet), 0xE86542FF (Coral)
-]]
 
 return M

@@ -19,24 +19,61 @@ local STYLE = {
 
 M.STYLE = STYLE
 
+-- [[ REWRITTEN GLOW LOGIC START ]]
+-- Renders a soft, multi-layered glow for circles.
 local function _render_glow(dl, center_x, center_y, radius, color, layers)
-  for i = 1, layers do
-    local glow_alpha = math.floor(100 / (i * 1.5))
-    local glow_radius = radius + (i * 2)
-    local glow_color = Colors.with_alpha(color, glow_alpha)
-    ImGui.DrawList_AddCircle(dl, center_x, center_y, glow_radius, glow_color, 0, 1.5)
+  layers = layers or 8       -- Increased layers for a smoother gradient
+  local max_alpha = 90       -- Controls the overall intensity of the glow
+  local spread = 5           -- How many pixels the glow extends outwards
+  local base_color_rgb = color & 0xFFFFFF00 -- Isolate RGB channels, ignore original alpha
+
+  -- We draw from the outside in (largest, most transparent layer first)
+  -- to ensure correct blending.
+  for i = layers, 1, -1 do
+    local t = i / layers -- Normalized step, from 1 (outermost) to near 0 (innermost)
+    
+    -- A quadratic curve creates a smooth, natural-looking falloff for the alpha.
+    local alpha_multiplier = (1.0 - t) * (1.0 - t)
+    local current_alpha = math.floor(max_alpha * alpha_multiplier)
+    
+    -- Radius increases linearly for each layer.
+    local current_radius = radius + (t * spread)
+    
+    if current_alpha > 0 then
+      local glow_color = base_color_rgb | current_alpha
+      -- CRITICAL: Use AddCircleFilled for a solid glow, not just an outline.
+      ImGui.DrawList_AddCircleFilled(dl, center_x, center_y, current_radius, glow_color)
+    end
   end
 end
 
+-- Renders a soft, multi-layered glow for rounded rectangles.
 local function _render_border_glow(dl, x1, y1, x2, y2, color, rounding, layers)
-  for i = 1, layers do
-    local glow_alpha = math.floor(60 / i)
-    local glow_expand = i * 2
-    local glow_color = Colors.with_alpha(color, glow_alpha)
-    Draw.rect(dl, x1 - glow_expand, y1 - glow_expand, x2 + glow_expand, y2 + glow_expand, 
-      glow_color, rounding + glow_expand, 1.5)
+  layers = layers or 6      -- More layers for a smoother effect
+  local max_alpha = 70      -- Controls the glow intensity
+  local spread = 4          -- How many pixels the glow expands outwards
+  local base_color_rgb = color & 0xFFFFFF00 -- Isolate RGB channels
+
+  -- Draw from the largest, most transparent layer first.
+  for i = layers, 1, -1 do
+    local t = i / layers -- Normalized step from 1 to near 0
+    
+    -- Use the same smooth quadratic falloff for alpha.
+    local alpha_multiplier = (1.0 - t) * (1.0 - t)
+    local current_alpha = math.floor(max_alpha * alpha_multiplier)
+    
+    -- The glow expands outwards for each layer.
+    local expand = t * spread
+    
+    if current_alpha > 0 then
+      local glow_color = base_color_rgb | current_alpha
+      -- Use a filled rectangle for the glow effect.
+      Draw.rect_filled(dl, x1 - expand, y1 - expand, x2 + expand, y2 + expand, 
+        glow_color, rounding + expand)
+    end
   end
 end
+-- [[ REWRITTEN GLOW LOGIC END ]]
 
 local function _apply_state(color, is_active, is_hovered, is_selected)
   if is_active then return Colors.adjust_brightness(color, 1.4) end
@@ -78,7 +115,7 @@ function M.draw(ctx, opts)
     local y = opts.y or 0
     local radius = opts.radius or 5
     local show_glow = opts.show_glow
-    local glow_layers = opts.glow_layers or 2
+    local glow_layers = opts.glow_layers or 5 -- Using rewritten function's default is fine
     local shadow = opts.shadow ~= false
     local alpha_factor = opts.alpha_factor or 1.0
     
@@ -93,11 +130,12 @@ function M.draw(ctx, opts)
       ImGui.DrawList_AddCircleFilled(dl, x, y, radius + 1, Colors.with_alpha(0x000000FF, shadow_alpha))
     end
     
-    ImGui.DrawList_AddCircleFilled(dl, x, y, radius, draw_color)
-    
     if show_glow then
+      -- Pass the base radius and let the new function handle the spread.
       _render_glow(dl, x, y, radius, draw_color, glow_layers)
     end
+    
+    ImGui.DrawList_AddCircleFilled(dl, x, y, radius, draw_color)
     
     return false, 0, 0
   end
@@ -139,8 +177,8 @@ function M.draw(ctx, opts)
     
     if is_selected then
       local border_color = Colors.with_alpha(Colors.adjust_brightness(color, 1.8), 255)
+      _render_border_glow(dl, start_x, start_y, start_x + chip_w, start_y + chip_h, color, rounding, 4)
       Draw.rect(dl, start_x, start_y, start_x + chip_w, start_y + chip_h, border_color, rounding, 2.5)
-      _render_border_glow(dl, start_x, start_y, start_x + chip_w, start_y + chip_h, color, rounding, 2)
     end
     
     local dot_x = start_x + padding_h + (dot_size * 0.5)
@@ -148,11 +186,12 @@ function M.draw(ctx, opts)
     local dot_color = _apply_state(color, false, is_hovered, is_selected)
     
     ImGui.DrawList_AddCircleFilled(dl, dot_x, dot_y, (dot_size * 0.5) + 1, Colors.with_alpha(0x000000FF, 80))
-    ImGui.DrawList_AddCircleFilled(dl, dot_x, dot_y, dot_size * 0.5, dot_color)
     
     if is_selected or is_hovered then
-      _render_glow(dl, dot_x, dot_y, dot_size * 0.5, dot_color, 2)
+      _render_glow(dl, dot_x, dot_y, dot_size * 0.5, dot_color, 4)
     end
+    
+    ImGui.DrawList_AddCircleFilled(dl, dot_x, dot_y, dot_size * 0.5, dot_color)
     
     local text_color = (is_hovered or is_selected) and 0xFFFFFFFF or Colors.with_alpha(0xFFFFFFFF, 200)
     local content_x = start_x + padding_h + dot_size + dot_spacing

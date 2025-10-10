@@ -1,5 +1,5 @@
 -- Region_Playlist/app/gui.lua
--- GUI rendering - thin adapter to controller
+-- GUI rendering with quantize controls
 
 local ImGui = require 'imgui' '0.10'
 local RegionTiles = require("ReArkitekt.gui.widgets.region_tiles.coordinator")
@@ -27,6 +27,7 @@ function M.create(State, Config, settings)
     },
     default_separator_horizontal = 180,
     default_separator_vertical = 280,
+    quantize_lookahead = Config.QUANTIZE.default_lookahead,
   }, GUI)
   
   self.layout_button_animator = require('ReArkitekt.gui.fx.tile_motion').new(Config.LAYOUT_BUTTON.animation_speed)
@@ -252,6 +253,49 @@ function GUI:draw_transport_section(ctx)
   
   ImGui.SetCursorPosX(ctx, current_x)
   self:draw_loop_playlist_checkbox(ctx)
+  current_x = ImGui.GetCursorPosX(ctx)
+  
+  ImGui.Dummy(ctx, 1, 10)
+  
+  ImGui.Text(ctx, "Jump Lookahead (ms):")
+  ImGui.SameLine(ctx, 0, 8)
+  ImGui.SetNextItemWidth(ctx, 120)
+  local changed, new_val = ImGui.SliderDouble(
+    ctx, 
+    "##lookahead", 
+    self.quantize_lookahead * 1000, 
+    self.Config.QUANTIZE.min_lookahead * 1000, 
+    self.Config.QUANTIZE.max_lookahead * 1000,
+    "%.0f"
+  )
+  if changed then
+    self.quantize_lookahead = new_val / 1000
+  end
+  
+  ImGui.SameLine(ctx, 0, 12)
+  
+  local bridge_state = self.State.state.bridge:get_state()
+  local is_disabled = not bridge_state.is_playing
+  
+  if is_disabled then
+    ImGui.BeginDisabled(ctx)
+  end
+  
+  if ImGui.Button(ctx, "Jump on Next Measure") then
+    self.State.state.bridge:jump_to_next_quantized(self.quantize_lookahead)
+  end
+  
+  if is_disabled then
+    ImGui.EndDisabled(ctx)
+  end
+  
+  if ImGui.IsItemHovered(ctx, ImGui.HoveredFlags_AllowWhenDisabled) then
+    if is_disabled then
+      ImGui.SetTooltip(ctx, "Start playback to enable")
+    else
+      ImGui.SetTooltip(ctx, "Jump to next measure boundary")
+    end
+  end
   
   self.transport_container:end_draw(ctx)
 end

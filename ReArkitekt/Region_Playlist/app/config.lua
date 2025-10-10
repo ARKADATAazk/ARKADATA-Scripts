@@ -20,7 +20,7 @@ M.CONTAINER = {
 }
 
 M.TRANSPORT = {
-  height = 100,
+  height = 120,
 }
 
 M.LAYOUT_BUTTON = {
@@ -35,6 +35,12 @@ M.LAYOUT_BUTTON = {
   icon_hover = 0xFFFFFFFF,
   rounding = 4,
   animation_speed = 12.0,
+}
+
+M.QUANTIZE = {
+  default_lookahead = 0.25,
+  min_lookahead = 0.1,
+  max_lookahead = 1.0,
 }
 
 function M.get_region_tiles_config(layout_mode)
@@ -95,7 +101,7 @@ function M.get_region_tiles_config(layout_mode)
           
           options = {
             { value = "regions", label = "Regions", icon = "🎵" },
-            { value = "playlists", label = "Playlists", icon = "📁" },
+            { value = "playlists", label = "Playlists", icon = "📂" },
           },
         },
         
@@ -118,24 +124,16 @@ function M.get_region_tiles_config(layout_mode)
             max_width = 150,
             padding_x = 8,
             spacing = 0,
-            bg_color = 0x2A2A2AFF,
-            bg_hover_color = 0x3A3A3AFF,
-            bg_active_color = 0x353535FF,
+            bg_color = 0x1C1C1CFF,
+            bg_hover_color = 0x282828FF,
+            bg_active_color = 0x252525FF,
             text_color = 0x707070FF,
             text_hover_color = 0xCCCCCCFF,
             text_active_color = 0xFFFFFFFF,
-            border_color = 0x404040FF,
+            border_color = 0x303030FF,
             border_active_color = 0x404040FF,
             rounding = 0,
-            use_custom_colors = true,
-            fill_desaturation = 0.4,
-            fill_brightness = 0.50,
-            fill_alpha = 0xDD,
-            border_saturation = 0.7,
-            border_brightness = 0.75,
-            border_alpha = 0xFF,
-            text_index_saturation = 0.85,
-            text_index_brightness = 0.95,
+            chip_radius = 4,
           },
           context_menu = {
             bg_color = 0x1E1E1EFF,

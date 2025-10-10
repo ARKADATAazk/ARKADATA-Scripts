@@ -142,6 +142,7 @@ function M.get_tabs()
     tabs[#tabs + 1] = {
       id = pl.id,
       label = pl.name or ("Playlist " .. pl.id),
+      chip_color = pl.chip_color,
     }
   end
   return tabs
