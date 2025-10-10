@@ -1,7 +1,7 @@
 -- Region_Playlist/app/status.lua
 -- Status bar configuration
 
-local StatusBar = require("ReArkitekt.gui.widgets.status_bar")
+local StatusBar = require("ReArkitekt.app.chrome.status_bar")
 
 local M = {}
 

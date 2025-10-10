@@ -133,7 +133,7 @@ function M.new(opts)
   end
 
   if opts.show_status_bar ~= false then
-    local ok, StatusBar = pcall(require, 'ReArkitekt.gui.widgets.status_bar')
+    local ok, StatusBar = pcall(require, 'ReArkitekt.app.chrome.status_bar')
     if ok and StatusBar and StatusBar.new then
       local status_height_compensation = 6
       win.status_bar = StatusBar.new({

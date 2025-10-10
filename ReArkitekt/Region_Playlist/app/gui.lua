@@ -1,5 +1,5 @@
 -- Region_Playlist/app/gui.lua
--- GUI rendering with quantize controls
+-- GUI rendering with quantize controls and overflow tabs modal
 
 local ImGui = require 'imgui' '0.10'
 local RegionTiles = require("ReArkitekt.gui.widgets.region_tiles.coordinator")
@@ -7,6 +7,8 @@ local Colors = require("ReArkitekt.core.colors")
 local Shortcuts = require("Region_Playlist.app.shortcuts")
 local PlaylistController = require("ReArkitekt.features.region_playlist.playlist_controller")
 local TransportContainer = require("ReArkitekt.gui.widgets.transport.transport_container")
+local Sheet = require("ReArkitekt.gui.widgets.overlay.sheet")
+local ChipList = require("ReArkitekt.gui.widgets.chip_list.list")
 
 local M = {}
 local GUI = {}
@@ -28,6 +30,8 @@ function M.create(State, Config, settings)
     default_separator_horizontal = 180,
     default_separator_vertical = 280,
     quantize_lookahead = Config.QUANTIZE.default_lookahead,
+    show_overflow_modal = false,
+    overflow_modal_search = "",
   }, GUI)
   
   self.layout_button_animator = require('ReArkitekt.gui.fx.tile_motion').new(Config.LAYOUT_BUTTON.animation_speed)
@@ -101,6 +105,12 @@ function M.create(State, Config, settings)
       if self.controller:reorder_playlists(source_index, target_index) then
         self:refresh_tabs()
       end
+    end,
+    
+    on_overflow_tabs_clicked = function()
+      reaper.ShowConsoleMsg("OVERFLOW BUTTON CLICKED!\n")
+      self.show_overflow_modal = true
+      self.overflow_modal_search = ""
     end,
     
     on_active_search = function(text)
@@ -237,6 +247,153 @@ function GUI:refresh_tabs()
   self.region_tiles:set_tabs(self.State.get_tabs(), self.State.state.active_playlist)
 end
 
+function GUI:draw_overflow_modal(ctx, window)
+  if not self.show_overflow_modal then return end
+  
+  local all_tabs = self.State.get_tabs()
+  
+  local tab_items = {}
+  for _, tab in ipairs(all_tabs) do
+    table.insert(tab_items, {
+      id = tab.id,
+      label = tab.label,
+      color = tab.chip_color or 0x888888FF,
+    })
+  end
+  
+  local active_id = self.State.state.active_playlist
+  local selected_ids = {}
+  selected_ids[active_id] = true
+  
+  -- Fallback: Use simple popup if no overlay system
+  if not window or not window.overlay then
+    ImGui.OpenPopup(ctx, "##overflow_tabs_popup")
+    
+    ImGui.SetNextWindowSize(ctx, 600, 500, ImGui.Cond_FirstUseEver)
+    
+    if ImGui.BeginPopupModal(ctx, "##overflow_tabs_popup", true, ImGui.WindowFlags_NoTitleBar) then
+      ImGui.Text(ctx, "All Playlists:")
+      ImGui.Separator(ctx)
+      ImGui.Dummy(ctx, 0, 8)
+      
+      ImGui.SetNextItemWidth(ctx, -1)
+      local changed, text = ImGui.InputTextWithHint(ctx, "##tab_search", "Search playlists...", self.overflow_modal_search)
+      if changed then 
+        self.overflow_modal_search = text 
+      end
+      
+      ImGui.Dummy(ctx, 0, 8)
+      
+      if ImGui.BeginChild(ctx, "##tab_list", 0, -40) then
+        local clicked_tab = ChipList.draw_columns(ctx, tab_items, {
+          selected_ids = selected_ids,
+          search_text = self.overflow_modal_search,
+          use_dot_style = true,
+          bg_color = 0x252530FF,
+          dot_size = 7,
+          dot_spacing = 7,
+          rounding = 5,
+          padding_h = 12,
+          column_width = 200,
+          column_spacing = 16,
+          item_spacing = 4,
+        })
+        
+        if clicked_tab then
+          self.State.set_active_playlist(clicked_tab)
+          ImGui.CloseCurrentPopup(ctx)
+          self.show_overflow_modal = false
+        end
+      end
+      ImGui.EndChild(ctx)
+      
+      ImGui.Separator(ctx)
+      ImGui.Dummy(ctx, 0, 4)
+      
+      local button_w = 100
+      local avail_w = ImGui.GetContentRegionAvail(ctx)
+      ImGui.SetCursorPosX(ctx, (avail_w - button_w) * 0.5)
+      
+      if ImGui.Button(ctx, "Close", button_w, 0) then
+        ImGui.CloseCurrentPopup(ctx)
+        self.show_overflow_modal = false
+      end
+      
+      ImGui.EndPopup(ctx)
+    else
+      self.show_overflow_modal = false
+    end
+    
+    return
+  end
+  
+  -- Original overlay system path
+  window.overlay:push({
+    id = 'overflow-tabs',
+    close_on_scrim = true,
+    esc_to_close = true,
+    render = function(ctx, alpha, bounds)
+      Sheet.render(ctx, alpha, bounds, function(ctx, w, h, a)
+        local padding_h = 16
+        
+        ImGui.SetCursorPos(ctx, padding_h, 16)
+        ImGui.Text(ctx, "All Playlists:")
+        ImGui.SetCursorPosX(ctx, padding_h)
+        ImGui.SetNextItemWidth(ctx, w - padding_h * 2)
+        local changed, text = ImGui.InputTextWithHint(ctx, "##tab_search", "Search playlists...", self.overflow_modal_search)
+        if changed then 
+          self.overflow_modal_search = text 
+        end
+        
+        ImGui.Dummy(ctx, 0, 12)
+        ImGui.SetCursorPosX(ctx, padding_h)
+        ImGui.Separator(ctx)
+        ImGui.Dummy(ctx, 0, 12)
+        
+        ImGui.SetCursorPosX(ctx, padding_h)
+        
+        local clicked_tab = ChipList.draw_columns(ctx, tab_items, {
+          selected_ids = selected_ids,
+          search_text = self.overflow_modal_search,
+          use_dot_style = true,
+          bg_color = 0x252530FF,
+          dot_size = 7,
+          dot_spacing = 7,
+          rounding = 5,
+          padding_h = 12,
+          column_width = 200,
+          column_spacing = 16,
+          item_spacing = 4,
+        })
+        
+        if clicked_tab then
+          self.State.set_active_playlist(clicked_tab)
+          window.overlay:pop('overflow-tabs')
+          self.show_overflow_modal = false
+        end
+        
+        ImGui.Dummy(ctx, 0, 20)
+        ImGui.SetCursorPosX(ctx, padding_h)
+        ImGui.Separator(ctx)
+        ImGui.Dummy(ctx, 0, 12)
+        
+        local button_w = 100
+        local start_x = (w - button_w) * 0.5
+        
+        ImGui.SetCursorPosX(ctx, start_x)
+        if ImGui.Button(ctx, "Close", button_w, 32) then
+          window.overlay:pop('overflow-tabs')
+          self.show_overflow_modal = false
+        end
+      end, { 
+        title = "Select Playlist", 
+        width = 0.6, 
+        height = 0.7 
+      })
+    end
+  })
+end
+
 function GUI:draw_transport_section(ctx)
   local content_w, content_h = self.transport_container:begin_draw(ctx)
   
@@ -257,12 +414,10 @@ function GUI:draw_transport_section(ctx)
   
   ImGui.Dummy(ctx, 1, 10)
   
-  -- Quantize mode selection
   local engine = self.State.state.bridge.engine
   if engine and engine.quantize then
     local current_mode = engine.quantize:get_quantize_mode()
     
-    -- Grid options: measure, 1 bar, 1/2, 1/4, 1/8, 1/16, 1/32, 1/64
     local grid_options = {
       { label = "Measure", value = "measure" },
       { label = "1 Bar (4/4)", value = "4.0" },
@@ -274,7 +429,6 @@ function GUI:draw_transport_section(ctx)
       { label = "1/64 Note", value = "0.0625" },
     }
     
-    -- Find current selection index
     local current_idx = 1
     for i, opt in ipairs(grid_options) do
       if opt.value == current_mode then
@@ -303,9 +457,8 @@ function GUI:draw_transport_section(ctx)
     ImGui.SameLine(ctx, 0, 12)
   end
   
-  -- Lookahead slider with proper range from quantize module
-  local min_lookahead = 10  -- 10ms
-  local max_lookahead = 200 -- 200ms
+  local min_lookahead = 10
+  local max_lookahead = 200
   
   if engine and engine.quantize then
     min_lookahead = engine.quantize.min_lookahead * 1000
@@ -336,7 +489,6 @@ function GUI:draw_transport_section(ctx)
     ImGui.BeginDisabled(ctx)
   end
   
-  -- Dynamic button label based on mode
   local button_label = "Jump to Next"
   if engine and engine.quantize then
     local mode = engine.quantize:get_quantize_mode()
@@ -364,7 +516,6 @@ function GUI:draw_transport_section(ctx)
     end
   end
   
-  -- 🎯 HERE'S YOUR BUTTON! 🎯
   if ImGui.Button(ctx, button_label) then
     self.State.state.bridge:jump_to_next_quantized(self.quantize_lookahead)
   end
@@ -588,7 +739,12 @@ function GUI:get_filtered_active_items(playlist)
   return filtered
 end
 
-function GUI:draw(ctx)
+function GUI:draw(ctx, window)
+  if self.show_overflow_modal then
+    reaper.ShowConsoleMsg("Drawing overflow modal! Window exists: " .. tostring(window ~= nil) .. "\n")
+    self:draw_overflow_modal(ctx, window)
+  end
+  
   self.State.state.bridge:update()
   self.State.update()
   

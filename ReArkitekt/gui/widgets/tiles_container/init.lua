@@ -76,6 +76,7 @@ function M.new(opts)
     on_tab_change = opts.on_tab_change,
     on_tab_delete = opts.on_tab_delete,
     on_tab_reorder = opts.on_tab_reorder,
+    on_overflow_tabs_clicked = opts.on_overflow_tabs_clicked,
     
     had_scrollbar_last_frame = false,
     last_content_height = 0,

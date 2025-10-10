@@ -10,7 +10,7 @@ M.defaults = {
   height = 28,
   left_pad = 10,
   text_pad = 8,
-  chip_size = 10,
+  chip_size = 6,
   right_pad = 10,
 
   -- Resize handle configuration
@@ -22,7 +22,7 @@ M.defaults = {
   chip = {
     shape = Chip.SHAPE.CIRCLE,   -- CIRCLE or SQUARE
     rounding = 2,                -- Corner rounding for squares (0 = sharp)
-    show_glow = true,            -- Enable glow effect
+    show_glow = false,            -- Enable glow effect
     glow_layers = 5,             -- Glow smoothness (more = smoother)
     shadow = true,               -- Enable drop shadow
     shadow_offset_x = 0,         -- Shadow horizontal offset

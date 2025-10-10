@@ -1,11 +1,11 @@
 # FOLDER FLOW: ReArkitekt
-Generated: 2025-10-10 20:52:51
+Generated: 2025-10-10 23:47:48
 Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
 
 ## Overview
-- **Files**: 107
-- **Total Lines**: 20,994
-- **Public Functions**: 309
+- **Files**: 110
+- **Total Lines**: 21,595
+- **Public Functions**: 311
 - **Classes**: 77
 
 ## Files
@@ -53,7 +53,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.draw_length_display(ctx, dl, rect, region, base_color, text_alpha)`
   **Requires**: ReArkitekt.gui.draw, ReArkitekt.core.colors, ReArkitekt.gui.fx.tile_fx, ReArkitekt.gui.fx.tile_fx_config, ReArkitekt.gui.fx.marching_ants
 
-### chip.lua (243 lines)
+### chip.lua (332 lines)
   **Modules**: M
   **Exports**:
     - `M.calculate_width(ctx, label, opts)`
@@ -73,6 +73,13 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.lerp_component(a, b, t)`
     - `M.lerp(color_a, color_b, t)`
     - `M.auto_text_color(bg_color)`
+
+### config.lua (139 lines)
+  **Modules**: M, result
+  **Exports**:
+    - `M.deep_merge(base, override)`
+    - `M.merge(user_config, preset_name)`
+  **Requires**: ReArkitekt.gui.widgets.component.chip
 
 ### config.lua (85 lines)
   **Modules**: M, keys
@@ -97,7 +104,10 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   **Exports**:
     - `M.merge_config(defaults, custom)`
 
-### config.lua (200 lines)
+### config.lua (173 lines)
+  **Modules**: M
+
+### config.lua (212 lines)
   **Modules**: M
   **Exports**:
     - `M.get_region_tiles_config(layout_mode)`
@@ -124,7 +134,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.draw_playback_info(ctx, bridge, x, y, width)`
     - `M.draw_complete_controls(ctx, bridge, x, y, available_width)`
 
-### coordinator.lua (512 lines)
+### coordinator.lua (523 lines)
   **Modules**: M, RegionTiles, playlist_cache, copy, spawned_keys, payload, colors
   **Classes**: RegionTiles, M
   **Exports**:
@@ -163,7 +173,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
 
 ### demo3.lua (120 lines)
   **Modules**: pads
-  **Requires**: ReArkitekt.app.shell, ReArkitekt.gui.widgets.displays.status_pad, ReArkitekt.gui.widgets.status_bar
+  **Requires**: ReArkitekt.app.shell, ReArkitekt.gui.widgets.displays.status_pad, ReArkitekt.app.chrome.status_bar
 
 ### demo_modal_overlay.lua (423 lines)
   **Modules**: selected_tag_items
@@ -273,8 +283,8 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   **Exports**:
     - `M.new(config)`
 
-### gui.lua (771 lines)
-  **Modules**: M, GUI, filtered
+### gui.lua (927 lines)
+  **Modules**: M, GUI, tab_items, selected_ids, filtered
   **Classes**: GUI, M
   **Exports**:
     - `M.create(State, Config, settings)`
@@ -313,7 +323,10 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   **Exports**:
     - `M.new(opts)`
 
-### init.lua (547 lines)
+### init.lua (2 lines)
+  **Requires**: ReArkitekt.app.chrome.status_bar.widget
+
+### init.lua (395 lines)
   **Modules**: M, result, Container, old_ids
   **Classes**: Container, M
   **Exports**:
@@ -492,7 +505,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   **Exports**:
     - `M.new(opts)`
 
-### search_sort.lua (251 lines)
+### search_sort.lua (224 lines)
   **Modules**: M
   **Exports**:
     - `M.draw(ctx, dl, x, y, width, height, state, cfg, current_mode, on_mode_changed)`
@@ -576,7 +589,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.generate_chip_color()`
   **Requires**: ReArkitekt.core.json, ReArkitekt.core.colors
 
-### state.lua (593 lines)
+### state.lua (596 lines)
   **Modules**: M, tabs, result, reversed, all_deps, visited, pool_playlists, filtered, reversed, new_path, path_array
   **Exports**:
     - `M.initialize(settings)`
@@ -596,13 +609,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   **Classes**: M
   **Exports**:
     - `M.create(State, Style)`
-  **Requires**: ReArkitekt.gui.widgets.status_bar
-
-### status_bar.lua (329 lines)
-  **Modules**: M, right_items, item_widths
-  **Classes**: M
-  **Exports**:
-    - `M.new(config)`
+  **Requires**: ReArkitekt.app.chrome.status_bar
 
 ### status_pad.lua (191 lines)
   **Modules**: M, FontPool, StatusPad
@@ -625,8 +632,8 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.new(opts)`
   **Requires**: ReArkitekt.gui.fx.easing
 
-### tabs.lua (478 lines)
-  **Modules**: M, positions
+### tabs.lua (649 lines)
+  **Modules**: M, visible_tabs, positions
   **Exports**:
     - `M.assign_random_color(tab)`
     - `M.draw(ctx, dl, x, y, width, height, state, cfg)`
@@ -686,7 +693,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.calculate_next_transition(region_end, mode, max_lookahead, proj)`
     - `M.get_beats_in_region(start_time, end_time, proj)`
 
-### titlebar.lua (418 lines)
+### titlebar.lua (453 lines)
   **Modules**: M, DEFAULTS
   **Classes**: M
   **Exports**:
@@ -772,6 +779,13 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.finish(ctx)`
   **Requires**: imgui
 
+### widget.lua (318 lines)
+  **Modules**: M, right_items
+  **Classes**: M
+  **Exports**:
+    - `M.new(config)`
+  **Requires**: ReArkitekt.gui.widgets.component.chip, ReArkitekt.app.chrome.status_bar.config
+
 ### widget_demo.lua (222 lines)
   **Modules**: t, arr
   **Requires**: ReArkitekt.app.shell, ReArkitekt.gui.widgets.colorblocks, ReArkitekt.gui.draw, ReArkitekt.gui.fx.effects, ReArkitekt.*
@@ -783,6 +797,16 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.new(opts)`
 
 ## Internal Dependencies
+
+### config.lua
+  → ReArkitekt.gui.widgets.component.chip
+
+### init.lua
+  → ReArkitekt.app.chrome.status_bar.widget
+
+### widget.lua
+  → ReArkitekt.gui.widgets.component.chip
+  → ReArkitekt.app.chrome.status_bar.config
 
 ### shell.lua
   → ReArkitekt.app.runtime
@@ -804,7 +828,6 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
 ### demo3.lua
   → ReArkitekt.app.shell
   → ReArkitekt.gui.widgets.displays.status_pad
-  → ReArkitekt.gui.widgets.status_bar
 
 ### demo_modal_overlay.lua
   → ReArkitekt.app.shell
@@ -1005,6 +1028,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   → ReArkitekt.gui.widgets.tiles_container.background
   → ReArkitekt.gui.widgets.tiles_container.tab_animator
   → ReArkitekt.gui.widgets.controls.scrollbar
+  → ReArkitekt.gui.widgets.tiles_container.config
   → ReArkitekt.gui.widgets.tiles_container.modes.tabs
 
 ### search_sort.lua
@@ -1033,6 +1057,8 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   → Region_Playlist.app.shortcuts
   → ReArkitekt.features.region_playlist.playlist_controller
   → ReArkitekt.gui.widgets.transport.transport_container
+  → ReArkitekt.gui.widgets.overlay.sheet
+  → ReArkitekt.gui.widgets.chip_list.list
   → ReArkitekt.gui.fx.tile_motion
 
 ### shortcuts.lua
@@ -1044,9 +1070,6 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   → ReArkitekt.core.undo_manager
   → ReArkitekt.features.region_playlist.undo_bridge
   → ReArkitekt.core.colors
-
-### status.lua
-  → ReArkitekt.gui.widgets.status_bar
 
 ### ARK_Region_Playlist.lua
   → ReArkitekt.app.shell

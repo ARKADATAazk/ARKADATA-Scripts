@@ -39,7 +39,7 @@ local gui = GUI.create(State, Config, settings)
 
 Shell.run({
   title        = "Region Playlist",
-  draw         = function(ctx, shell_state) gui:draw(ctx) end,
+  draw         = function(ctx, shell_state) gui:draw(ctx, shell_state.window) end,
   settings     = settings,
   style        = StyleOK and Style or nil,
   initial_pos  = { x = 120, y = 120 },

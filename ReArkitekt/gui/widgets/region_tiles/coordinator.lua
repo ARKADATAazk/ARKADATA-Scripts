@@ -77,6 +77,7 @@ function M.create(opts)
     on_tab_change = opts.on_tab_change,
     on_tab_delete = opts.on_tab_delete,
     on_tab_reorder = opts.on_tab_reorder,
+    on_overflow_tabs_clicked = opts.on_overflow_tabs_clicked,
     on_active_search = opts.on_active_search,
     settings = opts.settings,
     
@@ -160,6 +161,16 @@ function M.create(opts)
       if rt.on_tab_change then
         rt.on_tab_change(id)
       end
+    end,
+      on_tab_reorder = function(source_index, target_index)
+        if rt.on_tab_reorder then
+          rt.on_tab_reorder(source_index, target_index)
+        end
+      end,
+      on_overflow_tabs_clicked = function()
+        if rt.on_overflow_tabs_clicked then
+          rt.on_overflow_tabs_clicked()
+        end
     end,
     on_tab_delete = function(id)
       if rt.on_tab_delete then

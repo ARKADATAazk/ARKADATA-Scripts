@@ -1,5 +1,5 @@
 -- ReArkitekt/gui/widgets/tiles_container/modes/tabs.lua
--- Tab mode with chip indicators instead of colored backgrounds
+-- Tab mode with chip indicators and overflow button
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
@@ -92,6 +92,52 @@ local function draw_plus_button(ctx, dl, x, y, state, cfg)
   local clicked = ImGui.InvisibleButton(ctx, "##plus_" .. state.id, w, h)
 
   return clicked, x + w
+end
+
+local function draw_overflow_button(ctx, dl, x, y, state, cfg, hidden_count)
+  local btn_cfg = cfg.tabs.overflow_button or {
+    min_width = 21,
+    padding_x = 8,
+    bg_color = 0x1C1C1CFF,
+    bg_hover_color = 0x282828FF,
+    bg_active_color = 0x252525FF,
+    text_color = 0x707070FF,
+    text_hover_color = 0xCCCCCCFF,
+    border_color = 0x303030FF,
+    border_hover_color = 0x404040FF,
+    rounding = 4,
+  }
+  local h = cfg.element_height or 20
+  
+  local count_text = tostring(hidden_count)
+  local text_w = ImGui.CalcTextSize(ctx, count_text)
+  local w = math.max(btn_cfg.min_width, text_w + btn_cfg.padding_x * 2)
+
+  local is_hovered = ImGui.IsMouseHoveringRect(ctx, x, y, x + w, y + h)
+  local is_active = ImGui.IsMouseDown(ctx, 0) and is_hovered
+
+  local bg_color = btn_cfg.bg_color
+  if is_active then
+    bg_color = btn_cfg.bg_active_color
+  elseif is_hovered then
+    bg_color = btn_cfg.bg_hover_color
+  end
+
+  local border_color = is_hovered and btn_cfg.border_hover_color or btn_cfg.border_color
+  local text_color = is_hovered and btn_cfg.text_hover_color or btn_cfg.text_color
+
+  local corner_flags = ImGui.DrawFlags_RoundCornersTopRight | ImGui.DrawFlags_RoundCornersBottomRight
+  ImGui.DrawList_AddRectFilled(dl, x, y, x + w, y + h, bg_color, btn_cfg.rounding, corner_flags)
+  ImGui.DrawList_AddRect(dl, x, y, x + w, y + h, border_color, btn_cfg.rounding, corner_flags, 1)
+
+  local text_x = x + (w - text_w) * 0.5
+  local text_y = y + (h - ImGui.GetTextLineHeight(ctx)) * 0.5
+  ImGui.DrawList_AddText(dl, text_x, text_y, text_color, count_text)
+
+  ImGui.SetCursorScreenPos(ctx, x, y)
+  local clicked = ImGui.InvisibleButton(ctx, "##overflow_" .. state.id, w, h)
+
+  return clicked, w
 end
 
 local function draw_tabs_track(ctx, dl, plus_x, tabs_start_x, tabs_end_x, y, height, cfg)
@@ -197,6 +243,29 @@ local function update_tab_positions(ctx, state, cfg, start_x)
     
     cursor_x = cursor_x + tab_width + spacing
   end
+end
+
+local function calculate_visible_tabs(ctx, state, cfg, available_width, tabs_start_x)
+  local tab_cfg = cfg.tabs.tab
+  local spacing = tab_cfg.spacing
+  local visible_tabs = {}
+  local overflow_count = 0
+  local current_width = 0
+  
+  for i, tab in ipairs(state.tabs) do
+    local has_chip = tab.chip_color ~= nil
+    local tab_width = calculate_tab_width(ctx, tab.label or "Tab", tab_cfg, has_chip)
+    local needed_width = tab_width + (i > 1 and spacing or 0)
+    
+    if current_width + needed_width <= available_width then
+      visible_tabs[#visible_tabs + 1] = i
+      current_width = current_width + needed_width
+    else
+      overflow_count = overflow_count + 1
+    end
+  end
+  
+  return visible_tabs, overflow_count
 end
 
 local function draw_tab(ctx, dl, tab_data, is_active, tab_index, y, state, cfg)
@@ -368,22 +437,54 @@ function M.draw(ctx, dl, x, y, width, height, state, cfg)
   local cursor_x = x + cfg.padding_x
   local cursor_y = y + (height - element_height) * 0.5
 
-  local tabs_start_x = cursor_x + tabs_cfg.plus_button.width + tabs_cfg.tab.spacing
+  local plus_width = tabs_cfg.plus_button.width
+  local spacing = tabs_cfg.tab.spacing
+  
+  local overflow_width = 0
+  local overflow_count = 0
+  
+  if #state.tabs > 0 then
+    local overflow_btn_cfg = tabs_cfg.overflow_button or { 
+      min_width = 21, 
+      padding_x = 8,
+      bg_color = 0x1C1C1CFF,
+      bg_hover_color = 0x282828FF,
+      text_color = 0x707070FF,
+      text_hover_color = 0xCCCCCCFF,
+    }
+    local count_text = tostring(#state.tabs)
+    local text_w = ImGui.CalcTextSize(ctx, count_text)
+    overflow_width = math.max(overflow_btn_cfg.min_width, text_w + overflow_btn_cfg.padding_x * 2)
+  end
+  
+  local available_width = width - (cfg.padding_x * 2) - plus_width - spacing - overflow_width - spacing - (tabs_cfg.reserved_right_space or 12)
+  
+  local visible_tab_indices, calc_overflow_count = calculate_visible_tabs(ctx, state, cfg, available_width, cursor_x + plus_width + spacing)
+  overflow_count = calc_overflow_count
+  
+  reaper.ShowConsoleMsg(string.format("Tabs debug: total=%d visible=%d overflow=%d\n", #state.tabs, #visible_tab_indices, overflow_count))
+  
+  local tabs_start_x = cursor_x + plus_width + spacing
   
   local tabs_end_x = tabs_start_x
-  for i, tab in ipairs(state.tabs) do
+  for _, idx in ipairs(visible_tab_indices) do
+    local tab = state.tabs[idx]
     local has_chip = tab.chip_color ~= nil
     local tab_width = calculate_tab_width(ctx, tab.label or "Tab", tabs_cfg.tab, has_chip)
     tabs_end_x = tabs_end_x + tab_width
-    if i < #state.tabs then
-      tabs_end_x = tabs_end_x + tabs_cfg.tab.spacing
+    if idx < visible_tab_indices[#visible_tab_indices] then
+      tabs_end_x = tabs_end_x + spacing
     end
+  end
+  
+  if overflow_count > 0 then
+    tabs_end_x = tabs_end_x + spacing + overflow_width
   end
   
   draw_tabs_track(ctx, dl, cursor_x, tabs_start_x, tabs_end_x, cursor_y, element_height, cfg)
 
   local plus_clicked, new_x = draw_plus_button(ctx, dl, cursor_x, cursor_y, state, cfg)
-  tabs_start_x = new_x + tabs_cfg.tab.spacing
+  tabs_start_x = new_x + spacing
 
   if plus_clicked and state.on_tab_create then
     state.on_tab_create()
@@ -414,7 +515,7 @@ function M.draw(ctx, dl, x, y, width, height, state, cfg)
           width = tab_w
         })
         
-        current_x = current_x + tab_w + tabs_cfg.tab.spacing
+        current_x = current_x + tab_w + spacing
       end
     end
     
@@ -454,16 +555,38 @@ function M.draw(ctx, dl, x, y, width, height, state, cfg)
   local clicked_tab_id = nil
 
   for i, tab_data in ipairs(state.tabs) do
-    local is_active = (tab_data.id == state.active_tab_id)
-    local clicked, tab_w, delete_requested = draw_tab(ctx, dl, tab_data, is_active, 
-                                                       i, cursor_y, state, cfg)
-
-    if clicked and not (state.dragging_tab or ImGui.IsMouseDragging(ctx, 0)) then
-      clicked_tab_id = tab_data.id
+    local is_visible = false
+    for _, vis_idx in ipairs(visible_tab_indices) do
+      if vis_idx == i then
+        is_visible = true
+        break
+      end
     end
+    
+    if is_visible then
+      local is_active = (tab_data.id == state.active_tab_id)
+      local clicked, tab_w, delete_requested = draw_tab(ctx, dl, tab_data, is_active, 
+                                                         i, cursor_y, state, cfg)
 
-    if delete_requested then
-      id_to_delete = tab_data.id
+      if clicked and not (state.dragging_tab or ImGui.IsMouseDragging(ctx, 0)) then
+        clicked_tab_id = tab_data.id
+      end
+
+      if delete_requested then
+        id_to_delete = tab_data.id
+      end
+    end
+  end
+  
+  if overflow_count > 0 then
+    local overflow_x = tabs_end_x - overflow_width
+    local overflow_clicked, actual_overflow_width = draw_overflow_button(ctx, dl, overflow_x, cursor_y, state, cfg, overflow_count)
+    
+    if overflow_clicked then
+      reaper.ShowConsoleMsg("Overflow button clicked in tabs.lua! Callback exists: " .. tostring(state.on_overflow_tabs_clicked ~= nil) .. "\n")
+      if state.on_overflow_tabs_clicked then
+        state.on_overflow_tabs_clicked()
+      end
     end
   end
 
