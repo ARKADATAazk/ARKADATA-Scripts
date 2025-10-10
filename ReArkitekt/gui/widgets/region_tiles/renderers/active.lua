@@ -9,6 +9,7 @@ local TileFX = require('ReArkitekt.gui.fx.tile_fx')
 local TileFXConfig = require('ReArkitekt.gui.fx.tile_fx_config')
 local MarchingAnts = require('ReArkitekt.gui.fx.marching_ants')
 local TileUtil = require('ReArkitekt.gui.systems.tile_utilities')
+local Chip = require('ReArkitekt.gui.widgets.component.chip')
 
 local M = {}
 
@@ -65,21 +66,17 @@ end
 function M.render_region(ctx, rect, item, state, get_region_by_rid, animator, on_repeat_cycle, hover_config, tile_height, border_thickness, bridge)
   local dl = ImGui.GetWindowDrawList(ctx)
   local x1, y1, x2, y2 = rect[1], rect[2], rect[3], rect[4]
-  
   local actual_height = tile_height or (y2 - y1)
-  
   local region = get_region_by_rid(item.rid)
   if not region then return end
   
   local is_enabled = item.enabled ~= false
-  
   local animation_speed = hover_config and hover_config.animation_speed_hover or 12.0
   animator:track(item.key, 'hover', state.hover and 1.0 or 0.0, animation_speed)
   animator:track(item.key, 'enabled', is_enabled and 1.0 or 0.0, M.CONFIG.disabled.fade_speed)
   
   local hover_factor = animator:get(item.key, 'hover')
   local enabled_factor = animator:get(item.key, 'enabled')
-  
   local base_color = region.color or M.CONFIG.bg_base
   
   if enabled_factor < 1.0 then
@@ -97,44 +94,31 @@ function M.render_region(ctx, rect, item, state, get_region_by_rid, animator, on
   if bridge then
     local bridge_state = bridge:get_state()
     local current_rid = bridge:get_current_rid()
-    
     if bridge_state.is_playing and current_rid == item.rid then
       playback_progress = bridge:get_progress() or 0
-      
       local PlaybackUtil = require('ReArkitekt.gui.systems.playback_manager')
       playback_fade = PlaybackUtil.compute_fade_alpha(playback_progress, 0.1, 0.2)
     end
   end
   
-  TileFX.render_complete(dl, x1, y1, x2, y2, base_color, fx_config, state.selected, hover_factor, playback_progress, playback_fade) 
-
+  TileFX.render_complete(dl, x1, y1, x2, y2, base_color, fx_config, state.selected, hover_factor, playback_progress, playback_fade)
+  
   if state.selected and fx_config.ants_enabled then
-    local ants_color = Colors.same_hue_variant(base_color, 
-      fx_config.border_saturation, 
-      fx_config.border_brightness, 
-      fx_config.ants_alpha or 0xFF)
-    
+    local ants_color = Colors.same_hue_variant(base_color, fx_config.border_saturation, fx_config.border_brightness, fx_config.ants_alpha or 0xFF)
     local inset = fx_config.ants_inset or 0.5
     MarchingAnts.draw(dl, x1 + inset, y1 + inset, x2 - inset, y2 - inset, ants_color, 
-      fx_config.ants_thickness,
-      M.CONFIG.rounding,
-      fx_config.ants_dash,
-      fx_config.ants_gap,
-      fx_config.ants_speed)
+      fx_config.ants_thickness, M.CONFIG.rounding, fx_config.ants_dash, fx_config.ants_gap, fx_config.ants_speed)
   end
   
   local show_text = actual_height >= M.CONFIG.responsive.hide_text_below
   local show_badge = actual_height >= M.CONFIG.responsive.hide_badge_below
   local show_length = actual_height >= M.CONFIG.responsive.hide_length_below
-  
   local height_factor = math.min(1.0, math.max(0.0, (actual_height - 20) / (72 - 20)))
-  
   local text_alpha = math.floor(0xFF * enabled_factor + M.CONFIG.disabled.min_alpha * (1.0 - enabled_factor))
   
   if show_text then
     local accent_color = Colors.same_hue_variant(base_color, fx_config.index_saturation, fx_config.index_brightness, 0xFF)
     local name_color = Colors.adjust_brightness(fx_config.name_base_color, fx_config.name_brightness)
-    
     accent_color = Colors.with_alpha(accent_color, text_alpha)
     name_color = Colors.with_alpha(name_color, text_alpha)
     
@@ -154,16 +138,11 @@ function M.render_region(ctx, rect, item, state, get_region_by_rid, animator, on
     if index_str ~= "" then
       Draw.text(dl, text_x, text_y, accent_color, index_str)
       local index_w = ImGui.CalcTextSize(ctx, index_str)
-      
       local separator = " "
       local sep_w = ImGui.CalcTextSize(ctx, separator)
-      local separator_color = Colors.same_hue_variant(base_color, 
-        fx_config.separator_saturation, 
-        fx_config.separator_brightness, 
-        fx_config.separator_alpha)
+      local separator_color = Colors.same_hue_variant(base_color, fx_config.separator_saturation, fx_config.separator_brightness, fx_config.separator_alpha)
       separator_color = Colors.with_alpha(separator_color, text_alpha)
       Draw.text(dl, text_x + index_w, text_y, separator_color, separator)
-      
       Draw.text(dl, text_x + index_w + sep_w, text_y, name_color, name_str)
     else
       Draw.text(dl, text_x, text_y, name_color, name_str)
@@ -173,7 +152,6 @@ function M.render_region(ctx, rect, item, state, get_region_by_rid, animator, on
   if show_badge then
     local reps = item.reps or 1
     local badge_text = (reps == 0) and "∞" or ("×" .. reps)
-    
     local bw, bh = ImGui.CalcTextSize(ctx, badge_text)
     bw = bw * M.CONFIG.badge_font_scale
     bh = bh * M.CONFIG.badge_font_scale
@@ -189,7 +167,6 @@ function M.render_region(ctx, rect, item, state, get_region_by_rid, animator, on
     
     local badge_bg = M.CONFIG.badge_bg
     local badge_border_color = Colors.with_alpha(base_color, M.CONFIG.badge_border_alpha)
-    
     local badge_bg_alpha = math.floor(((badge_bg & 0xFF) * enabled_factor) + (M.CONFIG.disabled.min_alpha * (1.0 - enabled_factor)))
     badge_bg = (badge_bg & 0xFFFFFF00) | badge_bg_alpha
     
@@ -197,29 +174,18 @@ function M.render_region(ctx, rect, item, state, get_region_by_rid, animator, on
     ImGui.DrawList_AddRect(dl, badge_x, badge_y, badge_x2, badge_y2, badge_border_color, M.CONFIG.badge_rounding, 0, 0.5)
     
     local badge_text_color = Colors.with_alpha(0xFFFFFFDD, text_alpha)
-    
-    local text_x = badge_x + scaled_badge_padding_x
-    local text_y = badge_y + scaled_badge_padding_y
-    Draw.text(dl, text_x, text_y, badge_text_color, badge_text)
+    Draw.text(dl, badge_x + scaled_badge_padding_x, badge_y + scaled_badge_padding_y, badge_text_color, badge_text)
     
     ImGui.SetCursorScreenPos(ctx, badge_x, badge_y)
     ImGui.InvisibleButton(ctx, "##badge_" .. item.key, badge_x2 - badge_x, badge_y2 - badge_y)
-    
     if ImGui.IsItemClicked(ctx, 0) and on_repeat_cycle then
       on_repeat_cycle(item.key)
     end
   end
   
   if show_length then
-    if not region["end"] then
-      reaper.ShowConsoleMsg(string.format("Region missing 'end': rid=%s, keys=%s\n", 
-        tostring(item.rid), 
-        table.concat((function() local k={} for key in pairs(region) do k[#k+1]=key end return k end)(), ",")))
-    end
     local length_str = TileUtil.format_bar_length(region.start, region["end"], 0)
-    
     local scale = M.CONFIG.length_font_size
-    
     local length_w, length_h = ImGui.CalcTextSize(ctx, length_str)
     length_w = length_w * scale
     length_h = length_h * scale
@@ -230,31 +196,22 @@ function M.render_region(ctx, rect, item, state, get_region_by_rid, animator, on
     
     local length_x = x2 - length_w - scaled_length_padding_x * 2 - scaled_length_margin - M.CONFIG.length_offset_x
     local length_y = y2 - length_h - scaled_length_padding_y * 2 - scaled_length_margin
-    
-    local length_text_x = length_x + scaled_length_padding_x
-    local length_text_y = length_y + scaled_length_padding_y
-    
-    local length_color = Colors.same_hue_variant(base_color, 
-      fx_config.duration_saturation, 
-      fx_config.duration_brightness, 
-      fx_config.duration_alpha)
+    local length_color = Colors.same_hue_variant(base_color, fx_config.duration_saturation, fx_config.duration_brightness, fx_config.duration_alpha)
     length_color = Colors.with_alpha(length_color, text_alpha)
     
-    Draw.text(dl, length_text_x, length_text_y, length_color, length_str)
+    Draw.text(dl, length_x + scaled_length_padding_x, length_y + scaled_length_padding_y, length_color, length_str)
   end
 end
 
 function M.render_playlist(ctx, rect, item, state, animator, on_repeat_cycle, hover_config, tile_height, border_thickness, get_playlist_by_id)
   local dl = ImGui.GetWindowDrawList(ctx)
   local x1, y1, x2, y2 = rect[1], rect[2], rect[3], rect[4]
-  
   local actual_height = tile_height or (y2 - y1)
   
   local playlist = get_playlist_by_id and get_playlist_by_id(item.playlist_id) or nil
   local name_str = playlist and playlist.name or (item.playlist_name or "Unknown Playlist")
   local item_count = playlist and #playlist.items or (item.playlist_item_count or 0)
   local chip_color = playlist and playlist.chip_color or (item.chip_color or 0xFF5733FF)
-  
   local is_enabled = item.enabled ~= false
   
   local animation_speed = hover_config and hover_config.animation_speed_hover or 12.0
@@ -263,7 +220,6 @@ function M.render_playlist(ctx, rect, item, state, animator, on_repeat_cycle, ho
   
   local hover_factor = animator:get(item.key, 'hover')
   local enabled_factor = animator:get(item.key, 'enabled')
-  
   local base_color = M.CONFIG.playlist_tile.base_color
   
   if enabled_factor < 1.0 then
@@ -278,58 +234,42 @@ function M.render_playlist(ctx, rect, item, state, animator, on_repeat_cycle, ho
   TileFX.render_complete(dl, x1, y1, x2, y2, base_color, fx_config, state.selected, hover_factor, 0, 0)
   
   if state.selected and fx_config.ants_enabled then
-    local ants_color = Colors.same_hue_variant(chip_color, 
-      fx_config.border_saturation, 
-      fx_config.border_brightness, 
-      fx_config.ants_alpha or 0xFF)
-    
+    local ants_color = Colors.same_hue_variant(chip_color, fx_config.border_saturation, fx_config.border_brightness, fx_config.ants_alpha or 0xFF)
     local inset = fx_config.ants_inset or 0.5
     MarchingAnts.draw(dl, x1 + inset, y1 + inset, x2 - inset, y2 - inset, ants_color, 
-      fx_config.ants_thickness,
-      M.CONFIG.rounding,
-      fx_config.ants_dash,
-      fx_config.ants_gap,
-      fx_config.ants_speed)
+      fx_config.ants_thickness, M.CONFIG.rounding, fx_config.ants_dash, fx_config.ants_gap, fx_config.ants_speed)
   end
   
   local show_text = actual_height >= M.CONFIG.responsive.hide_text_below
   local show_badge = actual_height >= M.CONFIG.responsive.hide_badge_below
-  
   local height_factor = math.min(1.0, math.max(0.0, (actual_height - 20) / (72 - 20)))
   local text_alpha = math.floor(0xFF * enabled_factor + M.CONFIG.disabled.min_alpha * (1.0 - enabled_factor))
   
   if show_text then
     local chip_x = x1 + M.CONFIG.playlist_tile.chip_offset_x
     local chip_y = y1 + (actual_height - 10) * 0.5
-    local chip_radius = M.CONFIG.playlist_tile.chip_radius
     
-    local current_chip_color = chip_color
-    current_chip_color = Colors.with_alpha(current_chip_color, text_alpha)
-    
-    if state.hover or state.selected then
-      current_chip_color = Colors.adjust_brightness(current_chip_color, 1.3)
-    end
-    
-    ImGui.DrawList_AddCircleFilled(dl, chip_x, chip_y, chip_radius + 1, Colors.with_alpha(0x000000FF, math.floor(80 * (text_alpha / 255))))
-    ImGui.DrawList_AddCircleFilled(dl, chip_x, chip_y, chip_radius, current_chip_color)
-    
-    if state.selected or state.hover then
-      for i = 1, M.CONFIG.playlist_tile.chip_glow_layers do
-        local glow_alpha = math.floor((100 / (i * 1.5)) * (text_alpha / 255))
-        local glow_radius = chip_radius + (i * 2)
-        local glow_color = Colors.with_alpha(current_chip_color, glow_alpha)
-        ImGui.DrawList_AddCircle(dl, chip_x, chip_y, glow_radius, glow_color, 0, 1.5)
-      end
-    end
+    Chip.draw(ctx, {
+      style = Chip.STYLE.INDICATOR,
+      color = chip_color,
+      draw_list = dl,
+      x = chip_x,
+      y = chip_y,
+      radius = M.CONFIG.playlist_tile.chip_radius,
+      is_selected = state.selected,
+      is_hovered = state.hover,
+      show_glow = state.selected or state.hover,
+      glow_layers = M.CONFIG.playlist_tile.chip_glow_layers,
+      alpha_factor = text_alpha / 255,
+    })
     
     local name_color = Colors.adjust_brightness(fx_config.name_base_color, fx_config.name_brightness)
     name_color = Colors.with_alpha(name_color, text_alpha)
-    
     if state.hover or state.selected then
       name_color = Colors.with_alpha(0xFFFFFFFF, text_alpha)
     end
     
-    local text_x = chip_x + chip_radius + 12
+    local text_x = chip_x + M.CONFIG.playlist_tile.chip_radius + 12
     local text_y = y1 + (actual_height - ImGui.CalcTextSize(ctx, name_str)) / 2
     Draw.text(dl, text_x, text_y, name_color, name_str)
   end
@@ -337,7 +277,6 @@ function M.render_playlist(ctx, rect, item, state, animator, on_repeat_cycle, ho
   if show_badge then
     local reps = item.reps or 1
     local badge_text = (reps == 0) and ("∞ [" .. item_count .. "]") or ("×" .. reps .. " [" .. item_count .. "]")
-    
     local bw, bh = ImGui.CalcTextSize(ctx, badge_text)
     bw = bw * M.CONFIG.badge_font_scale
     bh = bh * M.CONFIG.badge_font_scale
@@ -353,7 +292,6 @@ function M.render_playlist(ctx, rect, item, state, animator, on_repeat_cycle, ho
     
     local badge_bg = M.CONFIG.badge_bg
     local badge_border_color = Colors.with_alpha(chip_color, M.CONFIG.badge_border_alpha)
-    
     local badge_bg_alpha = math.floor(((badge_bg & 0xFF) * enabled_factor) + (M.CONFIG.disabled.min_alpha * (1.0 - enabled_factor)))
     badge_bg = (badge_bg & 0xFFFFFF00) | badge_bg_alpha
     
@@ -361,18 +299,13 @@ function M.render_playlist(ctx, rect, item, state, animator, on_repeat_cycle, ho
     ImGui.DrawList_AddRect(dl, badge_x, badge_y, badge_x2, badge_y2, badge_border_color, M.CONFIG.badge_rounding, 0, 0.5)
     
     local badge_text_color = Colors.with_alpha(0xFFFFFFDD, text_alpha)
-    
-    local text_x = badge_x + scaled_badge_padding_x
-    local text_y = badge_y + scaled_badge_padding_y
-    Draw.text(dl, text_x, text_y, badge_text_color, badge_text)
+    Draw.text(dl, badge_x + scaled_badge_padding_x, badge_y + scaled_badge_padding_y, badge_text_color, badge_text)
     
     ImGui.SetCursorScreenPos(ctx, badge_x, badge_y)
     ImGui.InvisibleButton(ctx, "##badge_" .. item.key, badge_x2 - badge_x, badge_y2 - badge_y)
-    
     if ImGui.IsItemClicked(ctx, 0) and on_repeat_cycle then
       on_repeat_cycle(item.key)
     end
-    
     if ImGui.IsItemHovered(ctx) then
       ImGui.SetTooltip(ctx, string.format("Playlist • %d items", item_count))
     end

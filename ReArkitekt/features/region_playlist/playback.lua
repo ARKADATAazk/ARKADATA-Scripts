@@ -62,7 +62,7 @@ function Playback:update()
 end
 
 function Playback:get_progress()
-  if not self.engine.is_playing then
+  if not self.engine:get_is_playing() then
     return nil
   end
   
@@ -83,7 +83,7 @@ function Playback:get_progress()
 end
 
 function Playback:get_time_remaining()
-  if not self.engine.is_playing then
+  if not self.engine:get_is_playing() then
     return nil
   end
   

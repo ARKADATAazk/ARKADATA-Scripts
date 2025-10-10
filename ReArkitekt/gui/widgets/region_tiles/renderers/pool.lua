@@ -9,6 +9,7 @@ local TileFX = require('ReArkitekt.gui.fx.tile_fx')
 local TileFXConfig = require('ReArkitekt.gui.fx.tile_fx_config')
 local MarchingAnts = require('ReArkitekt.gui.fx.marching_ants')
 local TileUtil = require('ReArkitekt.gui.systems.tile_utilities')
+local Chip = require('ReArkitekt.gui.widgets.component.chip')
 
 local M = {}
 
@@ -53,45 +54,31 @@ end
 function M.render_region(ctx, rect, region, state, animator, hover_config, tile_height, border_thickness)
   local dl = ImGui.GetWindowDrawList(ctx)
   local x1, y1, x2, y2 = rect[1], rect[2], rect[3], rect[4]
-  
   local actual_height = tile_height or (y2 - y1)
-  
   local key = "pool_" .. tostring(region.rid)
   
   local animation_speed = hover_config and hover_config.animation_speed_hover or 12.0
   animator:track(key, 'hover', state.hover and 1.0 or 0.0, animation_speed)
   local hover_factor = animator:get(key, 'hover')
-  
   local base_color = region.color or M.CONFIG.bg_base
-  
   local fx_config = TileFXConfig.get()
   
   TileFX.render_complete(dl, x1, y1, x2, y2, base_color, fx_config, state.selected, hover_factor)
   
   if state.selected and fx_config.ants_enabled then
-    local ants_color = Colors.same_hue_variant(base_color, 
-      fx_config.border_saturation, 
-      fx_config.border_brightness, 
-      fx_config.ants_alpha or 0xFF)
-    
+    local ants_color = Colors.same_hue_variant(base_color, fx_config.border_saturation, fx_config.border_brightness, fx_config.ants_alpha or 0xFF)
     local inset = fx_config.ants_inset or 0.5
     MarchingAnts.draw(dl, x1 + inset, y1 + inset, x2 - inset, y2 - inset, ants_color, 
-      fx_config.ants_thickness,
-      M.CONFIG.rounding,
-      fx_config.ants_dash,
-      fx_config.ants_gap,
-      fx_config.ants_speed)
+      fx_config.ants_thickness, M.CONFIG.rounding, fx_config.ants_dash, fx_config.ants_gap, fx_config.ants_speed)
   end
   
   local show_text = actual_height >= M.CONFIG.responsive.hide_text_below
   local show_length = actual_height >= M.CONFIG.responsive.hide_length_below
-  
   local height_factor = math.min(1.0, math.max(0.0, (actual_height - 20) / (72 - 20)))
   
   if show_text then
     local accent_color = Colors.same_hue_variant(base_color, fx_config.index_saturation, fx_config.index_brightness, 0xFF)
     local name_color = Colors.adjust_brightness(fx_config.name_base_color, fx_config.name_brightness)
-    
     local index_str = string.format("%d", region.rid)
     local name_str = region.name or "Unknown"
     
@@ -108,15 +95,10 @@ function M.render_region(ctx, rect, region, state, animator, hover_config, tile_
     if index_str ~= "" then
       Draw.text(dl, text_x, text_y, accent_color, index_str)
       local index_w = ImGui.CalcTextSize(ctx, index_str)
-      
       local separator = " "
       local sep_w = ImGui.CalcTextSize(ctx, separator)
-      local separator_color = Colors.same_hue_variant(base_color, 
-        fx_config.separator_saturation, 
-        fx_config.separator_brightness, 
-        fx_config.separator_alpha)
+      local separator_color = Colors.same_hue_variant(base_color, fx_config.separator_saturation, fx_config.separator_brightness, fx_config.separator_alpha)
       Draw.text(dl, text_x + index_w, text_y, separator_color, separator)
-      
       Draw.text(dl, text_x + index_w + sep_w, text_y, name_color, name_str)
     else
       Draw.text(dl, text_x, text_y, name_color, name_str)
@@ -124,15 +106,8 @@ function M.render_region(ctx, rect, region, state, animator, hover_config, tile_
   end
   
   if show_length then
-    if not region["end"] then
-      reaper.ShowConsoleMsg(string.format("Region missing 'end': rid=%s, keys=%s\n", 
-        tostring(region.rid), 
-        table.concat((function() local k={} for key in pairs(region) do k[#k+1]=key end return k end)(), ",")))
-    end
     local length_str = TileUtil.format_bar_length(region.start, region["end"], 0)
-    
     local scale = M.CONFIG.length_font_size
-    
     local length_w, length_h = ImGui.CalcTextSize(ctx, length_str)
     length_w = length_w * scale
     length_h = length_h * scale
@@ -143,26 +118,17 @@ function M.render_region(ctx, rect, region, state, animator, hover_config, tile_
     
     local length_x = x2 - length_w - scaled_length_padding_x * 2 - scaled_length_margin - M.CONFIG.length_offset_x
     local length_y = y2 - length_h - scaled_length_padding_y * 2 - scaled_length_margin
+    local length_color = Colors.same_hue_variant(base_color, fx_config.duration_saturation, fx_config.duration_brightness, fx_config.duration_alpha)
     
-    local length_text_x = length_x + scaled_length_padding_x
-    local length_text_y = length_y + scaled_length_padding_y
-    
-    local length_color = Colors.same_hue_variant(base_color, 
-      fx_config.duration_saturation, 
-      fx_config.duration_brightness, 
-      fx_config.duration_alpha)
-    
-    Draw.text(dl, length_text_x, length_text_y, length_color, length_str)
+    Draw.text(dl, length_x + scaled_length_padding_x, length_y + scaled_length_padding_y, length_color, length_str)
   end
 end
 
 function M.render_playlist(ctx, rect, playlist, state, animator, hover_config, tile_height, border_thickness)
   local dl = ImGui.GetWindowDrawList(ctx)
   local x1, y1, x2, y2 = rect[1], rect[2], rect[3], rect[4]
-  
   local actual_height = tile_height or (y2 - y1)
   local key = "pool_playlist_" .. tostring(playlist.id)
-  
   local is_disabled = playlist.is_disabled or false
   
   local animation_speed = hover_config and hover_config.animation_speed_hover or 12.0
@@ -171,7 +137,6 @@ function M.render_playlist(ctx, rect, playlist, state, animator, hover_config, t
   
   local hover_factor = animator:get(key, 'hover')
   local disabled_factor = animator:get(key, 'disabled')
-  
   local base_color = 0x3A3A3AFF
   
   if disabled_factor > 0 then
@@ -184,8 +149,7 @@ function M.render_playlist(ctx, rect, playlist, state, animator, hover_config, t
   
   if is_disabled and disabled_factor > 0.5 then
     local overlay_alpha = math.floor(120 * disabled_factor)
-    local overlay_color = 0x00000000 | overlay_alpha
-    ImGui.DrawList_AddRectFilled(dl, x1, y1, x2, y2, overlay_color, M.CONFIG.rounding)
+    ImGui.DrawList_AddRectFilled(dl, x1, y1, x2, y2, 0x00000000 | overlay_alpha, M.CONFIG.rounding)
     
     local diagonal_spacing = 8
     local diagonal_alpha = math.floor(40 * disabled_factor)
@@ -201,7 +165,6 @@ function M.render_playlist(ctx, rect, playlist, state, animator, hover_config, t
         start_x = start_x + (y1 - start_y)
         start_y = y1
       end
-      
       if end_x > x2 then
         end_y = end_y - (end_x - x2)
         end_x = x2
@@ -212,30 +175,19 @@ function M.render_playlist(ctx, rect, playlist, state, animator, hover_config, t
   end
   
   if state.selected and fx_config.ants_enabled then
-    local ants_color = Colors.same_hue_variant(playlist.chip_color or base_color, 
-      fx_config.border_saturation, 
-      fx_config.border_brightness, 
-      fx_config.ants_alpha or 0xFF)
-    
+    local ants_color = Colors.same_hue_variant(playlist.chip_color or base_color, fx_config.border_saturation, fx_config.border_brightness, fx_config.ants_alpha or 0xFF)
     local inset = fx_config.ants_inset or 0.5
     MarchingAnts.draw(dl, x1 + inset, y1 + inset, x2 - inset, y2 - inset, ants_color, 
-      fx_config.ants_thickness,
-      M.CONFIG.rounding,
-      fx_config.ants_dash,
-      fx_config.ants_gap,
-      fx_config.ants_speed)
+      fx_config.ants_thickness, M.CONFIG.rounding, fx_config.ants_dash, fx_config.ants_gap, fx_config.ants_speed)
   end
   
   local show_text = actual_height >= M.CONFIG.responsive.hide_text_below
   local height_factor = math.min(1.0, math.max(0.0, (actual_height - 20) / (72 - 20)))
-  
   local text_alpha_factor = 1.0 - (disabled_factor * (1.0 - M.CONFIG.disabled.alpha_multiplier))
   
   if show_text then
     local chip_x = x1 + 8
     local chip_y = y1 + (actual_height - 10) * 0.5
-    local chip_radius = 5
-    
     local chip_color = playlist.chip_color or 0xFF5733FF
     
     if disabled_factor > 0 then
@@ -243,25 +195,19 @@ function M.render_playlist(ctx, rect, playlist, state, animator, hover_config, t
       chip_color = Colors.adjust_brightness(chip_color, 1.0 - ((1.0 - M.CONFIG.disabled.brightness) * disabled_factor))
     end
     
-    local chip_alpha = math.floor(255 * text_alpha_factor)
-    chip_color = (chip_color & 0xFFFFFF00) | chip_alpha
-    
-    if (state.hover or state.selected) and not is_disabled then
-      chip_color = Colors.adjust_brightness(chip_color, 1.3)
-    end
-    
-    local shadow_alpha = math.floor(80 * text_alpha_factor)
-    ImGui.DrawList_AddCircleFilled(dl, chip_x, chip_y, chip_radius + 1, Colors.with_alpha(0x000000FF, shadow_alpha))
-    ImGui.DrawList_AddCircleFilled(dl, chip_x, chip_y, chip_radius, chip_color)
-    
-    if (state.selected or state.hover) and not is_disabled then
-      for i = 1, 2 do
-        local glow_alpha = math.floor((100 / (i * 1.5)) * text_alpha_factor)
-        local glow_radius = chip_radius + (i * 2)
-        local glow_color = Colors.with_alpha(chip_color, glow_alpha)
-        ImGui.DrawList_AddCircle(dl, chip_x, chip_y, glow_radius, glow_color, 0, 1.5)
-      end
-    end
+    Chip.draw(ctx, {
+      style = Chip.STYLE.INDICATOR,
+      color = chip_color,
+      draw_list = dl,
+      x = chip_x,
+      y = chip_y,
+      radius = 5,
+      is_selected = state.selected and not is_disabled,
+      is_hovered = state.hover and not is_disabled,
+      show_glow = (state.selected or state.hover) and not is_disabled,
+      glow_layers = 2,
+      alpha_factor = text_alpha_factor,
+    })
     
     local name_str = playlist.name or "Unnamed Playlist"
     local name_color = 0xCCCCCCFF
@@ -277,7 +223,7 @@ function M.render_playlist(ctx, rect, playlist, state, animator, hover_config, t
       name_color = Colors.with_alpha(0xFFFFFFFF, name_alpha)
     end
     
-    local text_x = chip_x + chip_radius + 12
+    local text_x = chip_x + 17
     local text_y = y1 + (actual_height - ImGui.CalcTextSize(ctx, name_str)) / 2
     Draw.text(dl, text_x, text_y, name_color, name_str)
     
@@ -285,8 +231,6 @@ function M.render_playlist(ctx, rect, playlist, state, animator, hover_config, t
     local badge_text = string.format("[%d]", item_count)
     local badge_w = ImGui.CalcTextSize(ctx, badge_text)
     local badge_x = x2 - badge_w - 12
-    local badge_y = text_y
-    
     local badge_color = Colors.with_alpha(0x999999FF, 200)
     
     if disabled_factor > 0 then
@@ -300,7 +244,7 @@ function M.render_playlist(ctx, rect, playlist, state, animator, hover_config, t
       badge_color = Colors.with_alpha(0xAAAAAAFF, badge_alpha)
     end
     
-    Draw.text(dl, badge_x, badge_y, badge_color, badge_text)
+    Draw.text(dl, badge_x, text_y, badge_color, badge_text)
     
     if is_disabled and ImGui.IsItemHovered(ctx) then
       ImGui.SetTooltip(ctx, "Cannot drag: would create circular reference")

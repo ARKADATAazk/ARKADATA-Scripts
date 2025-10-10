@@ -38,7 +38,7 @@ function M.handle_keyboard_shortcuts(ctx, state, region_tiles)
           local pl = State.get_active_playlist()
           local engine_index = state.bridge:item_key_to_engine_index(pl.items, selected[1])
           if engine_index then
-            state.bridge.engine.playlist_pointer = engine_index
+            state.bridge.engine:set_playlist_pointer(engine_index)  -- CORRECT
           end
         end
       end

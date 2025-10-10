@@ -1,5 +1,5 @@
 -- ReArkitekt/gui/widgets/package_tiles/grid.lua
--- Package grid main logic - entry point for package management UI
+-- Package grid main logic with 200px height constraint
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
@@ -9,8 +9,27 @@ local Colors = require('ReArkitekt.core.colors')
 local TileAnim = require('ReArkitekt.gui.fx.tile_motion')
 local Renderer = require('ReArkitekt.gui.widgets.package_tiles.renderer')
 local Micromanage = require('ReArkitekt.gui.widgets.package_tiles.micromanage')
+local HeightStabilizer = require('ReArkitekt.gui.systems.height_stabilizer')
 
 local M = {}
+
+local function calculate_clamped_tile_height(avail_w, min_col_w, gap, max_height)
+  local cols = math.max(1, math.floor((avail_w + gap) / (min_col_w + gap)))
+  local inner_w = math.max(0, avail_w - gap * (cols + 1))
+  local base_w_total = min_col_w * cols
+  local extra = inner_w - base_w_total
+  
+  local base_w = min_col_w
+  if cols == 1 then
+    base_w = math.max(80, inner_w)
+    extra = 0
+  end
+  
+  local per_col_add = (cols > 0) and math.floor(math.max(0, extra) / cols) or 0
+  local responsive_height = math.floor((base_w + per_col_add) * 0.65)
+  
+  return math.min(responsive_height, max_height)
+end
 
 local function get_tile_base_color(pkg, P)
   local is_active = pkg.active[P.id] == true
@@ -50,6 +69,10 @@ function M.create(pkg, settings, theme)
   local custom_state = {
     checkbox_rects = {},
     animator = TileAnim.new(Renderer.CONFIG.animation.speed_hover),
+    height_stabilizer = HeightStabilizer.new({
+      stable_frames_required = 2,
+      height_hysteresis = 8,
+    }),
   }
   
   local grid = Grid.new({
@@ -169,6 +192,13 @@ function M.create(pkg, settings, theme)
     draw = function(self, ctx)
       self.custom_state.checkbox_rects = {}
       self.custom_state.animator:update(0.016)
+      
+      local avail_w = ImGui.GetContentRegionAvail(ctx)
+      local min_col_w = pkg.tile or 220
+      local raw_height = calculate_clamped_tile_height(avail_w, min_col_w, 12, Renderer.CONFIG.tile.max_height)
+      local clamped_height = self.custom_state.height_stabilizer:update(raw_height)
+      
+      self.grid.fixed_tile_h = clamped_height
       self.grid:draw(ctx)
     end,
     

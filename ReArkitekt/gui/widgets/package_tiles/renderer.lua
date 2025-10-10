@@ -1,5 +1,5 @@
 -- ReArkitekt/gui/widgets/package_tiles/renderer.lua
--- Package tile rendering module
+-- Package tile rendering module with 200px height constraint
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
@@ -14,6 +14,7 @@ M.CONFIG = {
   tile = {
     rounding = 6,
     hover_shadow = { enabled = true, max_offset = 2, max_alpha = 20 },
+    max_height = 200,
   },
   
   colors = {
@@ -221,12 +222,12 @@ function M.TileRenderer.footer(ctx, dl, pkg, P, tile_x, tile_y, tile_w, tile_h)
   local name = P.meta and P.meta.name or P.id
   local is_active = pkg.active[P.id] == true
   local name_color = is_active and M.CONFIG.colors.text.active or M.CONFIG.colors.text.inactive
-  Draw.text(dl, tile_x + 10, footer_y + 7, name_color, name)
+  Draw.text(dl, tile_x + 10, footer_y + 6, name_color, name)
   
   local count = 0
   for _ in pairs(P.assets or {}) do count = count + 1 end
   local count_text = string.format('%d assets', count)
-  Draw.text_right(ctx, tile_x + tile_w - 10, footer_y + 7, M.CONFIG.colors.text.secondary, count_text)
+  Draw.text_right(ctx, tile_x + tile_w - 10, footer_y + 6, M.CONFIG.colors.text.secondary, count_text)
 end
 
 return M
