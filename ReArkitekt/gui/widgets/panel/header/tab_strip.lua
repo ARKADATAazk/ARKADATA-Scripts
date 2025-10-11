@@ -397,42 +397,50 @@ local function handle_drag_reorder(ctx, state, tabs, config, tabs_start_x)
   local dragged_width = calculate_tab_width(ctx, dragged_tab.label or "Tab", config, has_chip)
   local spacing = config.spacing or 6
   
-  local drag_center_x = mx - state.dragging_tab.offset_x + dragged_width * 0.5
+  -- Get dragged tab edges
+  local drag_left = mx - state.dragging_tab.offset_x
+  local drag_right = drag_left + dragged_width
   
+  -- Build positions array for all tabs
   local positions = {}
   local current_x = tabs_start_x
   
   for i = 1, #tabs do
-    if i ~= state.dragging_tab.index then
-      local tab = tabs[i]
-      local tab_has_chip = tab.chip_color ~= nil
-      local tab_w = calculate_tab_width(ctx, tab.label or "Tab", config, tab_has_chip)
-      
-      table.insert(positions, {
-        index = i,
-        center = current_x + tab_w * 0.5,
-      })
-      
-      current_x = current_x + tab_w + spacing
+    local tab = tabs[i]
+    local tab_has_chip = tab.chip_color ~= nil
+    local tab_w = calculate_tab_width(ctx, tab.label or "Tab", config, tab_has_chip)
+    
+    positions[i] = {
+      index = i,
+      left = current_x,
+      center = current_x + tab_w * 0.5,
+      right = current_x + tab_w,
+      width = tab_w,
+    }
+    
+    current_x = current_x + tab_w + spacing
+  end
+  
+  local current_index = state.dragging_tab.index
+  local target_index = current_index
+  
+  -- Check left neighbor
+  if current_index > 1 then
+    local left_neighbor = positions[current_index - 1]
+    if drag_left < left_neighbor.center then
+      target_index = current_index - 1
     end
   end
   
-  local target_index = 1
-  
-  for i, pos in ipairs(positions) do
-    if drag_center_x > pos.center then
-      target_index = pos.index + 1
-    else
-      break
+  -- Check right neighbor
+  if current_index < #tabs then
+    local right_neighbor = positions[current_index + 1]
+    if drag_right > right_neighbor.center then
+      target_index = current_index + 1
     end
   end
   
-  if target_index > state.dragging_tab.index then
-    target_index = target_index - 1
-  end
-  
-  target_index = math.max(1, math.min(#tabs, target_index))
-  
+  -- Perform the swap if target changed
   if target_index ~= state.dragging_tab.index then
     local dragged_tab_data = table.remove(tabs, state.dragging_tab.index)
     table.insert(tabs, target_index, dragged_tab_data)
