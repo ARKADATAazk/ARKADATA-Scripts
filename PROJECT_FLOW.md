@@ -418,7 +418,7 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
 **Classes**: `M` (stateful objects)
 **Public API**:
   - `M.create(opts)` → Instance
-**Dependencies**: `ReArkitekt.features.region_playlist.engine.engine, ReArkitekt.features.region_playlist.playback, ReArkitekt.features.region_playlist.state`
+**Dependencies**: `ReArkitekt.features.region_playlist.engine.core, ReArkitekt.features.region_playlist.playback, ReArkitekt.features.region_playlist.state`
 
 ### `ReArkitekt/features/region_playlist/engine.lua`
 > ReArkitekt/features/region_playlist/engine.lua

@@ -1,7 +1,7 @@
 -- ReArkitekt/features/region_playlist/coordinator_bridge.lua
 -- Unified bridge with loop-aware playlist sync and nested playlist support
 
-local Engine = require("ReArkitekt.features.region_playlist.engine.engine")
+local Engine = require("ReArkitekt.features.region_playlist.engine.core")
 local Playback = require("ReArkitekt.features.region_playlist.playback")
 local RegionState = require("ReArkitekt.features.region_playlist.state")
 

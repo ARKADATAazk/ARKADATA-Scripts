@@ -146,7 +146,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   **Classes**: M
   **Exports**:
     - `M.create(opts)`
-  **Requires**: ReArkitekt.features.region_playlist.engine.engine, ReArkitekt.features.region_playlist.playback, ReArkitekt.features.region_playlist.state
+  **Requires**: ReArkitekt.features.region_playlist.engine.core, ReArkitekt.features.region_playlist.playback, ReArkitekt.features.region_playlist.state
 
 ### coordinator_render.lua (189 lines)
   **Modules**: M, keys_to_adjust
@@ -836,7 +836,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   → ReArkitekt.gui.widgets.overlay.config
 
 ### coordinator_bridge.lua
-  → ReArkitekt.features.region_playlist.engine.engine
+  → ReArkitekt.features.region_playlist.engine.core
   → ReArkitekt.features.region_playlist.playback
   → ReArkitekt.features.region_playlist.state
 
