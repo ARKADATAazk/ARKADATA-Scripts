@@ -1,15 +1,16 @@
--- ReArkitekt/gui/widgets/tiles_container/init.lua
--- Main container API with tab animation and mode toggle support
+-- ReArkitekt/gui/widgets/panel/init.lua -- RENAMED
+-- Main panel API with tab animation and mode toggle support
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
 
-local Header = require('ReArkitekt.gui.widgets.tiles_container.header')
-local Content = require('ReArkitekt.gui.widgets.tiles_container.content')
-local Background = require('ReArkitekt.gui.widgets.tiles_container.background')
-local TabAnimator = require('ReArkitekt.gui.widgets.tiles_container.tab_animator')
+-- CHANGED: Updated require paths to use 'panel'
+local Header = require('ReArkitekt.gui.widgets.panel.header')
+local Content = require('ReArkitekt.gui.widgets.panel.content')
+local Background = require('ReArkitekt.gui.widgets.panel.background')
+local TabAnimator = require('ReArkitekt.gui.widgets.panel.tab_animator')
 local Scrollbar = require('ReArkitekt.gui.widgets.controls.scrollbar')
-local Config = require('ReArkitekt.gui.widgets.tiles_container.config')
+local Config = require('ReArkitekt.gui.widgets.panel.config')
 
 local M = {}
 local DEFAULTS = Config.DEFAULTS
@@ -35,18 +36,20 @@ local function deep_merge(base, override)
   return result
 end
 
-local Container = {}
-Container.__index = Container
+local Panel = {} -- RENAMED: from Container to Panel
+Panel.__index = Panel -- RENAMED: from Container to Panel
 
 function M.new(opts)
   opts = opts or {}
   
-  local container = setmetatable({
-    id = opts.id or "tiles_container",
+  local panel = setmetatable({ -- RENAMED: from container to panel
+    id = opts.id or "panel", -- CHANGED: Default id
     config = deep_merge(DEFAULTS, opts.config),
     
     width = opts.width,
     height = opts.height,
+    
+    show_overflow_modal = false, -- ADDED: Component now owns its UI state
     
     search_text = "",
     search_focused = false,
@@ -76,7 +79,7 @@ function M.new(opts)
     on_tab_change = opts.on_tab_change,
     on_tab_delete = opts.on_tab_delete,
     on_tab_reorder = opts.on_tab_reorder,
-    on_overflow_tabs_clicked = opts.on_overflow_tabs_clicked,
+    -- REMOVED: on_overflow_tabs_clicked is no longer needed
     
     had_scrollbar_last_frame = false,
     last_content_height = 0,
@@ -87,41 +90,51 @@ function M.new(opts)
     child_height = 0,
     child_x = 0,
     child_y = 0,
-  }, Container)
+  }, Panel) -- RENAMED: from Container to Panel
   
-  if container.enable_tab_animations then
-    container.tab_animator = TabAnimator.new({
+  if panel.enable_tab_animations then
+    panel.tab_animator = TabAnimator.new({
       spawn_duration = opts.tab_spawn_duration or 0.22,
       destroy_duration = opts.tab_destroy_duration or 0.15,
       on_destroy_complete = function(tab_id)
-        if container.pending_delete_id == tab_id then
-          container.pending_delete_id = nil
+        if panel.pending_delete_id == tab_id then
+          panel.pending_delete_id = nil
         end
       end,
     })
   end
   
-  if container.config.scroll.custom_scrollbar then
-    container.scrollbar = Scrollbar.new({
-      id = container.id .. "_scrollbar",
-      config = container.config.scroll.scrollbar_config,
+  if panel.config.scroll.custom_scrollbar then
+    panel.scrollbar = Scrollbar.new({
+      id = panel.id .. "_scrollbar",
+      config = panel.config.scroll.scrollbar_config,
       on_scroll = function(scroll_pos)
       end,
     })
   end
   
   if opts.tabs then
-    local TabsMode = require('ReArkitekt.gui.widgets.tiles_container.modes.tabs')
+    local TabsMode = require('ReArkitekt.gui.widgets.panel.modes.tabs') -- CHANGED: Path
     for _, tab in ipairs(opts.tabs) do
       TabsMode.assign_random_color(tab)
     end
-    container.tabs = opts.tabs
+    panel.tabs = opts.tabs
   end
   
-  return container
+  return panel
 end
 
-function Container:get_effective_child_width(ctx, base_width)
+-- ADDED: New public methods to manage UI state
+function Panel:is_overflow_visible()
+  return self.show_overflow_modal
+end
+
+function Panel:close_overflow_modal()
+  self.show_overflow_modal = false
+end
+-- End of added methods
+
+function Panel:get_effective_child_width(ctx, base_width)
   local anti_jitter = self.config.anti_jitter or DEFAULTS.anti_jitter
   
   if not anti_jitter.enabled or not anti_jitter.track_scrollbar then
@@ -139,7 +152,7 @@ function Container:get_effective_child_width(ctx, base_width)
   return base_width
 end
 
-function Container:begin_draw(ctx)
+function Panel:begin_draw(ctx)
   local dt = ImGui.GetDeltaTime(ctx)
   self:update(dt)
   
@@ -212,7 +225,7 @@ function Container:begin_draw(ctx)
   return success
 end
 
-function Container:end_draw(ctx)
+function Panel:end_draw(ctx)
   local content_height = ImGui.GetCursorPosY(ctx)
   local scroll_y = ImGui.GetScrollY(ctx)
   local scroll_max_y = ImGui.GetScrollMaxY(ctx)
@@ -237,7 +250,7 @@ function Container:end_draw(ctx)
   end
 end
 
-function Container:reset()
+function Panel:reset()
   self.had_scrollbar_last_frame = false
   self.last_content_height = 0
   self.search_text = ""
@@ -261,39 +274,39 @@ function Container:reset()
   end
 end
 
-function Container:update(dt)
+function Panel:update(dt)
   if self.scrollbar then
     self.scrollbar:update(dt or 0.016)
   end
 end
 
-function Container:get_search_text()
+function Panel:get_search_text()
   return self.search_text
 end
 
-function Container:get_sort_mode()
+function Panel:get_sort_mode()
   return self.sort_mode
 end
 
-function Container:get_sort_direction()
+function Panel:get_sort_direction()
   if not self.sort_mode or self.sort_mode == "" then
     return nil
   end
   return self.sort_directions[self.sort_mode] or "asc"
 end
 
-function Container:set_search_text(text)
+function Panel:set_search_text(text)
   self.search_text = text or ""
 end
 
-function Container:set_sort_mode(mode)
+function Panel:set_sort_mode(mode)
   self.sort_mode = mode
   if self.sort_dropdown then
     self.sort_dropdown:set_value(mode)
   end
 end
 
-function Container:set_sort_direction(mode, direction)
+function Panel:set_sort_direction(mode, direction)
   if mode and mode ~= "" then
     self.sort_directions[mode] = direction or "asc"
     if self.sort_dropdown then
@@ -302,15 +315,15 @@ function Container:set_sort_direction(mode, direction)
   end
 end
 
-function Container:set_current_mode(mode)
+function Panel:set_current_mode(mode)
   self.current_mode = mode
 end
 
-function Container:get_current_mode()
+function Panel:get_current_mode()
   return self.current_mode
 end
 
-function Container:set_tabs(tabs, active_id)
+function Panel:set_tabs(tabs, active_id)
   local old_ids = {}
   for _, tab in ipairs(self.tabs) do
     old_ids[tab.id] = true
@@ -318,7 +331,7 @@ function Container:set_tabs(tabs, active_id)
   
   self.tabs = tabs or {}
   
-  local TabsMode = require('ReArkitekt.gui.widgets.tiles_container.modes.tabs')
+  local TabsMode = require('ReArkitekt.gui.widgets.panel.modes.tabs') -- CHANGED: Path
   for _, tab in ipairs(self.tabs) do
     TabsMode.assign_random_color(tab)
   end
@@ -338,16 +351,16 @@ function Container:set_tabs(tabs, active_id)
   end
 end
 
-function Container:get_active_tab_id()
+function Panel:get_active_tab_id()
   return self.active_tab_id
 end
 
-function Container:set_active_tab_id(id)
+function Panel:set_active_tab_id(id)
   self.active_tab_id = id
 end
 
-function Container:add_tab(tab_data)
-  local TabsMode = require('ReArkitekt.gui.widgets.tiles_container.modes.tabs')
+function Panel:add_tab(tab_data)
+  local TabsMode = require('ReArkitekt.gui.widgets.panel.modes.tabs') -- CHANGED: Path
   TabsMode.assign_random_color(tab_data)
   
   table.insert(self.tabs, tab_data)
@@ -356,7 +369,7 @@ function Container:add_tab(tab_data)
   end
 end
 
-function Container:remove_tab(tab_id)
+function Panel:remove_tab(tab_id)
   if self.tab_animator then
     self.tab_animator:destroy(tab_id)
     self.pending_delete_id = tab_id
@@ -373,7 +386,7 @@ end
 function M.draw(ctx, id, width, height, content_fn, config, on_search_changed, on_sort_changed)
   config = config or DEFAULTS
   
-  local container = M.new({
+  local panel = M.new({ -- RENAMED: from container
     id = id,
     width = width,
     height = height,
@@ -382,14 +395,14 @@ function M.draw(ctx, id, width, height, content_fn, config, on_search_changed, o
     on_sort_changed = on_sort_changed,
   })
   
-  if container:begin_draw(ctx) then
+  if panel:begin_draw(ctx) then
     if content_fn then
       content_fn(ctx)
     end
   end
-  container:end_draw(ctx)
+  panel:end_draw(ctx)
   
-  return container
+  return panel
 end
 
 return M

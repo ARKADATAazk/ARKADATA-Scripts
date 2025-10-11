@@ -29,7 +29,7 @@ function M.create(State, Config, settings)
     default_separator_horizontal = 180,
     default_separator_vertical = 280,
     quantize_lookahead = Config.QUANTIZE.default_lookahead,
-    show_overflow_modal = false,
+    -- REMOVED: show_overflow_modal = false,
     overflow_modal_search = "",
   }, GUI)
   
@@ -66,7 +66,7 @@ function M.create(State, Config, settings)
   end
   
   self.region_tiles = RegionTiles.create({
-    controller = self.controller, -- ADDED: Pass controller directly
+    controller = self.controller,
     
     get_region_by_rid = function(rid)
       return State.state.region_index[rid]
@@ -86,13 +86,6 @@ function M.create(State, Config, settings)
     active_tab_id = State.state.active_playlist,
     pool_mode = State.state.pool_mode,
     config = Config.get_region_tiles_config(State.state.layout_mode),
-    
-    -- REMOVED: on_tab_create
-    -- REMOVED: on_tab_change
-    -- REMOVED: on_tab_delete
-    -- REMOVED: on_tab_reorder
-    -- REMOVED: on_overflow_tabs_clicked
-    -- REMOVED: on_active_search
     
     on_playlist_changed = function(new_id)
       State.set_active_playlist(new_id)
@@ -219,14 +212,14 @@ function M.create(State, Config, settings)
   
   return self
 end
--- ... (rest of the file is unchanged)
 
 function GUI:refresh_tabs()
   self.region_tiles:set_tabs(self.State.get_tabs(), self.State.state.active_playlist)
 end
 
 function GUI:draw_overflow_modal(ctx, window)
-  if not self.show_overflow_modal then return end
+  -- CHANGED: Check visibility via the component's public method
+  if not self.region_tiles.active_container or not self.region_tiles.active_container:is_overflow_visible() then return end
   
   local all_tabs = self.State.get_tabs()
   
@@ -280,7 +273,7 @@ function GUI:draw_overflow_modal(ctx, window)
         if clicked_tab then
           self.State.set_active_playlist(clicked_tab)
           ImGui.CloseCurrentPopup(ctx)
-          self.show_overflow_modal = false
+          self.region_tiles.active_container:close_overflow_modal() -- CHANGED
         end
       end
       ImGui.EndChild(ctx)
@@ -294,12 +287,12 @@ function GUI:draw_overflow_modal(ctx, window)
       
       if ImGui.Button(ctx, "Close", button_w, 0) then
         ImGui.CloseCurrentPopup(ctx)
-        self.show_overflow_modal = false
+        self.region_tiles.active_container:close_overflow_modal() -- CHANGED
       end
       
       ImGui.EndPopup(ctx)
     else
-      self.show_overflow_modal = false
+      self.region_tiles.active_container:close_overflow_modal() -- CHANGED
     end
     
     return
@@ -347,7 +340,7 @@ function GUI:draw_overflow_modal(ctx, window)
         if clicked_tab then
           self.State.set_active_playlist(clicked_tab)
           window.overlay:pop('overflow-tabs')
-          self.show_overflow_modal = false
+          self.region_tiles.active_container:close_overflow_modal() -- CHANGED
         end
         
         ImGui.Dummy(ctx, 0, 20)
@@ -361,7 +354,7 @@ function GUI:draw_overflow_modal(ctx, window)
         ImGui.SetCursorPosX(ctx, start_x)
         if ImGui.Button(ctx, "Close", button_w, 32) then
           window.overlay:pop('overflow-tabs')
-          self.show_overflow_modal = false
+          self.region_tiles.active_container:close_overflow_modal() -- CHANGED
         end
       end, { 
         title = "Select Playlist", 
@@ -718,8 +711,7 @@ function GUI:get_filtered_active_items(playlist)
 end
 
 function GUI:draw(ctx, window)
-  if self.show_overflow_modal then
-    reaper.ShowConsoleMsg("Drawing overflow modal! Window exists: " .. tostring(window ~= nil) .. "\n")
+  if self.region_tiles.active_container and self.region_tiles.active_container:is_overflow_visible() then -- CHANGED
     self:draw_overflow_modal(ctx, window)
   end
   

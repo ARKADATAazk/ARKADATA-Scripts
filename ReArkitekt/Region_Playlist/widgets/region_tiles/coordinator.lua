@@ -13,7 +13,7 @@ local Selector = require('Region_Playlist.widgets.region_tiles.selector')
 local ActiveGridFactory = require('Region_Playlist.widgets.region_tiles.active_grid_factory')
 local PoolGridFactory = require('Region_Playlist.widgets.region_tiles.pool_grid_factory')
 local GridBridge = require('ReArkitekt.gui.widgets.grid.grid_bridge')
-local TilesContainer = require('ReArkitekt.gui.widgets.tiles_container')
+local TilesContainer = require('ReArkitekt.gui.widgets.panel')
 local State = require("Region_Playlist.app.state") -- ADDED: Direct import for state management
 
 local M = {}

@@ -4,8 +4,8 @@
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
 
-local SearchSort = require('ReArkitekt.gui.widgets.tiles_container.modes.search_sort')
-local Tabs = require('ReArkitekt.gui.widgets.tiles_container.modes.tabs')
+local SearchSort = require('ReArkitekt.gui.widgets.panel.modes.search_sort')
+local Tabs = require('ReArkitekt.gui.widgets.panel.modes.tabs')
 
 local M = {}
 

@@ -18,7 +18,7 @@ addpath(join(HERE,  "ReArkitekt/?/?.lua"))
 local Shell          = require("ReArkitekt.app.shell")
 local PackageGrid    = require("ReArkitekt.gui.widgets.package_tiles.grid")
 local Micromanage    = require("ReArkitekt.gui.widgets.package_tiles.micromanage")
-local TilesContainer = require("ReArkitekt.gui.widgets.tiles_container")
+local TilesContainer = require("ReArkitekt.gui.widgets.panel")
 local SelRect        = require("ReArkitekt.gui.widgets.selection_rectangle")
 
 local SettingsOK, Settings = pcall(require, "ReArkitekt.core.settings")

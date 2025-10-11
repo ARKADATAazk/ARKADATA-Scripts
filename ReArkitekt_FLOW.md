@@ -180,10 +180,10 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
 
 ### demo.lua (271 lines)
   **Modules**: result
-  **Requires**: ReArkitekt.app.shell, ReArkitekt.gui.widgets.package_tiles.grid, ReArkitekt.gui.widgets.package_tiles.micromanage, ReArkitekt.gui.widgets.tiles_container, ReArkitekt.gui.widgets.selection_rectangle
+  **Requires**: ReArkitekt.app.shell, ReArkitekt.gui.widgets.package_tiles.grid, ReArkitekt.gui.widgets.package_tiles.micromanage, ReArkitekt.gui.widgets.panel, ReArkitekt.gui.widgets.selection_rectangle
 
 ### demo2.lua (182 lines)
-  **Requires**: ReArkitekt.app.shell, ReArkitekt.gui.widgets.sliders.hue, ReArkitekt.gui.widgets.tiles_container
+  **Requires**: ReArkitekt.app.shell, ReArkitekt.gui.widgets.sliders.hue, ReArkitekt.gui.widgets.panel
 
 ### demo3.lua (120 lines)
   **Modules**: pads
@@ -294,7 +294,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   **Modules**: M
   **Exports**:
     - `M.draw(ctx, dl, x, y, w, h, state, config, rounding)`
-  **Requires**: ReArkitekt.gui.widgets.tiles_container.modes.search_sort, ReArkitekt.gui.widgets.tiles_container.modes.tabs
+  **Requires**: ReArkitekt.gui.widgets.panel.modes.search_sort, ReArkitekt.gui.widgets.panel.modes.tabs
 
 ### height_stabilizer.lua (73 lines)
   **Modules**: M, HeightStabilizer
@@ -332,7 +332,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   **Exports**:
     - `M.new(opts)`
     - `M.draw(ctx, id, width, height, content_fn, config, on_search_changed, on_sort_changed)`
-  **Requires**: ReArkitekt.gui.widgets.tiles_container.header, ReArkitekt.gui.widgets.tiles_container.content, ReArkitekt.gui.widgets.tiles_container.background, ReArkitekt.gui.widgets.tiles_container.tab_animator, ReArkitekt.gui.widgets.controls.scrollbar
+  **Requires**: ReArkitekt.gui.widgets.panel.header, ReArkitekt.gui.widgets.panel.content, ReArkitekt.gui.widgets.panel.background, ReArkitekt.gui.widgets.panel.tab_animator, ReArkitekt.gui.widgets.controls.scrollbar
 
 ### input.lua (236 lines)
   **Modules**: M, keys_to_adjust, order, order
@@ -920,17 +920,17 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   → ReArkitekt.core.colors
 
 ### header.lua
-  → ReArkitekt.gui.widgets.tiles_container.modes.search_sort
-  → ReArkitekt.gui.widgets.tiles_container.modes.tabs
+  → ReArkitekt.gui.widgets.panel.modes.search_sort
+  → ReArkitekt.gui.widgets.panel.modes.tabs
 
 ### init.lua
-  → ReArkitekt.gui.widgets.tiles_container.header
-  → ReArkitekt.gui.widgets.tiles_container.content
-  → ReArkitekt.gui.widgets.tiles_container.background
-  → ReArkitekt.gui.widgets.tiles_container.tab_animator
+  → ReArkitekt.gui.widgets.panel.header
+  → ReArkitekt.gui.widgets.panel.content
+  → ReArkitekt.gui.widgets.panel.background
+  → ReArkitekt.gui.widgets.panel.tab_animator
   → ReArkitekt.gui.widgets.controls.scrollbar
-  → ReArkitekt.gui.widgets.tiles_container.config
-  → ReArkitekt.gui.widgets.tiles_container.modes.tabs
+  → ReArkitekt.gui.widgets.panel.config
+  → ReArkitekt.gui.widgets.panel.modes.tabs
 
 ### search_sort.lua
   → ReArkitekt.gui.draw

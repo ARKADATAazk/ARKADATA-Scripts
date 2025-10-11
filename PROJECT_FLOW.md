@@ -179,7 +179,7 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
   → Imports: ReArkitekt.gui.widgets.controls.dropdown
 - **`ReArkitekt/gui/widgets/navigation/menutabs.lua`**
 - **`ReArkitekt/demo2.lua`**
-  → Imports: ReArkitekt.app.shell, ReArkitekt.gui.widgets.sliders.hue, ReArkitekt.gui.widgets.tiles_container
+  → Imports: ReArkitekt.app.shell, ReArkitekt.gui.widgets.sliders.hue, ReArkitekt.gui.widgets.panel
 - **`ReArkitekt/core/lifecycle.lua`**
 - **`ReArkitekt/widget_demo.lua`**
   → Imports: ReArkitekt.app.shell, ReArkitekt.gui.widgets.colorblocks, ReArkitekt.gui.draw (+2 more)
@@ -581,7 +581,7 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
 
 **Modules**: `result`
 **Private Functions**: 8 helpers
-**Dependencies**: `ReArkitekt.app.shell, ReArkitekt.gui.widgets.package_tiles.grid, ReArkitekt.gui.widgets.package_tiles.micromanage, ReArkitekt.gui.widgets.tiles_container, ReArkitekt.gui.widgets.selection_rectangle`
+**Dependencies**: `ReArkitekt.app.shell, ReArkitekt.gui.widgets.package_tiles.grid, ReArkitekt.gui.widgets.package_tiles.micromanage, ReArkitekt.gui.widgets.panel, ReArkitekt.gui.widgets.selection_rectangle`
 
 ### `ReArkitekt/demo3.lua`
 > demo3.lua – Status Pads Widget Demo (Reworked)

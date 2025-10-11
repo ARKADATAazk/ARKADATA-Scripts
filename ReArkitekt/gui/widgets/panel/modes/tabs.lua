@@ -1,4 +1,4 @@
--- ReArkitekt/gui/widgets/tiles_container/modes/tabs.lua
+-- ReArkitekt/gui/widgets/panel/modes/tabs.lua -- RENAMED
 -- Tab mode with chip indicators and overflow button
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
@@ -583,10 +583,7 @@ function M.draw(ctx, dl, x, y, width, height, state, cfg)
     local overflow_clicked, actual_overflow_width = draw_overflow_button(ctx, dl, overflow_x, cursor_y, state, cfg, overflow_count)
     
     if overflow_clicked then
-      reaper.ShowConsoleMsg("Overflow button clicked in tabs.lua! Callback exists: " .. tostring(state.on_overflow_tabs_clicked ~= nil) .. "\n")
-      if state.on_overflow_tabs_clicked then
-        state.on_overflow_tabs_clicked()
-      end
+      state.show_overflow_modal = true -- CHANGED
     end
   end
 
