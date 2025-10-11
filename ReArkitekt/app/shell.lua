@@ -1,5 +1,6 @@
 -- ReArkitekt/app/shell.lua
 -- App runner: context, fonts, optional style push/pop, window lifecycle, profiling support
+-- Extended with overlay manager support
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui   = require 'imgui' '0.9'
@@ -90,7 +91,7 @@ function M.run(opts)
   local style    = opts.style
   local settings = opts.settings
   local raw_content = (opts.raw_content == true)
-  local enable_profiling = opts.enable_profiling ~= false  -- Enable by default
+  local enable_profiling = opts.enable_profiling ~= false
 
   local ctx   = ImGui.CreateContext(title)
   local fonts = load_fonts(ctx, cfg.fonts)
@@ -103,21 +104,30 @@ function M.run(opts)
     initial_size    = opts.initial_size or cfg.window.initial_size,
     min_size        = opts.min_size     or cfg.window.min_size,
     show_status_bar = opts.show_status_bar,
+    show_titlebar   = opts.show_titlebar,
     get_status_func = opts.get_status_func,
-    status_bar_height = DEFAULTS.status_bar.height,
+    status_bar_height = DEFAULTS.status_bar and DEFAULTS.status_bar.height or 28,
     content_padding = opts.content_padding or cfg.window.content_padding,
     titlebar_pad_h  = opts.titlebar_pad_h,
     titlebar_pad_v  = opts.titlebar_pad_v,
     flags           = opts.flags,
     style           = style,
     tabs            = opts.tabs,
+    bg_color_floating = opts.bg_color_floating,
+    bg_color_docked   = opts.bg_color_docked,
   })
+  
+  -- Pass overlay manager to window if provided
+  if opts.overlay then
+    window.overlay = opts.overlay
+  end
 
   local state = {
     window   = window,
     settings = settings,
     fonts    = fonts,
     style    = style,
+    overlay  = opts.overlay,
     profiling = {
       enabled = enable_profiling,
       frame_start = 0,
@@ -126,7 +136,6 @@ function M.run(opts)
     }
   }
 
-  -- Wrapper for draw function with profiling
   local function draw_with_profiling(ctx, state)
     if enable_profiling and window.start_timer then
       window:start_timer("draw")
@@ -213,7 +222,6 @@ function M.run(opts)
     end,
   })
 
-  -- Add profiling API to state for user access
   state.start_timer = function(name)
     if window.start_timer then
       window:start_timer(name)

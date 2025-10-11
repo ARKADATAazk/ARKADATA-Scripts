@@ -1,5 +1,7 @@
 -- ReArkitekt/gui/widgets/overlay/manager.lua
 -- Modal overlay stack + scrim + focus/escape handling
+-- Now supports both parent-window and viewport-level overlays
+
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
 
@@ -58,6 +60,7 @@ function M:push(opts)
     on_close = opts.on_close,
     close_on_scrim = (opts.close_on_scrim ~= false),
     esc_to_close = (opts.esc_to_close ~= false),
+    use_viewport = (opts.use_viewport == true),
     alpha = create_alpha_tracker(12),
   }
   table.insert(self.stack, overlay)
@@ -96,21 +99,34 @@ function M:render(ctx, dt)
   local top = self.stack[#self.stack]
   local alpha_val = top.alpha:value()
   
-  local parent_x, parent_y = ImGui.GetWindowPos(ctx)
-  local parent_w, parent_h = ImGui.GetWindowSize(ctx)
+  local x, y, w, h
   
-  -- Adjust for titlebar and status bar when not docked
-  local offset_y = 0
-  local adjusted_h = parent_h
-  
-  if not self.is_docked then
-    offset_y = self.titlebar_height
-    -- Add 4 pixel overlap to account for borders/spacing and ensure no gaps
-    adjusted_h = parent_h - self.titlebar_height - self.statusbar_height + 4
+  if top.use_viewport then
+    -- Use full REAPER viewport (entire screen)
+    local viewport = ImGui.GetMainViewport(ctx)
+    x, y = ImGui.Viewport_GetPos(viewport)
+    w, h = ImGui.Viewport_GetSize(viewport)
+  else
+    -- Use parent window bounds with UI offset adjustments
+    local parent_x, parent_y = ImGui.GetWindowPos(ctx)
+    local parent_w, parent_h = ImGui.GetWindowSize(ctx)
+    
+    local offset_y = 0
+    local adjusted_h = parent_h
+    
+    if not self.is_docked then
+      offset_y = self.titlebar_height
+      adjusted_h = parent_h - self.titlebar_height - self.statusbar_height + 4
+    end
+    
+    x = parent_x
+    y = parent_y + offset_y
+    w = parent_w
+    h = adjusted_h
   end
   
-  ImGui.SetNextWindowPos(ctx, parent_x, parent_y + offset_y)
-  ImGui.SetNextWindowSize(ctx, parent_w, adjusted_h)
+  ImGui.SetNextWindowPos(ctx, x, y)
+  ImGui.SetNextWindowSize(ctx, w, h)
   
   local window_flags = ImGui.WindowFlags_NoTitleBar
                      | ImGui.WindowFlags_NoResize
@@ -132,8 +148,6 @@ function M:render(ctx, dt)
   
   if visible then
     local dl = ImGui.GetWindowDrawList(ctx)
-    local x, y = ImGui.GetWindowPos(ctx)
-    local w, h = ImGui.GetWindowSize(ctx)
     
     local config = OverlayConfig.get()
     local scrim_opacity = math.floor(255 * config.scrim.opacity * alpha_val)

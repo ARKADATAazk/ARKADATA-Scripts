@@ -1,14 +1,17 @@
 # FOLDER FLOW: ReArkitekt
-Generated: 2025-10-11 04:00:33
+Generated: 2025-10-11 05:31:04
 Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
 
 ## Overview
-- **Files**: 108
-- **Total Lines**: 20,841
-- **Public Functions**: 309
-- **Classes**: 75
+- **Files**: 113
+- **Total Lines**: 21,902
+- **Public Functions**: 333
+- **Classes**: 81
 
 ## Files
+
+### ARK_Color_Palette.lua (77 lines)
+  **Requires**: ReArkitekt.app.shell, ReArkitekt.ColorPalette.app.state, ReArkitekt.ColorPalette.app.gui, ReArkitekt.core.settings
 
 ### ARK_Region_Playlist.lua (51 lines)
   **Requires**: ReArkitekt.app.shell, Region_Playlist.app.config, Region_Playlist.app.state, Region_Playlist.app.gui, Region_Playlist.app.status
@@ -59,6 +62,13 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.calculate_width(ctx, label, opts)`
     - `M.draw(ctx, opts)`
   **Requires**: ReArkitekt.gui.draw, ReArkitekt.core.colors, ReArkitekt.gui.fx.tile_fx, ReArkitekt.gui.fx.tile_fx_config
+
+### color_grid.lua (132 lines)
+  **Modules**: M, ColorGrid
+  **Classes**: ColorGrid, M
+  **Exports**:
+    - `M.new()`
+  **Requires**: ReArkitekt.core.colors, ReArkitekt.gui.draw
 
 ### colors.lua (514 lines)
   **Modules**: M
@@ -126,6 +136,12 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.item(ctx, label, config)`
     - `M.separator(ctx, config)`
 
+### controller.lua (234 lines)
+  **Modules**: M, Controller, targets, colors
+  **Classes**: Controller, M
+  **Exports**:
+    - `M.new()`
+
 ### controller.lua (362 lines)
   **Modules**: M, Controller, keys, keys, keys_set, new_items, keys_set, keys_set
   **Classes**: Controller, M
@@ -141,7 +157,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.draw_playback_info(ctx, bridge, x, y, width)`
     - `M.draw_complete_controls(ctx, bridge, x, y, available_width)`
 
-### coordinator.lua (523 lines)
+### coordinator.lua (516 lines)
   **Modules**: M, RegionTiles, playlist_cache, copy, spawned_keys, payload, colors
   **Classes**: RegionTiles, M
   **Exports**:
@@ -283,7 +299,14 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   **Exports**:
     - `M.new(config)`
 
-### gui.lua (927 lines)
+### gui.lua (370 lines)
+  **Modules**: M, GUI
+  **Classes**: GUI, M
+  **Exports**:
+    - `M.create(State, settings)`
+  **Requires**: ReArkitekt.core.colors, ReArkitekt.gui.draw, ReArkitekt.ColorPalette.widgets.color_grid, ReArkitekt.ColorPalette.app.controller
+
+### gui.lua (897 lines)
   **Modules**: M, GUI, tab_items, selected_ids, filtered
   **Classes**: GUI, M
   **Exports**:
@@ -326,9 +349,9 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
 ### init.lua (2 lines)
   **Requires**: ReArkitekt.app.chrome.status_bar.widget
 
-### init.lua (395 lines)
-  **Modules**: M, result, Container, old_ids
-  **Classes**: Container, M
+### init.lua (408 lines)
+  **Modules**: M, result, Panel, old_ids
+  **Classes**: Panel, M
   **Exports**:
     - `M.new(opts)`
     - `M.draw(ctx, id, width, height, content_fn, config, on_search_changed, on_sort_changed)`
@@ -528,7 +551,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   **Classes**: Settings
   **Exports**:
     - `M.open(cache_dir, filename)`
-  **Requires**: json
+  **Requires**: ReArkitekt.core.json
 
 ### sheet.lua (124 lines)
   **Modules**: Sheet
@@ -536,7 +559,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `Sheet.render(ctx, alpha, bounds, content_fn, opts)`
   **Requires**: ReArkitekt.gui.draw, ReArkitekt.core.colors, ReArkitekt.gui.style, ReArkitekt.gui.widgets.overlay.config
 
-### shell.lua (247 lines)
+### shell.lua (248 lines)
   **Modules**: M, DEFAULTS
   **Exports**:
     - `M.run(opts)`
@@ -554,6 +577,21 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   **Exports**:
     - `M.new(config)`
   **Requires**: ReArkitekt.gui.fx.easing
+
+### state.lua (272 lines)
+  **Modules**: M
+  **Exports**:
+    - `M.initialize(settings)`
+    - `M.recalculate_palette()`
+    - `M.get_palette_colors()`
+    - `M.get_palette_config()`
+    - `M.get_target_type()`
+    - `M.set_target_type(index)`
+    - `M.get_action_type()`
+    - `M.set_action_type(index)`
+    - `M.set_auto_close(value)`
+    - `M.get_auto_close()`
+  **Requires**: ReArkitekt.core.colors
 
 ### state.lua (596 lines)
   **Modules**: M, tabs, result, reversed, all_deps, visited, pool_playlists, filtered, reversed, new_path, path_array
@@ -619,7 +657,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.new(opts)`
   **Requires**: ReArkitekt.gui.fx.easing
 
-### tabs.lua (649 lines)
+### tabs.lua (646 lines)
   **Modules**: M, visible_tabs, positions
   **Exports**:
     - `M.assign_random_color(tab)`
@@ -777,7 +815,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   **Modules**: t, arr
   **Requires**: ReArkitekt.app.shell, ReArkitekt.gui.widgets.colorblocks, ReArkitekt.gui.draw, ReArkitekt.gui.fx.effects, ReArkitekt.*
 
-### window.lua (557 lines)
+### window.lua (559 lines)
   **Modules**: M, DEFAULTS
   **Classes**: M
   **Exports**:
@@ -799,8 +837,27 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   → ReArkitekt.app.runtime
   → ReArkitekt.app.window
 
+### gui.lua
+  → ReArkitekt.core.colors
+  → ReArkitekt.gui.draw
+  → ReArkitekt.ColorPalette.widgets.color_grid
+  → ReArkitekt.ColorPalette.app.controller
+
+### state.lua
+  → ReArkitekt.core.colors
+
+### ARK_Color_Palette.lua
+  → ReArkitekt.app.shell
+  → ReArkitekt.ColorPalette.app.state
+  → ReArkitekt.ColorPalette.app.gui
+  → ReArkitekt.core.settings
+
+### color_grid.lua
+  → ReArkitekt.core.colors
+  → ReArkitekt.gui.draw
+
 ### settings.lua
-  → json
+  → ReArkitekt.core.json
 
 ### demo.lua
   → ReArkitekt.app.shell
@@ -1019,6 +1076,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   → Region_Playlist.widgets.region_tiles.active_grid_factory
   → Region_Playlist.widgets.region_tiles.pool_grid_factory
   → ReArkitekt.gui.widgets.grid.grid_bridge
+  → Region_Playlist.app.state
 
 ### coordinator_render.lua
   → ReArkitekt.gui.fx.dnd.drag_indicator

@@ -1,5 +1,5 @@
 -- core/settings.lua - debounced settings store in /cache/settings.json
-local json = require('json')
+local json = require('ReArkitekt.core.json')
 
 local SEP = package.config:sub(1,1)
 

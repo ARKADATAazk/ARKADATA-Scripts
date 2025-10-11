@@ -152,23 +152,25 @@ function M.new(opts)
     end
   end
 
-  do
-    local ok, Titlebar = pcall(require, 'ReArkitekt.app.titlebar')
-    if ok and Titlebar and Titlebar.new then
-      win.titlebar_opts.title = win.title
-      win.titlebar_opts.separator = opts.tabs and false or opts.titlebar_separator
-      win.titlebar_opts.on_close = function()
-        win._should_close = true
+  if opts.show_titlebar ~= false then
+    do
+      local ok, Titlebar = pcall(require, 'ReArkitekt.app.titlebar')
+      if ok and Titlebar and Titlebar.new then
+        win.titlebar_opts.title = win.title
+        win.titlebar_opts.separator = opts.tabs and false or opts.titlebar_separator
+        win.titlebar_opts.on_close = function()
+          win._should_close = true
+        end
+        win.titlebar_opts.on_maximize = function()
+          win:_maximize_requested()
+        end
+        win.titlebar_opts.on_icon_double_click = function()
+          win:toggle_profiling()
+        end
+        
+        win._titlebar = Titlebar.new(win.titlebar_opts)
+        win._titlebar:set_maximized(win._is_maximized)
       end
-      win.titlebar_opts.on_maximize = function()
-        win:_maximize_requested()
-      end
-      win.titlebar_opts.on_icon_double_click = function()
-        win:toggle_profiling()
-      end
-      
-      win._titlebar = Titlebar.new(win.titlebar_opts)
-      win._titlebar:set_maximized(win._is_maximized)
     end
   end
 
