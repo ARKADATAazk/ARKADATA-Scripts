@@ -14,6 +14,10 @@ local COMPONENTS = {
   separator = require('ReArkitekt.gui.widgets.panel.header.separator'),
 }
 
+-- ============================================================================
+-- WIDTH CALCULATION
+-- ============================================================================
+
 local function calculate_element_width(ctx, element, state)
   local component = COMPONENTS[element.type]
   if not component then return 0 end
@@ -73,6 +77,10 @@ local function layout_elements(ctx, elements, available_width, state)
   return layout
 end
 
+-- ============================================================================
+-- SEPARATOR ROUNDING
+-- ============================================================================
+
 local function find_separator_neighbors(elements, separator_index)
   local left_neighbor = nil
   local right_neighbor = nil
@@ -93,6 +101,62 @@ local function find_separator_neighbors(elements, separator_index)
   
   return left_neighbor, right_neighbor
 end
+
+-- ============================================================================
+-- ELEMENT STATE MANAGEMENT
+-- ============================================================================
+
+local function get_or_create_element_state(state, element)
+  if element.type == "tab_strip" then
+    local element_state = state[element.id]
+    if not element_state then
+      element_state = {
+        tabs = {},
+        active_tab_id = nil,
+        tab_positions = {},
+        dragging_tab = nil,
+        pending_delete_id = nil,
+        _tabs_version = 0,
+      }
+      state[element.id] = element_state
+    end
+    
+    -- Only update tabs if not currently dragging, or if tabs reference changed
+    if not element_state.dragging_tab then
+      if state.tabs and type(state.tabs) == "table" then
+        -- Check if the tabs array reference changed
+        if element_state.tabs ~= state.tabs then
+          element_state.tabs = state.tabs
+          element_state._tabs_version = (element_state._tabs_version or 0) + 1
+        end
+        element_state.active_tab_id = state.active_tab_id
+      end
+    end
+    
+    if state.tab_animator then
+      element_state.tab_animator = state.tab_animator
+    end
+    
+    element_state.id = element.id
+    element_state._panel_id = state.id
+    
+    return element_state
+  else
+    local element_state = state[element.id]
+    if not element_state then
+      element_state = {}
+      state[element.id] = element_state
+    end
+    element_state.id = element.id
+    element_state._panel_id = state.id
+    
+    return element_state
+  end
+end
+
+-- ============================================================================
+-- MAIN DRAW FUNCTION
+-- ============================================================================
 
 function M.draw(ctx, dl, x, y, width, height, state, config)
   if not config or not config.elements or #config.elements == 0 then
@@ -145,36 +209,7 @@ function M.draw(ctx, dl, x, y, width, height, state, config)
         element_config.corner_rounding = separator_roundings[i]
       end
       
-      -- Create element state based on type
-      local element_state
-      
-if element.type == "tab_strip" then
-  -- For tab strips, reuse existing element state to preserve animation state
-  element_state = state[element.id]
-  if not element_state then
-    -- First time: create and store it
-    element_state = {}
-    state[element.id] = element_state
-  end
-  
-  -- Update tab data from panel (but preserve tab_positions, etc.)
-  if state.tabs and type(state.tabs) == "table" then
-    element_state.tabs = state.tabs
-    element_state.active_tab_id = state.active_tab_id
-  end
-  
-  element_state.id = element.id
-  element_state._panel_id = state.id
-else
-  -- For other elements, use the normal approach
-  element_state = state[element.id]
-  if not element_state then
-    element_state = {}
-    state[element.id] = element_state
-  end
-  element_state.id = element.id
-  element_state._panel_id = state.id
-end
+      local element_state = get_or_create_element_state(state, element)
       
       local used_width = component.draw(
         ctx, dl,

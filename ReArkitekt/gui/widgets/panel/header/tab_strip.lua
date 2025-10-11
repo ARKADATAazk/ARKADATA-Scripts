@@ -1,5 +1,5 @@
 -- ReArkitekt/gui/widgets/panel/header/tab_strip.lua
--- Tab strip component with drag & drop, animations, overflow
+-- Clean, modular tab strip component
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
@@ -11,47 +11,77 @@ local M = {}
 local TAB_SLIDE_SPEED = 15.0
 local DRAG_THRESHOLD = 3.0
 
+-- ============================================================================
+-- HELPERS
+-- ============================================================================
+
 local function with_alpha(color, alpha)
   return (color & 0xFFFFFF00) | (alpha & 0xFF)
 end
 
-function M.assign_random_color(tab)
-  if not tab.chip_color then
-    local hue = math.random() * 360
-    local sat = 0.6 + math.random() * 0.3
-    local val = 0.7 + math.random() * 0.2
-    
-    local h = hue / 60
-    local i = math.floor(h)
-    local f = h - i
-    local p = val * (1 - sat)
-    local q = val * (1 - sat * f)
-    local t = val * (1 - sat * (1 - f))
-    
-    local r, g, b
-    if i == 0 then
-      r, g, b = val, t, p
-    elseif i == 1 then
-      r, g, b = q, val, p
-    elseif i == 2 then
-      r, g, b = p, val, t
-    elseif i == 3 then
-      r, g, b = p, q, val
-    elseif i == 4 then
-      r, g, b = t, p, val
-    else
-      r, g, b = val, p, q
+local function calculate_tab_width(ctx, label, config, has_chip)
+  local text_w = ImGui.CalcTextSize(ctx, label)
+  local chip_width = has_chip and 20 or 0
+  local min_width = config.min_width or 60
+  local max_width = config.max_width or 180
+  local padding_x = config.padding_x or 5
+  
+  return math.min(max_width, math.max(min_width, text_w + padding_x * 2 + chip_width))
+end
+
+-- ============================================================================
+-- ANIMATION HELPERS
+-- ============================================================================
+
+local function init_tab_positions(state, tabs)
+  if not state.tab_positions then
+    state.tab_positions = {}
+  end
+  
+  for _, tab in ipairs(tabs) do
+    if not state.tab_positions[tab.id] then
+      state.tab_positions[tab.id] = {
+        current_x = 0,
+        target_x = 0,
+      }
     end
-    
-    local ri = math.floor(r * 255)
-    local gi = math.floor(g * 255)
-    local bi = math.floor(b * 255)
-    
-    tab.chip_color = (ri << 24) | (gi << 16) | (bi << 8) | 0xFF
   end
 end
 
-local function draw_plus_button(ctx, dl, x, y, width, height, config, state, unique_id)
+local function update_tab_positions(ctx, state, config, tabs, start_x)
+  local spacing = config.spacing or 6
+  local dt = ImGui.GetDeltaTime(ctx)
+  local cursor_x = start_x
+  
+  for i, tab in ipairs(tabs) do
+    local has_chip = tab.chip_color ~= nil
+    local tab_width = calculate_tab_width(ctx, tab.label or "Tab", config, has_chip)
+    local pos = state.tab_positions[tab.id]
+    
+    if not pos then
+      pos = { current_x = cursor_x, target_x = cursor_x }
+      state.tab_positions[tab.id] = pos
+    end
+    
+    pos.target_x = cursor_x
+    
+    local diff = pos.target_x - pos.current_x
+    if math.abs(diff) > 0.5 then
+      local move = diff * TAB_SLIDE_SPEED * dt
+      pos.current_x = pos.current_x + move
+    else
+      pos.current_x = pos.target_x
+    end
+    
+    cursor_x = cursor_x + tab_width + spacing
+  end
+end
+
+-- ============================================================================
+-- PLUS BUTTON
+-- ============================================================================
+
+local function draw_plus_button(ctx, dl, x, y, width, height, config, unique_id)
   local btn_cfg = config.plus_button or {}
   
   local is_hovered = ImGui.IsMouseHoveringRect(ctx, x, y, x + width, y + height)
@@ -94,7 +124,11 @@ local function draw_plus_button(ctx, dl, x, y, width, height, config, state, uni
   return clicked, width
 end
 
-local function draw_overflow_button(ctx, dl, x, y, width, height, config, state, hidden_count, unique_id)
+-- ============================================================================
+-- OVERFLOW BUTTON
+-- ============================================================================
+
+local function draw_overflow_button(ctx, dl, x, y, width, height, config, hidden_count, unique_id)
   local btn_cfg = config.overflow_button or {
     min_width = 21,
     padding_x = 8,
@@ -140,6 +174,10 @@ local function draw_overflow_button(ctx, dl, x, y, width, height, config, state,
   return clicked
 end
 
+-- ============================================================================
+-- TRACK BACKGROUND
+-- ============================================================================
+
 local function draw_track(ctx, dl, x, y, width, height, config)
   local track_cfg = config.track
   if not track_cfg or not track_cfg.enabled then return end
@@ -170,67 +208,16 @@ local function draw_track(ctx, dl, x, y, width, height, config)
   end
 end
 
-local function calculate_tab_width(ctx, label, config, has_chip)
-  local text_w = ImGui.CalcTextSize(ctx, label)
-  local chip_width = has_chip and 20 or 0
-  local min_width = config.min_width or 60
-  local max_width = config.max_width or 180
-  local padding_x = config.padding_x or 5
-  
-  return math.min(max_width, math.max(min_width, text_w + padding_x * 2 + chip_width))
-end
+-- ============================================================================
+-- TAB RENDERING
+-- ============================================================================
 
-local function init_tab_positions(state)
-  if not state.tab_positions then
-    state.tab_positions = {}
-  end
-  
-  for _, tab in ipairs(state.tabs or {}) do
-    if not state.tab_positions[tab.id] then
-      state.tab_positions[tab.id] = {
-        current_x = 0,
-        target_x = 0,
-      }
-    end
-  end
-end
-
-local function update_tab_positions(ctx, state, config, start_x)
-  local spacing = config.spacing or 6
-  local dt = ImGui.GetDeltaTime(ctx)
-  local cursor_x = start_x
-  
-  for i, tab in ipairs(state.tabs or {}) do
-    local has_chip = tab.chip_color ~= nil
-    local tab_width = calculate_tab_width(ctx, tab.label or "Tab", config, has_chip)
-    local pos = state.tab_positions[tab.id]
-    
-    if not pos then
-      pos = { current_x = cursor_x, target_x = cursor_x }
-      state.tab_positions[tab.id] = pos
-    end
-    
-    pos.target_x = cursor_x
-    
-    local diff = pos.target_x - pos.current_x
-    if math.abs(diff) > 0.5 then
-      local move = diff * TAB_SLIDE_SPEED * dt
-      pos.current_x = pos.current_x + move
-    else
-      pos.current_x = pos.target_x
-    end
-    
-    cursor_x = cursor_x + tab_width + spacing
-  end
-end
-
-local function draw_tab(ctx, dl, tab_data, is_active, tab_index, x, y, width, height, state, config, unique_id)
+local function draw_tab(ctx, dl, tab_data, is_active, tab_index, x, y, width, height, state, config, unique_id, animator)
   local label = tab_data.label or "Tab"
   local id = tab_data.id
   local chip_color = tab_data.chip_color
   local has_chip = chip_color ~= nil
   
-  local animator = state.tab_animator
   local is_spawning = animator and animator:is_spawning(id)
   local is_destroying = animator and animator:is_destroying(id)
   
@@ -342,7 +329,8 @@ local function draw_tab(ctx, dl, tab_data, is_active, tab_index, x, y, width, he
     local drag_delta_x, drag_delta_y = ImGui.GetMouseDragDelta(ctx, 0)
     local drag_distance = math.sqrt(drag_delta_x * drag_delta_x + drag_delta_y * drag_delta_y)
     
-    if drag_distance > DRAG_THRESHOLD then
+    -- Only start drag if mouse is actually being dragged (not just clicked)
+    if drag_distance > DRAG_THRESHOLD and ImGui.IsMouseDragging(ctx, 0) then
       local mx = ImGui.GetMousePos(ctx)
       state.dragging_tab = {
         id = id,
@@ -359,7 +347,7 @@ local function draw_tab(ctx, dl, tab_data, is_active, tab_index, x, y, width, he
   end
 
   if ContextMenu.begin(ctx, "##tab_context_" .. id .. "_" .. unique_id, config.context_menu) then
-    if ContextMenu.item(ctx, "Delete Playlist", config.context_menu) then
+    if ContextMenu.item(ctx, "Delete Tab", config.context_menu) then
       delete_requested = true
     end
     ContextMenu.end_menu(ctx)
@@ -368,148 +356,160 @@ local function draw_tab(ctx, dl, tab_data, is_active, tab_index, x, y, width, he
   return clicked, delete_requested
 end
 
+-- ============================================================================
+-- VISIBILITY CALCULATION
+-- ============================================================================
+
+local function calculate_visible_tabs(ctx, tabs, config, available_width)
+  local visible_indices = {}
+  local current_width = 0
+  local spacing = config.spacing or 6
+  
+  for i, tab in ipairs(tabs) do
+    local has_chip = tab.chip_color ~= nil
+    local tab_width = calculate_tab_width(ctx, tab.label or "Tab", config, has_chip)
+    local needed = tab_width + (i > 1 and spacing or 0)
+    
+    if current_width + needed <= available_width then
+      visible_indices[#visible_indices + 1] = i
+      current_width = current_width + needed
+    else
+      break
+    end
+  end
+  
+  local overflow_count = #tabs - #visible_indices
+  
+  return visible_indices, overflow_count, current_width
+end
+
+-- ============================================================================
+-- DRAG & DROP REORDERING
+-- ============================================================================
+
+local function handle_drag_reorder(ctx, state, tabs, config, tabs_start_x)
+  if not state.dragging_tab then return end
+  if not ImGui.IsMouseDragging(ctx, 0) then return end
+  
+  local mx = ImGui.GetMousePos(ctx)
+  local dragged_tab = tabs[state.dragging_tab.index]
+  local has_chip = dragged_tab.chip_color ~= nil
+  local dragged_width = calculate_tab_width(ctx, dragged_tab.label or "Tab", config, has_chip)
+  local spacing = config.spacing or 6
+  
+  local drag_center_x = mx - state.dragging_tab.offset_x + dragged_width * 0.5
+  
+  local positions = {}
+  local current_x = tabs_start_x
+  
+  for i = 1, #tabs do
+    if i ~= state.dragging_tab.index then
+      local tab = tabs[i]
+      local tab_has_chip = tab.chip_color ~= nil
+      local tab_w = calculate_tab_width(ctx, tab.label or "Tab", config, tab_has_chip)
+      
+      table.insert(positions, {
+        index = i,
+        center = current_x + tab_w * 0.5,
+      })
+      
+      current_x = current_x + tab_w + spacing
+    end
+  end
+  
+  local target_index = 1
+  
+  for i, pos in ipairs(positions) do
+    if drag_center_x > pos.center then
+      target_index = pos.index + 1
+    else
+      break
+    end
+  end
+  
+  if target_index > state.dragging_tab.index then
+    target_index = target_index - 1
+  end
+  
+  target_index = math.max(1, math.min(#tabs, target_index))
+  
+  if target_index ~= state.dragging_tab.index then
+    local dragged_tab_data = table.remove(tabs, state.dragging_tab.index)
+    table.insert(tabs, target_index, dragged_tab_data)
+    state.dragging_tab.index = target_index
+  end
+end
+
+local function finalize_drag(ctx, state, config)
+  if not state.dragging_tab then return end
+  
+  -- Simple check: if mouse button is released, drag is over
+  if not ImGui.IsMouseDown(ctx, 0) then
+    -- Update the current position to match where it visually is
+    -- This prevents jarring animations when tabs sync
+    local mx = ImGui.GetMousePos(ctx)
+    if state.tab_positions and state.tab_positions[state.dragging_tab.id] then
+      state.tab_positions[state.dragging_tab.id].current_x = mx - state.dragging_tab.offset_x
+    end
+    
+    -- Drag ended, call callback if reorder happened
+    if config.on_tab_reorder and state.dragging_tab.original_index ~= state.dragging_tab.index then
+      config.on_tab_reorder(state.dragging_tab.original_index, state.dragging_tab.index)
+    end
+    
+    -- Clear drag state
+    state.dragging_tab = nil
+  end
+end
+
+-- ============================================================================
+-- MAIN DRAW FUNCTION
+-- ============================================================================
+
 function M.draw(ctx, dl, x, y, available_width, height, config, state)
   config = config or {}
   state = state or {}
   
   local element_id = state.id or "tabstrip"
-  
-  -- Create unique ID by combining panel ID + element ID
   local unique_id = string.format("%s_%s", tostring(state._panel_id or "unknown"), element_id)
   
-  state.tabs = state.tabs or {}
-  state.active_tab_id = state.active_tab_id
+  local tabs = state.tabs or {}
+  local active_tab_id = state.active_tab_id
+  local animator = state.tab_animator
   
-  if state.tab_animator then
-    state.tab_animator:update()
+  if animator and animator.update then
+    animator:update()
   end
 
-  init_tab_positions(state)
+  init_tab_positions(state, tabs)
 
   local plus_cfg = config.plus_button or {}
   local plus_width = plus_cfg.width or 23
   local spacing = config.spacing or 6
 
-  reaper.ShowConsoleMsg(string.format(
-  "[TabStrip Debug]\n" ..
-  "  unique_id: %s\n" ..
-  "  state.tabs count: %d\n" ..
-  "  state.active_tab_id: %s\n" ..
-  "  state.id: %s\n" ..
-  "  state._panel_id: %s\n" ..
-  "  available_width: %.1f\n" ..
-  "  plus_width: %d\n" ..
-  "  spacing: %d\n",
-  unique_id,
-  state.tabs and #state.tabs or 0,
-  tostring(state.active_tab_id or "nil"),
-  tostring(state.id or "nil"),
-  tostring(state._panel_id or "nil"),
-  available_width,
-  plus_width,
-  spacing
-))
-
-if state.tabs then
-  reaper.ShowConsoleMsg(string.format("  Tabs array:\n"))
-  for i, tab in ipairs(state.tabs) do
-    reaper.ShowConsoleMsg(string.format(
-      "    [%d] id=%s, label=%s\n",
-      i,
-      tostring(tab.id or "nil"),
-      tostring(tab.label or "nil")
-    ))
-  end
-else
-  reaper.ShowConsoleMsg("  state.tabs is nil!\n")
-end
-
-reaper.ShowConsoleMsg("\n")
-  
-  -- FIRST PASS: Calculate which tabs fit WITHOUT overflow button
   local tabs_available_width_no_overflow = available_width - plus_width - spacing
   
-  local visible_indices = {}
-  local current_width = 0
+  local visible_indices, overflow_count, tabs_width = calculate_visible_tabs(
+    ctx, tabs, config, tabs_available_width_no_overflow
+  )
   
-  for i, tab in ipairs(state.tabs) do
-    local has_chip = tab.chip_color ~= nil
-    local tab_width = calculate_tab_width(ctx, tab.label or "Tab", config, has_chip)
-    local needed = tab_width + (i > 1 and spacing or 0)
-    
-    if current_width + needed <= tabs_available_width_no_overflow then
-      visible_indices[#visible_indices + 1] = i
-      current_width = current_width + needed
-    else
-      break  -- Stop once we can't fit more
-    end
-  end
-  
-  -- Calculate overflow count
-  local overflow_count = #state.tabs - #visible_indices
-
-  reaper.ShowConsoleMsg(string.format(
-  "[First Pass - No Overflow]\n" ..
-  "  tabs_available_width_no_overflow: %.1f\n" ..
-  "  visible_indices count: %d\n",
-  tabs_available_width_no_overflow,
-  #visible_indices
-))
-
-for i, idx in ipairs(visible_indices) do
-  local tab = state.tabs[idx]
-  local has_chip = tab.chip_color ~= nil
-  local tab_width = calculate_tab_width(ctx, tab.label or "Tab", config, has_chip)
-  reaper.ShowConsoleMsg(string.format(
-    "  Visible[%d]: idx=%d, label=%s, width=%.1f, chip=%s\n",
-    i, idx,
-    tostring(tab.label),
-    tab_width,
-    has_chip and "yes" or "no"
-  ))
-end
-
-reaper.ShowConsoleMsg(string.format(
-  "  current_width used: %.1f\n" ..
-  "  overflow_count: %d\n\n",
-  current_width,
-  overflow_count
-))
-  
-  -- SECOND PASS: If there's overflow, recalculate with overflow button space reserved
   local overflow_width = 0
   if overflow_count > 0 then
     local overflow_cfg = config.overflow_button or { min_width = 21, padding_x = 8 }
-    local count_text = tostring(overflow_count)  -- Use HIDDEN count, not total!
+    local count_text = tostring(overflow_count)
     local text_w = ImGui.CalcTextSize(ctx, count_text)
     overflow_width = math.max(overflow_cfg.min_width or 21, text_w + (overflow_cfg.padding_x or 8) * 2)
     
-    -- Recalculate visible tabs with overflow button space reserved
     local tabs_available_width_with_overflow = available_width - plus_width - spacing - overflow_width - spacing
     
-    visible_indices = {}
-    current_width = 0
-    
-    for i, tab in ipairs(state.tabs) do
-      local has_chip = tab.chip_color ~= nil
-      local tab_width = calculate_tab_width(ctx, tab.label or "Tab", config, has_chip)
-      local needed = tab_width + (i > 1 and spacing or 0)
-      
-      if current_width + needed <= tabs_available_width_with_overflow then
-        visible_indices[#visible_indices + 1] = i
-        current_width = current_width + needed
-      else
-        break
-      end
-    end
-    
-    -- Recalculate overflow count after adjustment
-    overflow_count = #state.tabs - #visible_indices
+    visible_indices, overflow_count, tabs_width = calculate_visible_tabs(
+      ctx, tabs, config, tabs_available_width_with_overflow
+    )
   end
   
   local tabs_start_x = x + plus_width + spacing
   
-  local tabs_total_width = current_width
+  local tabs_total_width = tabs_width
   if overflow_count > 0 then
     tabs_total_width = tabs_total_width + spacing + overflow_width
   end
@@ -525,74 +525,22 @@ reaper.ShowConsoleMsg(string.format(
                height, config)
   end
 
-  local plus_clicked, _ = draw_plus_button(ctx, dl, x, y, plus_width, height, config, state, unique_id)
+  local plus_clicked, _ = draw_plus_button(ctx, dl, x, y, plus_width, height, config, unique_id)
   
   if plus_clicked and config.on_tab_create then
     config.on_tab_create()
   end
 
-  if state.dragging_tab and ImGui.IsMouseDragging(ctx, 0) then
-    local mx = ImGui.GetMousePos(ctx)
-    local dragged_tab = state.tabs[state.dragging_tab.index]
-    local has_chip = dragged_tab.chip_color ~= nil
-    local dragged_width = calculate_tab_width(ctx, dragged_tab.label or "Tab", config, has_chip)
-    
-    local drag_center_x = mx - state.dragging_tab.offset_x + dragged_width * 0.5
-    
-    local positions = {}
-    local current_x = tabs_start_x
-    
-    for i = 1, #state.tabs do
-      if i ~= state.dragging_tab.index then
-        local tab = state.tabs[i]
-        local tab_has_chip = tab.chip_color ~= nil
-        local tab_w = calculate_tab_width(ctx, tab.label or "Tab", config, tab_has_chip)
-        
-        table.insert(positions, {
-          index = i,
-          center = current_x + tab_w * 0.5,
-        })
-        
-        current_x = current_x + tab_w + spacing
-      end
-    end
-    
-    local target_index = 1
-    
-    for i, pos in ipairs(positions) do
-      if drag_center_x > pos.center then
-        target_index = pos.index + 1
-      else
-        break
-      end
-    end
-    
-    if target_index > state.dragging_tab.index then
-      target_index = target_index - 1
-    end
-    
-    target_index = math.max(1, math.min(#state.tabs, target_index))
-    
-    if target_index ~= state.dragging_tab.index then
-      local dragged_tab_data = table.remove(state.tabs, state.dragging_tab.index)
-      table.insert(state.tabs, target_index, dragged_tab_data)
-      state.dragging_tab.index = target_index
-    end
-  end
+  -- IMPORTANT: Handle drag movement FIRST, then check if drag should end
+  handle_drag_reorder(ctx, state, tabs, config, tabs_start_x)
+  finalize_drag(ctx, state, config)
 
-  if state.dragging_tab and not ImGui.IsMouseDown(ctx, 0) then
-    if config.on_tab_reorder and state.dragging_tab.original_index ~= state.dragging_tab.index then
-      config.on_tab_reorder(state.dragging_tab.original_index, state.dragging_tab.index)
-    end
-    state.dragging_tab = nil
-  end
-
-  update_tab_positions(ctx, state, config, tabs_start_x)
+  update_tab_positions(ctx, state, config, tabs, tabs_start_x)
   
-  local id_to_delete = nil
   local clicked_tab_id = nil
+  local id_to_delete = nil
 
-  for i, tab_data in ipairs(state.tabs) do
+  for i, tab_data in ipairs(tabs) do
     local is_visible = false
     for _, vis_idx in ipairs(visible_indices) do
       if vis_idx == i then
@@ -613,9 +561,12 @@ reaper.ShowConsoleMsg(string.format(
           tab_x = mx - state.dragging_tab.offset_x
         end
         
-        local is_active = (tab_data.id == state.active_tab_id)
-        local clicked, delete_requested = draw_tab(ctx, dl, tab_data, is_active, 
-                                                   i, tab_x, y, tab_w, height, state, config, unique_id)
+        local is_active = (tab_data.id == active_tab_id)
+        local clicked, delete_requested = draw_tab(
+          ctx, dl, tab_data, is_active, 
+          i, tab_x, y, tab_w, height, 
+          state, config, unique_id, animator
+        )
 
         if clicked and not (state.dragging_tab or ImGui.IsMouseDragging(ctx, 0)) then
           clicked_tab_id = tab_data.id
@@ -629,48 +580,39 @@ reaper.ShowConsoleMsg(string.format(
   end
   
   if overflow_count > 0 then
-    local overflow_x = tabs_start_x + current_width + spacing
-    local overflow_clicked = draw_overflow_button(ctx, dl, overflow_x, y, overflow_width, height, 
-                                                   config, state, overflow_count, unique_id)
+    local overflow_x = tabs_start_x + tabs_width + spacing
+    local overflow_clicked = draw_overflow_button(
+      ctx, dl, overflow_x, y, overflow_width, height, 
+      config, overflow_count, unique_id
+    )
     
     if overflow_clicked and config.on_overflow_clicked then
       config.on_overflow_clicked()
     end
   end
 
-  if clicked_tab_id then
-    state.active_tab_id = clicked_tab_id
-    if config.on_tab_change then
-      config.on_tab_change(clicked_tab_id)
-    end
+  if clicked_tab_id and config.on_tab_change then
+    config.on_tab_change(clicked_tab_id)
   end
 
-  if id_to_delete and #state.tabs > 1 then
-    local is_active = (id_to_delete == state.active_tab_id)
-    
-    if state.tab_animator then
-      state.tab_animator:destroy(id_to_delete)
+  if id_to_delete and #tabs > 1 then
+    if animator then
+      animator:destroy(id_to_delete)
       state.pending_delete_id = id_to_delete
       
-      if is_active then
-        for i, tab in ipairs(state.tabs) do
+      if id_to_delete == active_tab_id and config.on_tab_change then
+        for i, tab in ipairs(tabs) do
           if tab.id ~= id_to_delete then
-            state.active_tab_id = tab.id
-            if config.on_tab_change then
-              config.on_tab_change(tab.id)
-            end
+            config.on_tab_change(tab.id)
             break
           end
         end
       end
     else
-      if is_active then
-        for i, tab in ipairs(state.tabs) do
+      if id_to_delete == active_tab_id and config.on_tab_change then
+        for i, tab in ipairs(tabs) do
           if tab.id ~= id_to_delete then
-            state.active_tab_id = tab.id
-            if config.on_tab_change then
-              config.on_tab_change(tab.id)
-            end
+            config.on_tab_change(tab.id)
             break
           end
         end
@@ -682,8 +624,8 @@ reaper.ShowConsoleMsg(string.format(
     end
   end
 
-  if state.pending_delete_id and state.tab_animator then
-    if not state.tab_animator:is_destroying(state.pending_delete_id) then
+  if state.pending_delete_id and animator then
+    if not animator:is_destroying(state.pending_delete_id) then
       if config.on_tab_delete then
         config.on_tab_delete(state.pending_delete_id)
       end
@@ -701,17 +643,19 @@ function M.measure(ctx, config, state)
   local plus_width = (config.plus_button and config.plus_button.width) or 23
   local spacing = config.spacing or 6
   
-  if not state.tabs or #state.tabs == 0 then
+  local tabs = state.tabs or {}
+  
+  if #tabs == 0 then
     return plus_width
   end
   
   local total = plus_width + spacing
   
-  for i, tab in ipairs(state.tabs) do
+  for i, tab in ipairs(tabs) do
     local has_chip = tab.chip_color ~= nil
     local tab_w = calculate_tab_width(ctx, tab.label or "Tab", config, has_chip)
     total = total + tab_w
-    if i < #state.tabs then
+    if i < #tabs then
       total = total + spacing
     end
   end

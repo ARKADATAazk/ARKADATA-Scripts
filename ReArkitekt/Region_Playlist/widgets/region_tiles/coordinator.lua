@@ -136,10 +136,14 @@ function M.create(opts)
       end,
       
 on_tab_reorder = function(source_index, target_index)
-  -- Just persist the reorder to State, don't refresh the tabs array
+  -- Just reorder the underlying playlists data
   if rt.controller then
     rt.controller:reorder_playlists(source_index, target_index)
   end
+  
+  -- DON'T call set_tabs() here!
+  -- The layout will naturally pick up the change on the next frame
+  -- when dragging_tab is nil
 end,
       
       on_tab_delete = function(id)
