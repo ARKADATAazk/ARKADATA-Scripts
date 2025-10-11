@@ -1,6 +1,4 @@
 -- ReArkitekt/gui/widgets/region_tiles/coordinator.lua
--- Region Playlist coordinator - manages active sequence + pool grids with responsive heights
--- NOW WITH: Per-frame caching for playlist lookups
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.10'
@@ -16,6 +14,7 @@ local ActiveGridFactory = require('Region_Playlist.widgets.region_tiles.active_g
 local PoolGridFactory = require('Region_Playlist.widgets.region_tiles.pool_grid_factory')
 local GridBridge = require('ReArkitekt.gui.widgets.grid.grid_bridge')
 local TilesContainer = require('ReArkitekt.gui.widgets.tiles_container')
+local State = require("Region_Playlist.app.state") -- ADDED: Direct import for state management
 
 local M = {}
 
@@ -51,6 +50,7 @@ function M.create(opts)
   end
   
   local rt = setmetatable({
+    controller = opts.controller, -- ADDED: Store controller from options
     get_region_by_rid = opts.get_region_by_rid,
     get_playlist_by_id = cached_get_playlist,
     detect_circular_ref = opts.detect_circular_ref,
@@ -73,12 +73,12 @@ function M.create(opts)
     on_pool_sort = opts.on_pool_sort,
     on_pool_sort_direction = opts.on_pool_sort_direction,
     on_pool_mode_changed = opts.on_pool_mode_changed,
-    on_tab_create = opts.on_tab_create,
-    on_tab_change = opts.on_tab_change,
-    on_tab_delete = opts.on_tab_delete,
-    on_tab_reorder = opts.on_tab_reorder,
-    on_overflow_tabs_clicked = opts.on_overflow_tabs_clicked,
-    on_active_search = opts.on_active_search,
+    -- REMOVED: on_tab_create = opts.on_tab_create,
+    -- REMOVED: on_tab_change = opts.on_tab_change,
+    -- REMOVED: on_tab_delete = opts.on_tab_delete,
+    -- REMOVED: on_tab_reorder = opts.on_tab_reorder,
+    -- REMOVED: on_overflow_tabs_clicked = opts.on_overflow_tabs_clicked,
+    -- REMOVED: on_active_search = opts.on_active_search,
     settings = opts.settings,
     
     allow_pool_reorder = opts.allow_pool_reorder ~= false,
@@ -152,36 +152,29 @@ function M.create(opts)
     config = active_container_config,
     tabs = opts.tabs or {},
     active_tab_id = opts.active_tab_id,
-    on_tab_create = function()
-      if rt.on_tab_create then
-        rt.on_tab_create()
+    on_tab_create = function() -- CHANGED: Direct implementation
+      if rt.controller then
+        rt.controller:create_playlist()
+        rt:set_tabs(State.get_tabs(), State.state.active_playlist)
       end
     end,
-    on_tab_change = function(id)
-      if rt.on_tab_change then
-        rt.on_tab_change(id)
+    on_tab_change = function(id) -- CHANGED: Direct implementation
+      State.set_active_playlist(id)
+    end,
+    on_tab_reorder = function(source_index, target_index) -- CHANGED: Direct implementation
+      if rt.controller and rt.controller:reorder_playlists(source_index, target_index) then
+        rt:set_tabs(State.get_tabs(), State.state.active_playlist)
       end
     end,
-      on_tab_reorder = function(source_index, target_index)
-        if rt.on_tab_reorder then
-          rt.on_tab_reorder(source_index, target_index)
-        end
-      end,
-      on_overflow_tabs_clicked = function()
-        if rt.on_overflow_tabs_clicked then
-          rt.on_overflow_tabs_clicked()
-        end
-    end,
-    on_tab_delete = function(id)
-      if rt.on_tab_delete then
-        rt.on_tab_delete(id)
+    on_tab_delete = function(id) -- CHANGED: Direct implementation
+      if rt.controller and rt.controller:delete_playlist(id) then
+        rt:set_tabs(State.get_tabs(), State.state.active_playlist)
       end
     end,
-    on_search_changed = function(text)
-      if rt.on_active_search then
-        rt.on_active_search(text)
-      end
+    on_search_changed = function(text) -- CHANGED: Direct implementation
+      State.state.active_search_filter = text or ""
     end,
+    -- REMOVED: on_overflow_tabs_clicked (Phase 2 will handle this)
   })
   
   local pool_container_config = shallow_copy_config(config.container)

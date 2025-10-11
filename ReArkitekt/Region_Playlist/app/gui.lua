@@ -1,5 +1,4 @@
 -- Region_Playlist/app/gui.lua
--- GUI rendering with quantize controls and overflow tabs modal
 
 local ImGui = require 'imgui' '0.10'
 local RegionTiles = require("Region_Playlist.widgets.region_tiles.coordinator")
@@ -67,6 +66,8 @@ function M.create(State, Config, settings)
   end
   
   self.region_tiles = RegionTiles.create({
+    controller = self.controller, -- ADDED: Pass controller directly
+    
     get_region_by_rid = function(rid)
       return State.state.region_index[rid]
     end,
@@ -86,36 +87,12 @@ function M.create(State, Config, settings)
     pool_mode = State.state.pool_mode,
     config = Config.get_region_tiles_config(State.state.layout_mode),
     
-    on_tab_create = function()
-      self.controller:create_playlist()
-      self:refresh_tabs()
-    end,
-    
-    on_tab_change = function(new_id)
-      State.set_active_playlist(new_id)
-    end,
-    
-    on_tab_delete = function(id)
-      if self.controller:delete_playlist(id) then
-        self:refresh_tabs()
-      end
-    end,
-    
-    on_tab_reorder = function(source_index, target_index)
-      if self.controller:reorder_playlists(source_index, target_index) then
-        self:refresh_tabs()
-      end
-    end,
-    
-    on_overflow_tabs_clicked = function()
-      reaper.ShowConsoleMsg("OVERFLOW BUTTON CLICKED!\n")
-      self.show_overflow_modal = true
-      self.overflow_modal_search = ""
-    end,
-    
-    on_active_search = function(text)
-      State.state.active_search_filter = text or ""
-    end,
+    -- REMOVED: on_tab_create
+    -- REMOVED: on_tab_change
+    -- REMOVED: on_tab_delete
+    -- REMOVED: on_tab_reorder
+    -- REMOVED: on_overflow_tabs_clicked
+    -- REMOVED: on_active_search
     
     on_playlist_changed = function(new_id)
       State.set_active_playlist(new_id)
@@ -242,6 +219,7 @@ function M.create(State, Config, settings)
   
   return self
 end
+-- ... (rest of the file is unchanged)
 
 function GUI:refresh_tabs()
   self.region_tiles:set_tabs(self.State.get_tabs(), self.State.state.active_playlist)
