@@ -2,10 +2,10 @@
 -- GUI rendering with quantize controls and overflow tabs modal
 
 local ImGui = require 'imgui' '0.10'
-local RegionTiles = require("ReArkitekt.gui.widgets.region_tiles.coordinator")
+local RegionTiles = require("Region_Playlist.widgets.region_tiles.coordinator")
 local Colors = require("ReArkitekt.core.colors")
 local Shortcuts = require("Region_Playlist.app.shortcuts")
-local PlaylistController = require("ReArkitekt.features.region_playlist.playlist_controller")
+local PlaylistController = require("Region_Playlist.app.controller")
 local TransportContainer = require("ReArkitekt.gui.widgets.transport.transport_container")
 local Sheet = require("ReArkitekt.gui.widgets.overlay.sheet")
 local ChipList = require("ReArkitekt.gui.widgets.chip_list.list")

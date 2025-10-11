@@ -3,7 +3,7 @@
 -- Extracted from active_grid.lua to separate creation from coordination logic
 
 local Grid = require('ReArkitekt.gui.widgets.grid.core')
-local ActiveTile = require('ReArkitekt.gui.widgets.region_tiles.renderers.active')
+local ActiveTile = require('Region_Playlist.widgets.region_tiles.renderers.active')
 
 local M = {}
 

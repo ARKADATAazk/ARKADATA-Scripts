@@ -3,7 +3,7 @@
 -- NOW: Blocks dragging disabled playlists
 
 local Grid = require('ReArkitekt.gui.widgets.grid.core')
-local PoolTile = require('ReArkitekt.gui.widgets.region_tiles.renderers.pool')
+local PoolTile = require('Region_Playlist.widgets.region_tiles.renderers.pool')
 
 local M = {}
 

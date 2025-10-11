@@ -1,10 +1,10 @@
 -- Region_Playlist/app/state.lua
 -- FIXED: Detects project switches and reloads playlist data
 
-local CoordinatorBridge = require("ReArkitekt.features.region_playlist.coordinator_bridge")
-local RegionState = require("ReArkitekt.features.region_playlist.state")
+local CoordinatorBridge = require("Region_Playlist.engine.coordinator_bridge")
+local RegionState = require("Region_Playlist.storage.state")
 local UndoManager = require("ReArkitekt.core.undo_manager")
-local UndoBridge = require("ReArkitekt.features.region_playlist.undo_bridge")
+local UndoBridge = require("Region_Playlist.storage.undo_bridge")
 local Colors = require("ReArkitekt.core.colors")
 
 local M = {}

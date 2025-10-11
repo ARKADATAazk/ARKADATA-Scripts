@@ -5,15 +5,15 @@
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.10'
 
-local Config = require('ReArkitekt.gui.widgets.region_tiles.config')
-local Render = require('ReArkitekt.gui.widgets.region_tiles.coordinator_render')
+local Config = require('Region_Playlist.widgets.region_tiles.config')
+local Render = require('Region_Playlist.widgets.region_tiles.coordinator_render')
 local Draw = require('ReArkitekt.gui.draw')
 local Colors = require('ReArkitekt.core.colors')
 local TileAnim = require('ReArkitekt.gui.fx.tile_motion')
 local HeightStabilizer = require('ReArkitekt.gui.systems.height_stabilizer')
-local Selector = require('ReArkitekt.gui.widgets.region_tiles.selector')
-local ActiveGridFactory = require('ReArkitekt.gui.widgets.region_tiles.active_grid_factory')
-local PoolGridFactory = require('ReArkitekt.gui.widgets.region_tiles.pool_grid_factory')
+local Selector = require('Region_Playlist.widgets.region_tiles.selector')
+local ActiveGridFactory = require('Region_Playlist.widgets.region_tiles.active_grid_factory')
+local PoolGridFactory = require('Region_Playlist.widgets.region_tiles.pool_grid_factory')
 local GridBridge = require('ReArkitekt.gui.widgets.grid.grid_bridge')
 local TilesContainer = require('ReArkitekt.gui.widgets.tiles_container')
 

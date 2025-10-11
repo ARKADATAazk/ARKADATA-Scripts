@@ -64,7 +64,7 @@ function Controller:create_playlist(name)
   return self:_with_undo(function()
     local new_id = self:_generate_playlist_id()
     
-    local RegionState = require("ReArkitekt.features.region_playlist.state")
+    local RegionState = require("Region_Playlist.storage.state")
     
     local new_playlist = {
       id = new_id,

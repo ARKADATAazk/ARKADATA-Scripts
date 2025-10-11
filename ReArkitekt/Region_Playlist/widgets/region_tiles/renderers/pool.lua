@@ -7,7 +7,7 @@ local Colors = require('ReArkitekt.core.colors')
 local Draw = require('ReArkitekt.gui.draw')
 local TileFXConfig = require('ReArkitekt.gui.fx.tile_fx_config')
 local TileUtil = require('ReArkitekt.gui.systems.tile_utilities')
-local BaseRenderer = require('ReArkitekt.gui.widgets.region_tiles.renderers.base')
+local BaseRenderer = require('Region_Playlist.widgets.region_tiles.renderers.base')
 
 local M = {}
 
