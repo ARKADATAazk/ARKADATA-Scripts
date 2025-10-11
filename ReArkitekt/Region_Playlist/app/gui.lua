@@ -8,12 +8,13 @@ local PlaylistController = require("Region_Playlist.app.controller")
 local TransportContainer = require("ReArkitekt.gui.widgets.transport.transport_container")
 local Sheet = require("ReArkitekt.gui.widgets.overlay.sheet")
 local ChipList = require("ReArkitekt.gui.widgets.chip_list.list")
+local Config = require('Region_Playlist.app.config')
 
 local M = {}
 local GUI = {}
 GUI.__index = GUI
 
-function M.create(State, Config, settings)
+function M.create(State, AppConfig, settings)
   local self = setmetatable({
     State = State,
     Config = Config,
@@ -26,14 +27,11 @@ function M.create(State, Config, settings)
       is_dragging = false,
       drag_offset = 0
     },
-    default_separator_horizontal = 180,
-    default_separator_vertical = 280,
     quantize_lookahead = Config.QUANTIZE.default_lookahead,
-    -- REMOVED: show_overflow_modal = false,
     overflow_modal_search = "",
   }, GUI)
   
-  self.layout_button_animator = require('ReArkitekt.gui.fx.tile_motion').new(Config.LAYOUT_BUTTON.animation_speed)
+  self.layout_button_animator = require('ReArkitekt.gui.fx.tile_motion').new(Config.ANIMATION.HOVER_SPEED)
   self.controller = PlaylistController.new(State, settings, State.state.undo_manager)
   
   self.transport_container = TransportContainer.new({
@@ -45,10 +43,10 @@ function M.create(State, Config, settings)
   State.state.bridge:set_playlist_lookup(State.get_playlist_by_id)
   
   if not State.state.separator_position_horizontal then
-    State.state.separator_position_horizontal = self.default_separator_horizontal
+    State.state.separator_position_horizontal = Config.SEPARATOR.horizontal.default_position
   end
   if not State.state.separator_position_vertical then
-    State.state.separator_position_vertical = self.default_separator_vertical
+    State.state.separator_position_vertical = Config.SEPARATOR.vertical.default_position
   end
   
   State.state.on_state_restored = function()
@@ -85,7 +83,7 @@ function M.create(State, Config, settings)
     tabs = State.get_tabs(),
     active_tab_id = State.state.active_playlist,
     pool_mode = State.state.pool_mode,
-    config = Config.get_region_tiles_config(State.state.layout_mode),
+    config = AppConfig.get_region_tiles_config(State.state.layout_mode),
     
     on_playlist_changed = function(new_id)
       State.set_active_playlist(new_id)
@@ -218,8 +216,9 @@ function GUI:refresh_tabs()
 end
 
 function GUI:draw_overflow_modal(ctx, window)
-  -- CHANGED: Check visibility via the component's public method
-  if not self.region_tiles.active_container or not self.region_tiles.active_container:is_overflow_visible() then return end
+  if not self.region_tiles.active_container or not self.region_tiles.active_container:is_overflow_visible() then 
+    return 
+  end
   
   local all_tabs = self.State.get_tabs()
   
@@ -273,7 +272,7 @@ function GUI:draw_overflow_modal(ctx, window)
         if clicked_tab then
           self.State.set_active_playlist(clicked_tab)
           ImGui.CloseCurrentPopup(ctx)
-          self.region_tiles.active_container:close_overflow_modal() -- CHANGED
+          self.region_tiles.active_container:close_overflow_modal()
         end
       end
       ImGui.EndChild(ctx)
@@ -287,12 +286,12 @@ function GUI:draw_overflow_modal(ctx, window)
       
       if ImGui.Button(ctx, "Close", button_w, 0) then
         ImGui.CloseCurrentPopup(ctx)
-        self.region_tiles.active_container:close_overflow_modal() -- CHANGED
+        self.region_tiles.active_container:close_overflow_modal()
       end
       
       ImGui.EndPopup(ctx)
     else
-      self.region_tiles.active_container:close_overflow_modal() -- CHANGED
+      self.region_tiles.active_container:close_overflow_modal()
     end
     
     return
@@ -340,7 +339,7 @@ function GUI:draw_overflow_modal(ctx, window)
         if clicked_tab then
           self.State.set_active_playlist(clicked_tab)
           window.overlay:pop('overflow-tabs')
-          self.region_tiles.active_container:close_overflow_modal() -- CHANGED
+          self.region_tiles.active_container:close_overflow_modal()
         end
         
         ImGui.Dummy(ctx, 0, 20)
@@ -354,7 +353,7 @@ function GUI:draw_overflow_modal(ctx, window)
         ImGui.SetCursorPosX(ctx, start_x)
         if ImGui.Button(ctx, "Close", button_w, 32) then
           window.overlay:pop('overflow-tabs')
-          self.region_tiles.active_container:close_overflow_modal() -- CHANGED
+          self.region_tiles.active_container:close_overflow_modal()
         end
       end, { 
         title = "Select Playlist", 
@@ -389,16 +388,7 @@ function GUI:draw_transport_section(ctx)
   if engine and engine.quantize then
     local current_mode = engine.quantize:get_quantize_mode()
     
-    local grid_options = {
-      { label = "Measure", value = "measure" },
-      { label = "1 Bar (4/4)", value = "4.0" },
-      { label = "1/2 Note", value = "2.0" },
-      { label = "1/4 Note", value = "1.0" },
-      { label = "1/8 Note", value = "0.5" },
-      { label = "1/16 Note", value = "0.25" },
-      { label = "1/32 Note", value = "0.125" },
-      { label = "1/64 Note", value = "0.0625" },
-    }
+    local grid_options = self.Config.Transport.QUANTIZE.grid_options
     
     local current_idx = 1
     for i, opt in ipairs(grid_options) do
@@ -614,7 +604,8 @@ function GUI:draw_loop_playlist_checkbox(ctx)
 end
 
 function GUI:draw_horizontal_separator(ctx, x, y, width, height)
-  local separator_thickness = 6
+  local separator_config = self.Config.SEPARATOR.horizontal
+  local separator_thickness = separator_config.thickness
   
   local mx, my = ImGui.GetMousePos(ctx)
   local is_hovered = mx >= x and mx < x + width and 
@@ -647,7 +638,8 @@ function GUI:draw_horizontal_separator(ctx, x, y, width, height)
 end
 
 function GUI:draw_vertical_separator(ctx, x, y, width, height)
-  local separator_thickness = 6
+  local separator_config = self.Config.SEPARATOR.vertical
+  local separator_thickness = separator_config.thickness
   
   local mx, my = ImGui.GetMousePos(ctx)
   local is_hovered = mx >= x - separator_thickness/2 and mx < x + separator_thickness/2 and 
@@ -711,7 +703,7 @@ function GUI:get_filtered_active_items(playlist)
 end
 
 function GUI:draw(ctx, window)
-  if self.region_tiles.active_container and self.region_tiles.active_container:is_overflow_visible() then -- CHANGED
+  if self.region_tiles.active_container and self.region_tiles.active_container:is_overflow_visible() then
     self:draw_overflow_modal(ctx, window)
   end
   
@@ -780,9 +772,10 @@ function GUI:draw(ctx, window)
   if self.State.state.layout_mode == 'horizontal' then
     local content_w, content_h = ImGui.GetContentRegionAvail(ctx)
     
-    local min_active_height = 100
-    local min_pool_height = 100
-    local separator_gap = 8
+    local separator_config = self.Config.SEPARATOR.horizontal
+    local min_active_height = separator_config.min_active_height
+    local min_pool_height = separator_config.min_pool_height
+    local separator_gap = separator_config.gap
     
     local min_total_height = min_active_height + min_pool_height + separator_gap
     
@@ -814,7 +807,7 @@ function GUI:draw(ctx, window)
     local action, value = self:draw_horizontal_separator(ctx, start_x, separator_y, content_w, content_h)
     
     if action == "reset" then
-      self.State.state.separator_position_horizontal = self.default_separator_horizontal
+      self.State.state.separator_position_horizontal = separator_config.default_position
       self.State.persist_ui_prefs()
     elseif action == "drag" and content_h >= min_total_height then
       local new_active_height = value - start_y - separator_gap/2
@@ -829,9 +822,10 @@ function GUI:draw(ctx, window)
   else
     local content_w, content_h = ImGui.GetContentRegionAvail(ctx)
     
-    local min_active_width = 200
-    local min_pool_width = 200
-    local separator_gap = 8
+    local separator_config = self.Config.SEPARATOR.vertical
+    local min_active_width = separator_config.min_active_width
+    local min_pool_width = separator_config.min_pool_width
+    local separator_gap = separator_config.gap
     
     local min_total_width = min_active_width + min_pool_width + separator_gap
     
@@ -870,7 +864,7 @@ function GUI:draw(ctx, window)
     local action, value = self:draw_vertical_separator(ctx, separator_x, start_cursor_y, content_w, content_h)
     
     if action == "reset" then
-      self.State.state.separator_position_vertical = self.default_separator_vertical
+      self.State.state.separator_position_vertical = separator_config.default_position
       self.State.persist_ui_prefs()
     elseif action == "drag" and content_w >= min_total_width then
       local new_active_width = value - start_cursor_x - separator_gap/2

@@ -3,7 +3,7 @@
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.10'
 
-local Config = require('Region_Playlist.widgets.region_tiles.config')
+local Config = require('Region_Playlist.app.config')
 local Render = require('Region_Playlist.widgets.region_tiles.coordinator_render')
 local Draw = require('ReArkitekt.gui.draw')
 local Colors = require('ReArkitekt.core.colors')
@@ -14,7 +14,7 @@ local ActiveGridFactory = require('Region_Playlist.widgets.region_tiles.active_g
 local PoolGridFactory = require('Region_Playlist.widgets.region_tiles.pool_grid_factory')
 local GridBridge = require('ReArkitekt.gui.widgets.grid.grid_bridge')
 local TilesContainer = require('ReArkitekt.gui.widgets.panel')
-local State = require("Region_Playlist.app.state") -- ADDED: Direct import for state management
+local State = require("Region_Playlist.app.state")
 
 local M = {}
 
@@ -42,7 +42,7 @@ end
 function M.create(opts)
   opts = opts or {}
   
-  local config = Config.merge_config(Config.DEFAULTS, opts.config or {})
+  local config = opts.config or {}
   
   local raw_get_playlist = opts.get_playlist_by_id
   local cached_get_playlist = function(id)
@@ -50,7 +50,7 @@ function M.create(opts)
   end
   
   local rt = setmetatable({
-    controller = opts.controller, -- ADDED: Store controller from options
+    controller = opts.controller,
     get_region_by_rid = opts.get_region_by_rid,
     get_playlist_by_id = cached_get_playlist,
     detect_circular_ref = opts.detect_circular_ref,
@@ -73,12 +73,6 @@ function M.create(opts)
     on_pool_sort = opts.on_pool_sort,
     on_pool_sort_direction = opts.on_pool_sort_direction,
     on_pool_mode_changed = opts.on_pool_mode_changed,
-    -- REMOVED: on_tab_create = opts.on_tab_create,
-    -- REMOVED: on_tab_change = opts.on_tab_change,
-    -- REMOVED: on_tab_delete = opts.on_tab_delete,
-    -- REMOVED: on_tab_reorder = opts.on_tab_reorder,
-    -- REMOVED: on_overflow_tabs_clicked = opts.on_overflow_tabs_clicked,
-    -- REMOVED: on_active_search = opts.on_active_search,
     settings = opts.settings,
     
     allow_pool_reorder = opts.allow_pool_reorder ~= false,
@@ -125,90 +119,78 @@ function M.create(opts)
   
   rt.pool_grid = PoolGridFactory.create(rt, config)
   
-  local function shallow_copy_config(cfg)
-    local copy = {}
-    for k, v in pairs(cfg) do
-      if type(v) == "table" then
-        copy[k] = {}
-        for k2, v2 in pairs(v) do
-          copy[k][k2] = v2
-        end
-      else
-        copy[k] = v
-      end
-    end
-    return copy
-  end
-  
-  local active_container_config = shallow_copy_config(config.container)
-  if active_container_config.header then
-    active_container_config.header = shallow_copy_config(active_container_config.header)
-    active_container_config.header.enabled = opts.enable_active_tabs or false
-    active_container_config.header.mode = 'tabs'
-  end
-  
+  -- Create active container with proper Panel config structure
   rt.active_container = TilesContainer.new({
     id = "active_tiles_container",
-    config = active_container_config,
-    tabs = opts.tabs or {},
-    active_tab_id = opts.active_tab_id,
-    on_tab_create = function() -- CHANGED: Direct implementation
-      if rt.controller then
-        rt.controller:create_playlist()
-        rt:set_tabs(State.get_tabs(), State.state.active_playlist)
-      end
-    end,
-    on_tab_change = function(id) -- CHANGED: Direct implementation
-      State.set_active_playlist(id)
-    end,
-    on_tab_reorder = function(source_index, target_index) -- CHANGED: Direct implementation
-      if rt.controller and rt.controller:reorder_playlists(source_index, target_index) then
-        rt:set_tabs(State.get_tabs(), State.state.active_playlist)
-      end
-    end,
-    on_tab_delete = function(id) -- CHANGED: Direct implementation
-      if rt.controller and rt.controller:delete_playlist(id) then
-        rt:set_tabs(State.get_tabs(), State.state.active_playlist)
-      end
-    end,
-    on_search_changed = function(text) -- CHANGED: Direct implementation
-      State.state.active_search_filter = text or ""
-    end,
-    -- REMOVED: on_overflow_tabs_clicked (Phase 2 will handle this)
-  })
-  
-  local pool_container_config = shallow_copy_config(config.container)
-  if pool_container_config.header then
-    pool_container_config.header = shallow_copy_config(pool_container_config.header)
-    pool_container_config.header.mode_toggle = pool_container_config.header.mode_toggle or {}
-    pool_container_config.header.mode_toggle.enabled = true
+    config = Config.get_active_container_config({
+      on_tab_create = function()
+        if rt.controller then
+          rt.controller:create_playlist()
+          rt.active_container:set_tabs(State.get_tabs(), State.state.active_playlist)
+        end
+      end,
+      
+      on_tab_change = function(id)
+        State.set_active_playlist(id)
+        rt.active_container:set_active_tab_id(id)
+      end,
+      
+on_tab_reorder = function(source_index, target_index)
+  -- Just persist the reorder to State, don't refresh the tabs array
+  if rt.controller then
+    rt.controller:reorder_playlists(source_index, target_index)
   end
+end,
+      
+      on_tab_delete = function(id)
+        if rt.controller and rt.controller:delete_playlist(id) then
+          rt.active_container:set_tabs(State.get_tabs(), State.state.active_playlist)
+        end
+      end,
+      
+      on_overflow_clicked = function()
+        rt.active_container._overflow_visible = true
+      end,
+    })
+  })
+
+  -- Initialize tabs using Panel's public API
+  rt.active_container:set_tabs(opts.tabs or {}, opts.active_tab_id)
   
+  -- Create pool container with proper Panel config structure
   rt.pool_container = TilesContainer.new({
     id = "pool_tiles_container",
-    config = pool_container_config,
-    current_mode = opts.pool_mode or "regions",
-    on_search_changed = function(text)
-      if rt.on_pool_search then
-        rt.on_pool_search(text)
-      end
-    end,
-    on_sort_changed = function(mode)
-      if rt.on_pool_sort then
-        rt.on_pool_sort(mode)
-      end
-    end,
-    on_sort_direction_changed = function(direction)
-      if rt.on_pool_sort_direction then
-        rt.on_pool_sort_direction(direction)
-      end
-    end,
-    on_mode_changed = function(mode)
-      if rt.on_pool_mode_changed then
-        rt.on_pool_mode_changed(mode)
-      end
-    end,
+    config = Config.get_pool_container_config({
+      on_mode_toggle = function()
+        local new_mode = rt.pool_container.current_mode == "regions" and "playlists" or "regions"
+        rt.pool_container.current_mode = new_mode
+        if rt.on_pool_mode_changed then
+          rt.on_pool_mode_changed(new_mode)
+        end
+      end,
+      
+      on_search_changed = function(text)
+        if rt.on_pool_search then
+          rt.on_pool_search(text)
+        end
+      end,
+      
+      on_sort_changed = function(mode)
+        if rt.on_pool_sort then
+          rt.on_pool_sort(mode)
+        end
+      end,
+      
+      on_sort_direction_changed = function(direction)
+        if rt.on_pool_sort_direction then
+          rt.on_pool_sort_direction(direction)
+        end
+      end,
+    })
   })
+  
+  -- Initialize pool state
+  rt.pool_container.current_mode = opts.pool_mode or "regions"
   
   rt.bridge = GridBridge.new({
     copy_mode_detector = function(source, target, payload)
@@ -317,7 +299,7 @@ function M.create(opts)
   rt.bridge:register_grid('pool', rt.pool_grid, {
     accepts_drops_from = {},
     on_drag_start = function(item_keys)
-      local pool_mode = rt.pool_container:get_current_mode()
+      local pool_mode = rt.pool_container.current_mode
       local payload = {}
       
       if pool_mode == "playlists" then
@@ -369,7 +351,7 @@ end
 
 function RegionTiles:set_pool_mode(mode)
   if self.pool_container then
-    self.pool_container:set_current_mode(mode)
+    self.pool_container.current_mode = mode
   end
 end
 

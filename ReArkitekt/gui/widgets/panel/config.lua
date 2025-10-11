@@ -1,8 +1,9 @@
--- ReArkitekt/gui/widgets/tiles_container/config.lua
--- Default configuration for tiles container
+-- ReArkitekt/gui/widgets/panel/config.lua
+-- Default configuration for panel with new element-based header
 
 local M = {}
 
+-- ReArkitekt/gui/widgets/panel/config.lua
 M.DEFAULTS = {
   bg_color = 0x1C1C1CFF,
   border_color = 0x000000DD,
@@ -42,128 +43,193 @@ M.DEFAULTS = {
   },
   
   header = {
-    enabled = true,
+    enabled = false,  -- Changed to false
     height = 30,
-    element_height = 20,
     bg_color = 0x0F0F0FFF,
     border_color = 0x000000DD,
-    padding_x = 12,
-    spacing = 8,
-    mode = 'search_sort',
     
-    mode_toggle = {
-      enabled = false,
-      width = 100,
-      height = 20,
-      bg_color = 0x252525FF,
-      bg_hover_color = 0x303030FF,
-      bg_active_color = 0x3A3A3AFF,
-      text_color = 0xCCCCCCFF,
-      text_hover_color = 0xFFFFFFFF,
-      border_color = 0x353535FF,
-      border_hover_color = 0x454545FF,
-      rounding = 4,
-      padding_x = 10,
-      padding_y = 6,
-      
-      options = {
-        { value = "regions", label = "Regions", icon = "🎵" },
-        { value = "playlists", label = "Playlists", icon = "📋" },
-      },
+    padding = {
+      left = 12,
+      right = 12,
+      top = 4,
+      bottom = 4,
     },
     
-    tabs = {
-      enabled = true,
-      reserved_right_space = 50,
-      plus_button = {
-        width = 23,
-        rounding = 4,
-        icon = "+",
-        bg_color = 0x2A2A2AFF,
-        bg_hover_color = 0x3A3A3AFF,
-        bg_active_color = 0x1A1A1AFF,
-        border_color = 0x404040FF,
-        border_hover_color = 0x42E896FF,
-        text_color = 0xAAAAAAFF,
-        text_hover_color = 0xFFFFFFFF,
-      },
-      tab = {
-        min_width = 60,
-        max_width = 180,
-        padding_x = 5,
-        spacing = 6,
-        rounding = 4,
-        bg_color = 0x2A2A2AFF,
-        bg_hover_color = 0x3A3A3AFF,
-        bg_active_color = 0x42E89644,
-        border_color = 0x404040FF,
-        border_active_color = 0x42E896FF,
-        text_color = 0xAAAAAAFF,
-        text_hover_color = 0xFFFFFFFF,
-        text_active_color = 0xFFFFFFFF,
-        use_custom_colors = true,
-        fill_desaturation = 0.4,
-        fill_brightness = 0.50,
-        fill_alpha = 0xDD,
-        border_saturation = 0.7,
-        border_brightness = 0.75,
-        border_alpha = 0xFF,
-        text_index_saturation = 0.85,
-        text_index_brightness = 0.95,
-      },
-      track = {
-        enabled = true,
-        bg_color = 0x1A1A1AFF,
-        border_color = 0x0A0A0AFF,
-        border_thickness = 1,
-        rounding = 6,
-        extend_top = 2,
-        extend_bottom = 2,
-        extend_left = 2,
-        extend_right = 2,
-        include_plus_button = true,
-      },
-      context_menu = {
-        bg_color = 0x1E1E1EFF,
-        hover_color = 0x2E2E2EFF,
-        text_color = 0xCCCCCCFF,
-        separator_color = 0x404040FF,
-        padding = 8,
-        item_height = 24,
-      },
-      drag_config = {
-        tile = {
-          width = 60,
+    elements = {},  -- Empty array!
+  },
+}
+
+
+
+M.TAB_MODE_DEFAULTS = {
+  header = {
+    enabled = true,
+    height = 30,
+    bg_color = 0x0F0F0FFF,
+    border_color = 0x000000DD,
+    
+    padding = {
+      left = 12,
+      right = 12,
+      top = 4,
+      bottom = 4,
+    },
+    
+    elements = {
+      {
+        id = "tabs",
+        type = "tab_strip",
+        flex = 1,
+        spacing_before = 0,
+        config = {
+          spacing = 6,
+          min_width = 60,
+          max_width = 180,
+          padding_x = 5,
           rounding = 4,
-          stroke_thickness = 1.5,
-          global_opacity = 0.85,
-        },
-        stack = {
-          max_visible = 1,
-        },
-        shadow = {
-          enabled = true,
-          layers = 3,
-          base_color = 0x00000066,
-          offset = 3,
-          blur_spread = 1.5,
+          chip_radius = 4,
+          
+          bg_color = 0x2A2A2AFF,
+          bg_hover_color = 0x3A3A3AFF,
+          bg_active_color = 0x42E89644,
+          border_color = 0x404040FF,
+          border_active_color = 0x42E896FF,
+          text_color = 0xAAAAAAFF,
+          text_hover_color = 0xFFFFFFFF,
+          text_active_color = 0xFFFFFFFF,
+          
+          plus_button = {
+            width = 23,
+            rounding = 4,
+            bg_color = 0x2A2A2AFF,
+            bg_hover_color = 0x3A3A3AFF,
+            bg_active_color = 0x1A1A1AFF,
+            border_color = 0x404040FF,
+            border_hover_color = 0x42E896FF,
+            text_color = 0xAAAAAAFF,
+            text_hover_color = 0xFFFFFFFF,
+          },
+          
+          overflow_button = {
+            min_width = 21,
+            padding_x = 8,
+            bg_color = 0x1C1C1CFF,
+            bg_hover_color = 0x282828FF,
+            bg_active_color = 0x252525FF,
+            text_color = 0x707070FF,
+            text_hover_color = 0xCCCCCCFF,
+            border_color = 0x303030FF,
+            border_hover_color = 0x404040FF,
+            rounding = 4,
+          },
+          
+          track = {
+            enabled = true,
+            bg_color = 0x1A1A1AFF,
+            border_color = 0x0A0A0AFF,
+            border_thickness = 1,
+            rounding = 6,
+            extend_top = 2,
+            extend_bottom = 2,
+            extend_left = 2,
+            extend_right = 2,
+            include_plus_button = true,
+          },
+          
+          context_menu = {
+            bg_color = 0x1E1E1EFF,
+            hover_color = 0x2E2E2EFF,
+            text_color = 0xCCCCCCFF,
+            separator_color = 0x404040FF,
+            padding = 8,
+            item_height = 24,
+          },
+          
+          on_tab_create = nil,
+          on_tab_change = nil,
+          on_tab_delete = nil,
+          on_tab_reorder = nil,
+          on_overflow_clicked = nil,
         },
       },
-      drop_config = {
-        line_width = 2,
-        glow_width = 10,
-        pulse_speed = 3.0,
-        line = {
-          color = 0x42E896FF,
-          glow_color = 0x42E89644,
+    },
+  },
+}
+
+M.MIXED_EXAMPLE = {
+  header = {
+    enabled = true,
+    height = 30,
+    bg_color = 0x0F0F0FFF,
+    border_color = 0x000000DD,
+    
+    padding = {
+      left = 12,
+      right = 12,
+      top = 4,
+      bottom = 4,
+    },
+    
+    elements = {
+      {
+        id = "add_button",
+        type = "button",
+        spacing_before = 0,
+        config = {
+          id = "add",
+          width = 30,
+          icon = "+",
+          tooltip = "Add Item",
+          bg_color = 0x2A2A2AFF,
+          bg_hover_color = 0x3A3A3AFF,
+          bg_active_color = 0x1A1A1AFF,
+          border_color = 0x404040FF,
+          border_hover_color = 0x42E896FF,
+          text_color = 0xAAAAAAFF,
+          text_hover_color = 0xFFFFFFFF,
+          rounding = 4,
         },
-        caps = {
-          width = 8,
-          height = 3,
-          rounding = 1,
-          glow_size = 4,
-          color = 0x42E896FF,
-          glow_color = 0x42E89644,
+      },
+      {
+        id = "sep1",
+        type = "separator",
+        width = 12,
+        spacing_before = 0,
+        config = {
+          show_line = true,
+          line_color = 0x30303080,
+          line_thickness = 1,
+          line_height_ratio = 0.6,
+        },
+      },
+      {
+        id = "search",
+        type = "search_field",
+        width = 200,
+        spacing_before = 0,
+        config = {
+          placeholder = "Search...",
+        },
+      },
+      {
+        id = "spacer",
+        type = "separator",
+        flex = 1,
+        spacing_before = 0,
+        config = {
+          show_line = false,
+        },
+      },
+      {
+        id = "sort",
+        type = "dropdown_field",
+        width = 120,
+        spacing_before = 0,
+        config = {
+          options = {
+            { value = "", label = "No Sort" },
+            { value = "name", label = "Name" },
+          },
         },
       },
     },

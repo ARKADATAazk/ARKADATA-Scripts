@@ -1,10 +1,9 @@
--- ReArkitekt/gui/widgets/panel/init.lua -- RENAMED
--- Main panel API with tab animation and mode toggle support
+-- ReArkitekt/gui/widgets/panel/init.lua
+-- Main panel API with element-based header
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
 
--- CHANGED: Updated require paths to use 'panel'
 local Header = require('ReArkitekt.gui.widgets.panel.header')
 local Content = require('ReArkitekt.gui.widgets.panel.content')
 local Background = require('ReArkitekt.gui.widgets.panel.background')
@@ -14,6 +13,13 @@ local Config = require('ReArkitekt.gui.widgets.panel.config')
 
 local M = {}
 local DEFAULTS = Config.DEFAULTS
+
+local panel_id_counter = 0
+
+local function generate_unique_id(prefix)
+  panel_id_counter = panel_id_counter + 1
+  return string.format("%s_%d", prefix or "panel", panel_id_counter)
+end
 
 local function deep_merge(base, override)
   if not override then return base end
@@ -36,50 +42,21 @@ local function deep_merge(base, override)
   return result
 end
 
-local Panel = {} -- RENAMED: from Container to Panel
-Panel.__index = Panel -- RENAMED: from Container to Panel
+local Panel = {}
+Panel.__index = Panel
 
 function M.new(opts)
   opts = opts or {}
   
-  local panel = setmetatable({ -- RENAMED: from container to panel
-    id = opts.id or "panel", -- CHANGED: Default id
+  -- Generate unique ID if not provided
+  local id = opts.id or generate_unique_id("panel")
+  
+  local panel = setmetatable({
+    id = id,
     config = deep_merge(DEFAULTS, opts.config),
     
     width = opts.width,
     height = opts.height,
-    
-    show_overflow_modal = false, -- ADDED: Component now owns its UI state
-    
-    search_text = "",
-    search_focused = false,
-    search_alpha = 0.3,
-    sort_mode = nil,
-    sort_directions = {},
-    sort_dropdown = nil,
-    
-    current_mode = opts.current_mode or "regions",
-    
-    tabs = {},
-    active_tab_id = opts.active_tab_id,
-    temp_search_mode = false,
-    dragging_tab = nil,
-    drop_target = nil,
-    pending_delete_id = nil,
-    tab_positions = {},
-    
-    tab_animator = nil,
-    enable_tab_animations = opts.enable_tab_animations ~= false,
-    
-    on_search_changed = opts.on_search_changed,
-    on_sort_changed = opts.on_sort_changed,
-    on_sort_direction_changed = opts.on_sort_direction_changed,
-    on_mode_changed = opts.on_mode_changed,
-    on_tab_create = opts.on_tab_create,
-    on_tab_change = opts.on_tab_change,
-    on_tab_delete = opts.on_tab_delete,
-    on_tab_reorder = opts.on_tab_reorder,
-    -- REMOVED: on_overflow_tabs_clicked is no longer needed
     
     had_scrollbar_last_frame = false,
     last_content_height = 0,
@@ -90,19 +67,17 @@ function M.new(opts)
     child_height = 0,
     child_x = 0,
     child_y = 0,
-  }, Panel) -- RENAMED: from Container to Panel
-  
-  if panel.enable_tab_animations then
-    panel.tab_animator = TabAnimator.new({
-      spawn_duration = opts.tab_spawn_duration or 0.22,
-      destroy_duration = opts.tab_destroy_duration or 0.15,
-      on_destroy_complete = function(tab_id)
-        if panel.pending_delete_id == tab_id then
-          panel.pending_delete_id = nil
-        end
-      end,
-    })
-  end
+    
+    -- Tab state
+    tabs = {},
+    active_tab_id = nil,
+    
+    -- Modal state
+    _overflow_visible = false,
+    
+    -- Mode state
+    current_mode = nil,
+  }, Panel)
   
   if panel.config.scroll.custom_scrollbar then
     panel.scrollbar = Scrollbar.new({
@@ -113,26 +88,8 @@ function M.new(opts)
     })
   end
   
-  if opts.tabs then
-    local TabsMode = require('ReArkitekt.gui.widgets.panel.modes.tabs') -- CHANGED: Path
-    for _, tab in ipairs(opts.tabs) do
-      TabsMode.assign_random_color(tab)
-    end
-    panel.tabs = opts.tabs
-  end
-  
   return panel
 end
-
--- ADDED: New public methods to manage UI state
-function Panel:is_overflow_visible()
-  return self.show_overflow_modal
-end
-
-function Panel:close_overflow_modal()
-  self.show_overflow_modal = false
-end
--- End of added methods
 
 function Panel:get_effective_child_width(ctx, base_width)
   local anti_jitter = self.config.anti_jitter or DEFAULTS.anti_jitter
@@ -253,21 +210,6 @@ end
 function Panel:reset()
   self.had_scrollbar_last_frame = false
   self.last_content_height = 0
-  self.search_text = ""
-  self.search_focused = false
-  self.search_alpha = 0.3
-  self.sort_mode = nil
-  self.sort_directions = {}
-  self.sort_dropdown = nil
-  self.temp_search_mode = false
-  self.dragging_tab = nil
-  self.drop_target = nil
-  self.pending_delete_id = nil
-  self.tab_positions = {}
-  
-  if self.tab_animator then
-    self.tab_animator:clear()
-  end
   
   if self.scrollbar then
     self.scrollbar:set_scroll_pos(0)
@@ -280,75 +222,33 @@ function Panel:update(dt)
   end
 end
 
-function Panel:get_search_text()
-  return self.search_text
+-- Debug method
+function Panel:get_id()
+  return self.id
 end
 
-function Panel:get_sort_mode()
-  return self.sort_mode
+function Panel:debug_id_chain(ctx)
+  reaper.ShowConsoleMsg(string.format(
+    "[Panel ID Debug]\n" ..
+    "  Panel ID: %s\n" ..
+    "  Child Window ID: %s_scroll\n" ..
+    "  Scrollbar ID: %s_scrollbar\n\n",
+    self.id,
+    self.id,
+    self.id
+  ))
 end
 
-function Panel:get_sort_direction()
-  if not self.sort_mode or self.sort_mode == "" then
-    return nil
-  end
-  return self.sort_directions[self.sort_mode] or "asc"
-end
-
-function Panel:set_search_text(text)
-  self.search_text = text or ""
-end
-
-function Panel:set_sort_mode(mode)
-  self.sort_mode = mode
-  if self.sort_dropdown then
-    self.sort_dropdown:set_value(mode)
-  end
-end
-
-function Panel:set_sort_direction(mode, direction)
-  if mode and mode ~= "" then
-    self.sort_directions[mode] = direction or "asc"
-    if self.sort_dropdown then
-      self.sort_dropdown:set_direction(self.sort_directions[mode])
-    end
-  end
-end
-
-function Panel:set_current_mode(mode)
-  self.current_mode = mode
-end
-
-function Panel:get_current_mode()
-  return self.current_mode
-end
-
+-- Tab management methods
 function Panel:set_tabs(tabs, active_id)
-  local old_ids = {}
-  for _, tab in ipairs(self.tabs) do
-    old_ids[tab.id] = true
-  end
-  
   self.tabs = tabs or {}
-  
-  local TabsMode = require('ReArkitekt.gui.widgets.panel.modes.tabs') -- CHANGED: Path
-  for _, tab in ipairs(self.tabs) do
-    TabsMode.assign_random_color(tab)
-  end
-  
-  if self.tab_animator then
-    for _, tab in ipairs(self.tabs) do
-      if not old_ids[tab.id] then
-        self.tab_animator:spawn(tab.id)
-      end
-    end
-  end
-  
-  if active_id then
+  if active_id ~= nil then
     self.active_tab_id = active_id
-  elseif #self.tabs > 0 then
-    self.active_tab_id = self.tabs[1].id
   end
+end
+
+function Panel:get_tabs()
+  return self.tabs or {}
 end
 
 function Panel:get_active_tab_id()
@@ -359,40 +259,137 @@ function Panel:set_active_tab_id(id)
   self.active_tab_id = id
 end
 
-function Panel:add_tab(tab_data)
-  local TabsMode = require('ReArkitekt.gui.widgets.panel.modes.tabs') -- CHANGED: Path
-  TabsMode.assign_random_color(tab_data)
-  
-  table.insert(self.tabs, tab_data)
-  if self.tab_animator then
-    self.tab_animator:spawn(tab_data.id)
-  end
+-- Overflow modal methods
+function Panel:is_overflow_visible()
+  return self._overflow_visible or false
 end
 
-function Panel:remove_tab(tab_id)
-  if self.tab_animator then
-    self.tab_animator:destroy(tab_id)
-    self.pending_delete_id = tab_id
-  else
-    for i, tab in ipairs(self.tabs) do
-      if tab.id == tab_id then
-        table.remove(self.tabs, i)
-        break
+function Panel:show_overflow_modal()
+  self._overflow_visible = true
+end
+
+function Panel:close_overflow_modal()
+  self._overflow_visible = false
+end
+
+-- Search/Sort state management methods
+function Panel:get_search_text()
+  if not self.config.header or not self.config.header.elements then
+    return ""
+  end
+  
+  for _, element in ipairs(self.config.header.elements) do
+    if element.type == "search_field" then
+      local element_state = self[element.id]
+      if element_state and element_state.search_text then
+        return element_state.search_text
       end
+    end
+  end
+  
+  return ""
+end
+
+function Panel:set_search_text(text)
+  if not self.config.header or not self.config.header.elements then
+    return
+  end
+  
+  for _, element in ipairs(self.config.header.elements) do
+    if element.type == "search_field" then
+      if not self[element.id] then
+        self[element.id] = {}
+      end
+      self[element.id].search_text = text or ""
+      return
     end
   end
 end
 
-function M.draw(ctx, id, width, height, content_fn, config, on_search_changed, on_sort_changed)
+function Panel:get_sort_mode()
+  if not self.config.header or not self.config.header.elements then
+    return nil
+  end
+  
+  for _, element in ipairs(self.config.header.elements) do
+    if element.type == "dropdown_field" and element.id == "sort" then
+      local element_state = self[element.id]
+      if element_state and element_state.dropdown_value ~= nil then
+        return element_state.dropdown_value
+      end
+    end
+  end
+  
+  return nil
+end
+
+function Panel:set_sort_mode(mode)
+  if not self.config.header or not self.config.header.elements then
+    return
+  end
+  
+  for _, element in ipairs(self.config.header.elements) do
+    if element.type == "dropdown_field" and element.id == "sort" then
+      if not self[element.id] then
+        self[element.id] = {}
+      end
+      self[element.id].dropdown_value = mode
+      return
+    end
+  end
+end
+
+function Panel:get_sort_direction()
+  if not self.config.header or not self.config.header.elements then
+    return "asc"
+  end
+  
+  for _, element in ipairs(self.config.header.elements) do
+    if element.type == "dropdown_field" and element.id == "sort" then
+      local element_state = self[element.id]
+      if element_state and element_state.dropdown_direction then
+        return element_state.dropdown_direction
+      end
+    end
+  end
+  
+  return "asc"
+end
+
+function Panel:set_sort_direction(direction)
+  if not self.config.header or not self.config.header.elements then
+    return
+  end
+  
+  for _, element in ipairs(self.config.header.elements) do
+    if element.type == "dropdown_field" and element.id == "sort" then
+      if not self[element.id] then
+        self[element.id] = {}
+      end
+      self[element.id].dropdown_direction = direction or "asc"
+      return
+    end
+  end
+end
+
+-- Mode management methods
+function Panel:get_current_mode()
+  return self.current_mode
+end
+
+function Panel:set_current_mode(mode)
+  self.current_mode = mode
+end
+
+-- Utility draw function
+function M.draw(ctx, id, width, height, content_fn, config)
   config = config or DEFAULTS
   
-  local panel = M.new({ -- RENAMED: from container
+  local panel = M.new({
     id = id,
     width = width,
     height = height,
     config = config,
-    on_search_changed = on_search_changed,
-    on_sort_changed = on_sort_changed,
   })
   
   if panel:begin_draw(ctx) then
