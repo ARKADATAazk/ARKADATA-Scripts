@@ -1,9 +1,8 @@
 -- ReArkitekt/gui/widgets/panel/config.lua
--- Default configuration for panel with new element-based header
+-- Default configuration for panel with integrated header design
 
 local M = {}
 
--- ReArkitekt/gui/widgets/panel/config.lua
 M.DEFAULTS = {
   bg_color = 0x1C1C1CFF,
   border_color = 0x000000DD,
@@ -43,36 +42,36 @@ M.DEFAULTS = {
   },
   
   header = {
-    enabled = false,  -- Changed to false
+    enabled = false,
     height = 30,
     bg_color = 0x0F0F0FFF,
     border_color = 0x000000DD,
+    rounding = 8,
     
     padding = {
-      left = 12,
-      right = 12,
-      top = 4,
-      bottom = 4,
+      left = 0,
+      right = 0,
+      top = 0,
+      bottom = 0,
     },
     
-    elements = {},  -- Empty array!
+    elements = {},
   },
 }
-
-
 
 M.TAB_MODE_DEFAULTS = {
   header = {
     enabled = true,
-    height = 30,
-    bg_color = 0x0F0F0FFF,
+    height = 20,
+    bg_color = 0x0F0F0FFF, 
     border_color = 0x000000DD,
+    rounding = 8,
     
     padding = {
-      left = 12,
-      right = 12,
-      top = 4,
-      bottom = 4,
+      left = 0,
+      right = 0,
+      top = 0,
+      bottom = 0,
     },
     
     elements = {
@@ -82,30 +81,33 @@ M.TAB_MODE_DEFAULTS = {
         flex = 1,
         spacing_before = 0,
         config = {
-          spacing = 6,
+          spacing = 0,
           min_width = 60,
           max_width = 180,
           padding_x = 5,
-          rounding = 4,
-          chip_radius = 4,
           
-          bg_color = 0x2A2A2AFF,
-          bg_hover_color = 0x3A3A3AFF,
-          bg_active_color = 0x42E89644,
-          border_color = 0x404040FF,
-          border_active_color = 0x42E896FF,
+          border_outer_color = 0x000000DD,
+          border_inner_color = 0x404040FF,
+          border_hover_color = 0x505050FF,
+          border_active_color = 0X7B7B7BFF,
+          
+          bg_color = 0x252525FF,
+          bg_hover_color = 0x2A2A2AFF,
+          bg_active_color = 0x303030FF,
+          
           text_color = 0xAAAAAAFF,
           text_hover_color = 0xFFFFFFFF,
           text_active_color = 0xFFFFFFFF,
           
+          chip_radius = 4,
+          
           plus_button = {
             width = 23,
-            rounding = 4,
-            bg_color = 0x2A2A2AFF,
-            bg_hover_color = 0x3A3A3AFF,
+            bg_color = 0x252525FF,
+            bg_hover_color = 0x2A2A2AFF,
             bg_active_color = 0x1A1A1AFF,
-            border_color = 0x404040FF,
-            border_hover_color = 0x42E896FF,
+            border_inner_color = 0x404040FF,
+            border_hover_color = 0x505050FF,
             text_color = 0xAAAAAAFF,
             text_hover_color = 0xFFFFFFFF,
           },
@@ -113,27 +115,17 @@ M.TAB_MODE_DEFAULTS = {
           overflow_button = {
             min_width = 21,
             padding_x = 8,
-            bg_color = 0x1C1C1CFF,
-            bg_hover_color = 0x282828FF,
-            bg_active_color = 0x252525FF,
+            bg_color = 0x252525FF,
+            bg_hover_color = 0x2A2A2AFF,
+            bg_active_color = 0x1A1A1AFF,
+            border_inner_color = 0x404040FF,
+            border_hover_color = 0x505050FF,
             text_color = 0x707070FF,
             text_hover_color = 0xCCCCCCFF,
-            border_color = 0x303030FF,
-            border_hover_color = 0x404040FF,
-            rounding = 4,
           },
           
           track = {
-            enabled = true,
-            bg_color = 0x1A1A1AFF,
-            border_color = 0x0A0A0AFF,
-            border_thickness = 1,
-            rounding = 6,
-            extend_top = 2,
-            extend_bottom = 2,
-            extend_left = 2,
-            extend_right = 2,
-            include_plus_button = true,
+            enabled = false,
           },
           
           context_menu = {
@@ -162,12 +154,13 @@ M.MIXED_EXAMPLE = {
     height = 30,
     bg_color = 0x0F0F0FFF,
     border_color = 0x000000DD,
+    rounding = 8,
     
     padding = {
-      left = 12,
-      right = 12,
-      top = 4,
-      bottom = 4,
+      left = 0,
+      right = 0,
+      top = 0,
+      bottom = 0,
     },
     
     elements = {
@@ -180,14 +173,14 @@ M.MIXED_EXAMPLE = {
           width = 30,
           icon = "+",
           tooltip = "Add Item",
-          bg_color = 0x2A2A2AFF,
-          bg_hover_color = 0x3A3A3AFF,
+          border_outer_color = 0x000000DD,
+          border_inner_color = 0x404040FF,
+          border_hover_color = 0x505050FF,
+          bg_color = 0x252525FF,
+          bg_hover_color = 0x2A2A2AFF,
           bg_active_color = 0x1A1A1AFF,
-          border_color = 0x404040FF,
-          border_hover_color = 0x42E896FF,
           text_color = 0xAAAAAAFF,
           text_hover_color = 0xFFFFFFFF,
-          rounding = 4,
         },
       },
       {

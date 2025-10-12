@@ -1,11 +1,11 @@
 # FOLDER FLOW: ReArkitekt
-Generated: 2025-10-11 21:25:14
+Generated: 2025-10-12 02:18:23
 Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
 
 ## Overview
 - **Files**: 124
-- **Total Lines**: 23,424
-- **Public Functions**: 347
+- **Total Lines**: 23,543
+- **Public Functions**: 346
 - **Classes**: 81
 
 ## Files
@@ -56,7 +56,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.draw_length_display(ctx, dl, rect, region, base_color, text_alpha)`
   **Requires**: ReArkitekt.gui.draw, ReArkitekt.core.colors, ReArkitekt.gui.fx.tile_fx, ReArkitekt.gui.fx.tile_fx_config, ReArkitekt.gui.fx.marching_ants
 
-### button.lua (95 lines)
+### button.lua (104 lines)
   **Modules**: M
   **Exports**:
     - `M.draw(ctx, dl, x, y, width, height, config, state)`
@@ -115,7 +115,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.override(overrides)`
     - `M.reset()`
 
-### config.lua (239 lines)
+### config.lua (232 lines)
   **Modules**: M
 
 ### constants.lua (46 lines)
@@ -156,7 +156,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.draw_playback_info(ctx, bridge, x, y, width)`
     - `M.draw_complete_controls(ctx, bridge, x, y, available_width)`
 
-### coordinator.lua (498 lines)
+### coordinator.lua (502 lines)
   **Modules**: M, RegionTiles, playlist_cache, spawned_keys, payload, colors
   **Classes**: RegionTiles, M
   **Exports**:
@@ -399,8 +399,8 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.calculate(avail_w, min_col_w, gap, n_items, origin_x, origin_y, fixed_tile_h)`
     - `M.get_height(rows, tile_h, gap)`
 
-### layout.lua (196 lines)
-  **Modules**: M, layout, separator_roundings
+### layout.lua (297 lines)
+  **Modules**: M, layout, rounding_info, element_config
   **Exports**:
     - `M.draw(ctx, dl, x, y, width, height, state, config)`
   **Requires**: ReArkitekt.gui.widgets.panel.header.tab_strip, ReArkitekt.gui.widgets.panel.header.search_field, ReArkitekt.gui.widgets.panel.header.dropdown_field, ReArkitekt.gui.widgets.panel.header.button, ReArkitekt.gui.widgets.panel.header.separator
@@ -463,7 +463,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.draw_window(ctx, pkg, settings)`
     - `M.reset()`
 
-### panel.lua (273 lines)
+### panel.lua (267 lines)
   **Modules**: M
   **Exports**:
     - `M.get_active_container_config(callbacks)`
@@ -560,7 +560,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   **Exports**:
     - `M.new(opts)`
 
-### search_field.lua (108 lines)
+### search_field.lua (118 lines)
   **Modules**: M
   **Exports**:
     - `M.draw(ctx, dl, x, y, width, height, config, state)`
@@ -708,10 +708,9 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.new(opts)`
   **Requires**: ReArkitekt.gui.fx.easing
 
-### tab_strip.lua (722 lines)
+### tab_strip.lua (730 lines)
   **Modules**: M, visible_indices, positions
   **Exports**:
-    - `M.assign_random_color(tab)`
     - `M.draw(ctx, dl, x, y, available_width, height, config, state)`
     - `M.measure(ctx, config, state)`
   **Requires**: ReArkitekt.gui.widgets.controls.context_menu, ReArkitekt.gui.widgets.component.chip

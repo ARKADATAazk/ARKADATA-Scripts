@@ -1,34 +1,48 @@
 -- ReArkitekt/gui/widgets/panel/header/button.lua
--- Generic button component for headers
+-- Generic button component for headers with integrated design
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
 
 local M = {}
 
+local function get_corner_flags(corner_rounding)
+  if not corner_rounding then
+    return 0
+  end
+  
+  local flags = 0
+  if corner_rounding.round_top_left then
+    flags = flags | ImGui.DrawFlags_RoundCornersTopLeft
+  end
+  if corner_rounding.round_top_right then
+    flags = flags | ImGui.DrawFlags_RoundCornersTopRight
+  end
+  
+  return flags
+end
+
 function M.draw(ctx, dl, x, y, width, height, config, state)
   local element_id = config.id or "button"
   local label = config.label or ""
   local icon = config.icon or ""
   
-  -- Create unique ID by combining panel ID + element ID
   local unique_id = string.format("%s_%s", tostring(state._panel_id or "unknown"), element_id)
   
-  -- Hover detection
   local is_hovered = ImGui.IsMouseHoveringRect(ctx, x, y, x + width, y + height)
   local is_active = ImGui.IsMouseDown(ctx, 0) and is_hovered
   
-  -- Colors
-  local bg_color = config.bg_color or 0x2A2A2AFF
+  local bg_color = config.bg_color or 0x252525FF
   if is_active then
     bg_color = config.bg_active_color or 0x1A1A1AFF
   elseif is_hovered then
-    bg_color = config.bg_hover_color or 0x3A3A3AFF
+    bg_color = config.bg_hover_color or 0x2A2A2AFF
   end
   
-  local border_color = config.border_color or 0x404040FF
+  local border_outer = config.border_outer_color or 0x000000DD
+  local border_inner = config.border_inner_color or 0x404040FF
   if is_hovered then
-    border_color = config.border_hover_color or border_color
+    border_inner = config.border_hover_color or 0x505050FF
   end
   
   local text_color = config.text_color or 0xAAAAAAFF
@@ -36,21 +50,19 @@ function M.draw(ctx, dl, x, y, width, height, config, state)
     text_color = config.text_hover_color or 0xFFFFFFFF
   end
   
-  local rounding = config.rounding or 4
+  local corner_rounding = config.corner_rounding
+  local rounding = corner_rounding and corner_rounding.rounding or 0
+  local corner_flags = get_corner_flags(corner_rounding)
   
-  -- Draw background
-  ImGui.DrawList_AddRectFilled(dl, x, y, x + width, y + height, bg_color, rounding)
+  ImGui.DrawList_AddRectFilled(dl, x, y, x + width, y + height, bg_color, rounding, corner_flags)
   
-  -- Draw border
-  if config.border_thickness and config.border_thickness > 0 then
-    ImGui.DrawList_AddRect(dl, x, y, x + width, y + height, border_color, rounding, 0, config.border_thickness)
-  end
+  ImGui.DrawList_AddRect(dl, x + 1, y + 1, x + width - 1, y + height - 1, border_inner, rounding, corner_flags, 1)
   
-  -- Draw content
+  ImGui.DrawList_AddRect(dl, x, y, x + width, y + height, border_outer, rounding, corner_flags, 1)
+  
   local display_text = icon .. (icon ~= "" and label ~= "" and " " or "") .. label
   
   if config.custom_draw then
-    -- Allow custom drawing (e.g., for + icon)
     config.custom_draw(ctx, dl, x, y, width, height, is_hovered, is_active, text_color)
   elseif display_text ~= "" then
     local text_w = ImGui.CalcTextSize(ctx, display_text)
@@ -59,18 +71,15 @@ function M.draw(ctx, dl, x, y, width, height, config, state)
     ImGui.DrawList_AddText(dl, text_x, text_y, text_color, display_text)
   end
   
-  -- Invisible button for interaction
   ImGui.SetCursorScreenPos(ctx, x, y)
   ImGui.InvisibleButton(ctx, "##" .. unique_id, width, height)
   
   local clicked = ImGui.IsItemClicked(ctx, 0)
   
-  -- Call callback if provided
   if clicked and config.on_click then
     config.on_click()
   end
   
-  -- Tooltip
   if is_hovered and config.tooltip then
     ImGui.SetTooltip(ctx, config.tooltip)
   end

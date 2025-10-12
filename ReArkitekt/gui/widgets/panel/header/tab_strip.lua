@@ -1,5 +1,5 @@
 -- ReArkitekt/gui/widgets/panel/header/tab_strip.lua
--- Clean, modular tab strip component
+-- Clean, modular tab strip with integrated design
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
@@ -29,6 +29,22 @@ local function calculate_tab_width(ctx, label, config, has_chip)
   return math.min(max_width, math.max(min_width, text_w + padding_x * 2 + chip_width))
 end
 
+local function get_corner_flags(corner_rounding)
+  if not corner_rounding then
+    return 0
+  end
+  
+  local flags = 0
+  if corner_rounding.round_top_left then
+    flags = flags | ImGui.DrawFlags_RoundCornersTopLeft
+  end
+  if corner_rounding.round_top_right then
+    flags = flags | ImGui.DrawFlags_RoundCornersTopRight
+  end
+  
+  return flags
+end
+
 -- ============================================================================
 -- ANIMATION HELPERS
 -- ============================================================================
@@ -49,7 +65,7 @@ local function init_tab_positions(state, tabs)
 end
 
 local function update_tab_positions(ctx, state, config, tabs, start_x)
-  local spacing = config.spacing or 6
+  local spacing = config.spacing or 0
   local dt = ImGui.GetDeltaTime(ctx)
   local cursor_x = start_x
   
@@ -81,7 +97,7 @@ end
 -- PLUS BUTTON
 -- ============================================================================
 
-local function draw_plus_button(ctx, dl, x, y, width, height, config, unique_id)
+local function draw_plus_button(ctx, dl, x, y, width, height, config, unique_id, corner_rounding)
   local btn_cfg = config.plus_button or {}
   
   local is_hovered = ImGui.IsMouseHoveringRect(ctx, x, y, x + width, y + height)
@@ -94,14 +110,18 @@ local function draw_plus_button(ctx, dl, x, y, width, height, config, unique_id)
     bg_color = btn_cfg.bg_hover_color or 0x3A3A3AFF
   end
 
-  local border_color = is_hovered and (btn_cfg.border_hover_color or 0x42E896FF) or (btn_cfg.border_color or 0x404040FF)
+  local border_outer = config.border_outer_color or 0x000000DD
+  local border_inner = is_hovered and (btn_cfg.border_hover_color or 0x505050FF) or (btn_cfg.border_inner_color or 0x404040FF)
   local icon_color = is_hovered and (btn_cfg.text_hover_color or 0xFFFFFFFF) or (btn_cfg.text_color or 0xAAAAAAFF)
 
-  local rounding = btn_cfg.rounding or 4
-  local corner_flags = ImGui.DrawFlags_RoundCornersTopLeft | ImGui.DrawFlags_RoundCornersBottomLeft
+  local rounding = corner_rounding and corner_rounding.rounding or 4
+  local corner_flags = get_corner_flags(corner_rounding)
   
   ImGui.DrawList_AddRectFilled(dl, x, y, x + width, y + height, bg_color, rounding, corner_flags)
-  ImGui.DrawList_AddRect(dl, x, y, x + width, y + height, border_color, rounding, corner_flags, 1)
+  
+  ImGui.DrawList_AddRect(dl, x + 1, y + 1, x + width - 1, y + height - 1, border_inner, rounding, corner_flags, 1)
+  
+  ImGui.DrawList_AddRect(dl, x, y, x + width, y + height, border_outer, rounding, corner_flags, 1)
 
   local center_x = x + width * 0.5 
   local center_y = y + height * 0.5 - 1
@@ -128,7 +148,7 @@ end
 -- OVERFLOW BUTTON
 -- ============================================================================
 
-local function draw_overflow_button(ctx, dl, x, y, width, height, config, hidden_count, unique_id)
+local function draw_overflow_button(ctx, dl, x, y, width, height, config, hidden_count, unique_id, corner_rounding)
   local btn_cfg = config.overflow_button or {
     min_width = 21,
     padding_x = 8,
@@ -137,9 +157,8 @@ local function draw_overflow_button(ctx, dl, x, y, width, height, config, hidden
     bg_active_color = 0x252525FF,
     text_color = 0x707070FF,
     text_hover_color = 0xCCCCCCFF,
-    border_color = 0x303030FF,
+    border_inner_color = 0x303030FF,
     border_hover_color = 0x404040FF,
-    rounding = 4,
   }
   
   local count_text = tostring(hidden_count)
@@ -154,14 +173,18 @@ local function draw_overflow_button(ctx, dl, x, y, width, height, config, hidden
     bg_color = btn_cfg.bg_hover_color
   end
 
-  local border_color = is_hovered and btn_cfg.border_hover_color or btn_cfg.border_color
+  local border_outer = config.border_outer_color or 0x000000DD
+  local border_inner = is_hovered and (btn_cfg.border_hover_color or 0x404040FF) or (btn_cfg.border_inner_color or 0x303030FF)
   local text_color = is_hovered and btn_cfg.text_hover_color or btn_cfg.text_color
 
-  local corner_flags = ImGui.DrawFlags_RoundCornersTopRight | ImGui.DrawFlags_RoundCornersBottomRight
-  local rounding = btn_cfg.rounding
+  local rounding = corner_rounding and corner_rounding.rounding or 4
+  local corner_flags = get_corner_flags(corner_rounding)
   
   ImGui.DrawList_AddRectFilled(dl, x, y, x + width, y + height, bg_color, rounding, corner_flags)
-  ImGui.DrawList_AddRect(dl, x, y, x + width, y + height, border_color, rounding, corner_flags, 1)
+  
+  ImGui.DrawList_AddRect(dl, x + 1, y + 1, x + width - 1, y + height - 1, border_inner, rounding, corner_flags, 1)
+  
+  ImGui.DrawList_AddRect(dl, x, y, x + width, y + height, border_outer, rounding, corner_flags, 1)
 
   local text_w = ImGui.CalcTextSize(ctx, count_text)
   local text_x = x + (width - text_w) * 0.5
@@ -178,7 +201,7 @@ end
 -- TRACK BACKGROUND
 -- ============================================================================
 
-local function draw_track(ctx, dl, x, y, width, height, config)
+local function draw_track(ctx, dl, x, y, width, height, config, corner_rounding)
   local track_cfg = config.track
   if not track_cfg or not track_cfg.enabled then return end
   
@@ -187,12 +210,16 @@ local function draw_track(ctx, dl, x, y, width, height, config)
   local track_width = width + track_cfg.extend_left + track_cfg.extend_right
   local track_height = height + track_cfg.extend_top + track_cfg.extend_bottom
   
+  local rounding = corner_rounding and corner_rounding.rounding or (track_cfg.rounding or 6)
+  local corner_flags = get_corner_flags(corner_rounding)
+  
   ImGui.DrawList_AddRectFilled(
     dl,
     track_x, track_y,
     track_x + track_width, track_y + track_height,
     track_cfg.bg_color or 0x1A1A1AFF,
-    track_cfg.rounding or 6
+    rounding,
+    corner_flags
   )
   
   if track_cfg.border_thickness and track_cfg.border_thickness > 0 then
@@ -201,8 +228,8 @@ local function draw_track(ctx, dl, x, y, width, height, config)
       track_x, track_y,
       track_x + track_width, track_y + track_height,
       track_cfg.border_color or 0x0A0A0AFF,
-      track_cfg.rounding or 6,
-      0,
+      rounding,
+      corner_flags,
       track_cfg.border_thickness
     )
   end
@@ -212,7 +239,7 @@ end
 -- TAB RENDERING
 -- ============================================================================
 
-local function draw_tab(ctx, dl, tab_data, is_active, tab_index, x, y, width, height, state, config, unique_id, animator)
+local function draw_tab(ctx, dl, tab_data, is_active, tab_index, x, y, width, height, state, config, unique_id, animator, corner_rounding)
   local label = tab_data.label or "Tab"
   local id = tab_data.id
   local chip_color = tab_data.chip_color
@@ -254,33 +281,41 @@ local function draw_tab(ctx, dl, tab_data, is_active, tab_index, x, y, width, he
     return (color & 0xFFFFFF00) | new_a
   end
 
-  local bg_color = config.bg_color or 0x2A2A2AFF
-  local border_color = config.border_color or 0x404040FF
+  local bg_color = config.bg_color or 0x252525FF
+  local border_outer = config.border_outer_color or 0x000000DD
+  local border_inner = config.border_inner_color or 0x404040FF
   local text_color = config.text_color or 0xAAAAAAFF
   
   if is_active then
-    bg_color = config.bg_active_color or 0x42E89644
-    border_color = config.border_active_color or 0x42E896FF
+    bg_color = config.bg_active_color or 0x303030FF
+    border_inner = config.border_active_color or 0x42E896FF
     text_color = config.text_active_color or 0xFFFFFFFF
   elseif is_pressed then
-    bg_color = config.bg_hover_color or 0x3A3A3AFF
+    bg_color = config.bg_hover_color or 0x2A2A2AFF
+    border_inner = config.border_hover_color or 0x505050FF
     text_color = config.text_hover_color or 0xFFFFFFFF
   elseif is_hovered then
-    bg_color = config.bg_hover_color or 0x3A3A3AFF
+    bg_color = config.bg_hover_color or 0x2A2A2AFF
+    border_inner = config.border_hover_color or 0x505050FF
     text_color = config.text_hover_color or 0xFFFFFFFF
   end
   
   bg_color = apply_alpha(bg_color, alpha_factor)
-  border_color = apply_alpha(border_color, alpha_factor)
+  border_outer = apply_alpha(border_outer, alpha_factor)
+  border_inner = apply_alpha(border_inner, alpha_factor)
   text_color = apply_alpha(text_color, alpha_factor)
 
-  local rounding = config.rounding or 4
-  local corner_flags = ImGui.DrawFlags_RoundCornersTop
+  local rounding = corner_rounding and corner_rounding.rounding or 0
+  local corner_flags = get_corner_flags(corner_rounding)
 
   ImGui.DrawList_AddRectFilled(dl, render_x, render_y, render_x + render_w, render_y + render_h, 
                                 bg_color, rounding, corner_flags)
+  
+  ImGui.DrawList_AddRect(dl, render_x + 1, render_y + 1, render_x + render_w - 1, render_y + render_h - 1, 
+                         border_inner, rounding, corner_flags, 1)
+  
   ImGui.DrawList_AddRect(dl, render_x, render_y, render_x + render_w, render_y + render_h, 
-                         border_color, rounding, corner_flags, 1)
+                         border_outer, rounding, corner_flags, 1)
 
   local content_x = render_x + (config.padding_x or 5)
   
@@ -329,7 +364,6 @@ local function draw_tab(ctx, dl, tab_data, is_active, tab_index, x, y, width, he
     local drag_delta_x, drag_delta_y = ImGui.GetMouseDragDelta(ctx, 0)
     local drag_distance = math.sqrt(drag_delta_x * drag_delta_x + drag_delta_y * drag_delta_y)
     
-    -- Only start drag if mouse is actually being dragged (not just clicked)
     if drag_distance > DRAG_THRESHOLD and ImGui.IsMouseDragging(ctx, 0) then
       local mx = ImGui.GetMousePos(ctx)
       state.dragging_tab = {
@@ -363,7 +397,7 @@ end
 local function calculate_visible_tabs(ctx, tabs, config, available_width)
   local visible_indices = {}
   local current_width = 0
-  local spacing = config.spacing or 6
+  local spacing = config.spacing or 0
   
   for i, tab in ipairs(tabs) do
     local has_chip = tab.chip_color ~= nil
@@ -395,13 +429,11 @@ local function handle_drag_reorder(ctx, state, tabs, config, tabs_start_x)
   local dragged_tab = tabs[state.dragging_tab.index]
   local has_chip = dragged_tab.chip_color ~= nil
   local dragged_width = calculate_tab_width(ctx, dragged_tab.label or "Tab", config, has_chip)
-  local spacing = config.spacing or 6
+  local spacing = config.spacing or 0
   
-  -- Get dragged tab edges
   local drag_left = mx - state.dragging_tab.offset_x
   local drag_right = drag_left + dragged_width
   
-  -- Build positions array for all tabs
   local positions = {}
   local current_x = tabs_start_x
   
@@ -424,7 +456,6 @@ local function handle_drag_reorder(ctx, state, tabs, config, tabs_start_x)
   local current_index = state.dragging_tab.index
   local target_index = current_index
   
-  -- Check left neighbor
   if current_index > 1 then
     local left_neighbor = positions[current_index - 1]
     if drag_left < left_neighbor.center then
@@ -432,7 +463,6 @@ local function handle_drag_reorder(ctx, state, tabs, config, tabs_start_x)
     end
   end
   
-  -- Check right neighbor
   if current_index < #tabs then
     local right_neighbor = positions[current_index + 1]
     if drag_right > right_neighbor.center then
@@ -440,7 +470,6 @@ local function handle_drag_reorder(ctx, state, tabs, config, tabs_start_x)
     end
   end
   
-  -- Perform the swap if target changed
   if target_index ~= state.dragging_tab.index then
     local dragged_tab_data = table.remove(tabs, state.dragging_tab.index)
     table.insert(tabs, target_index, dragged_tab_data)
@@ -451,21 +480,16 @@ end
 local function finalize_drag(ctx, state, config)
   if not state.dragging_tab then return end
   
-  -- Simple check: if mouse button is released, drag is over
   if not ImGui.IsMouseDown(ctx, 0) then
-    -- Update the current position to match where it visually is
-    -- This prevents jarring animations when tabs sync
     local mx = ImGui.GetMousePos(ctx)
     if state.tab_positions and state.tab_positions[state.dragging_tab.id] then
       state.tab_positions[state.dragging_tab.id].current_x = mx - state.dragging_tab.offset_x
     end
     
-    -- Drag ended, call callback if reorder happened
     if config.on_tab_reorder and state.dragging_tab.original_index ~= state.dragging_tab.index then
       config.on_tab_reorder(state.dragging_tab.original_index, state.dragging_tab.index)
     end
     
-    -- Clear drag state
     state.dragging_tab = nil
   end
 end
@@ -484,6 +508,7 @@ function M.draw(ctx, dl, x, y, available_width, height, config, state)
   local tabs = state.tabs or {}
   local active_tab_id = state.active_tab_id
   local animator = state.tab_animator
+  local corner_rounding = config.corner_rounding
   
   if animator and animator.update then
     animator:update()
@@ -493,9 +518,12 @@ function M.draw(ctx, dl, x, y, available_width, height, config, state)
 
   local plus_cfg = config.plus_button or {}
   local plus_width = plus_cfg.width or 23
-  local spacing = config.spacing or 6
+  local spacing = config.spacing or 0
 
-  local tabs_available_width_no_overflow = available_width - plus_width - spacing
+  local tabs_available_width_no_overflow = available_width - plus_width
+  if spacing > 0 then
+    tabs_available_width_no_overflow = tabs_available_width_no_overflow - spacing
+  end
   
   local visible_indices, overflow_count, tabs_width = calculate_visible_tabs(
     ctx, tabs, config, tabs_available_width_no_overflow
@@ -508,18 +536,28 @@ function M.draw(ctx, dl, x, y, available_width, height, config, state)
     local text_w = ImGui.CalcTextSize(ctx, count_text)
     overflow_width = math.max(overflow_cfg.min_width or 21, text_w + (overflow_cfg.padding_x or 8) * 2)
     
-    local tabs_available_width_with_overflow = available_width - plus_width - spacing - overflow_width - spacing
+    local spacing_before_overflow = spacing > 0 and spacing or 0
+    local tabs_available_width_with_overflow = available_width - plus_width - overflow_width - spacing_before_overflow
+    if spacing > 0 then
+      tabs_available_width_with_overflow = tabs_available_width_with_overflow - spacing
+    end
     
     visible_indices, overflow_count, tabs_width = calculate_visible_tabs(
       ctx, tabs, config, tabs_available_width_with_overflow
     )
   end
   
-  local tabs_start_x = x + plus_width + spacing
+  local tabs_start_x = x + plus_width
+  if spacing > 0 then
+    tabs_start_x = tabs_start_x + spacing
+  end
   
   local tabs_total_width = tabs_width
   if overflow_count > 0 then
-    tabs_total_width = tabs_total_width + spacing + overflow_width
+    tabs_total_width = tabs_total_width + overflow_width
+    if spacing > 0 then
+      tabs_total_width = tabs_total_width + spacing
+    end
   end
   
   if config.track and config.track.enabled then
@@ -530,16 +568,21 @@ function M.draw(ctx, dl, x, y, available_width, height, config, state)
     
     draw_track(ctx, dl, track_start_x, y, 
                tabs_start_x - track_start_x + tabs_total_width, 
-               height, config)
+               height, config, corner_rounding)
   end
 
-  local plus_clicked, _ = draw_plus_button(ctx, dl, x, y, plus_width, height, config, unique_id)
+  local plus_corner = corner_rounding and {
+    round_top_left = corner_rounding.round_top_left,
+    round_top_right = false,
+    rounding = corner_rounding.rounding,
+  } or nil
+  
+  local plus_clicked, _ = draw_plus_button(ctx, dl, x, y, plus_width, height, config, unique_id, plus_corner)
   
   if plus_clicked and config.on_tab_create then
     config.on_tab_create()
   end
 
-  -- IMPORTANT: Handle drag movement FIRST, then check if drag should end
   handle_drag_reorder(ctx, state, tabs, config, tabs_start_x)
   finalize_drag(ctx, state, config)
 
@@ -573,7 +616,7 @@ function M.draw(ctx, dl, x, y, available_width, height, config, state)
         local clicked, delete_requested = draw_tab(
           ctx, dl, tab_data, is_active, 
           i, tab_x, y, tab_w, height, 
-          state, config, unique_id, animator
+          state, config, unique_id, animator, nil
         )
 
         if clicked and not (state.dragging_tab or ImGui.IsMouseDragging(ctx, 0)) then
@@ -588,10 +631,20 @@ function M.draw(ctx, dl, x, y, available_width, height, config, state)
   end
   
   if overflow_count > 0 then
-    local overflow_x = tabs_start_x + tabs_width + spacing
+    local overflow_x = tabs_start_x + tabs_width
+    if spacing > 0 then
+      overflow_x = overflow_x + spacing
+    end
+    
+    local overflow_corner = corner_rounding and {
+      round_top_left = false,
+      round_top_right = corner_rounding.round_top_right,
+      rounding = corner_rounding.rounding,
+    } or nil
+    
     local overflow_clicked = draw_overflow_button(
       ctx, dl, overflow_x, y, overflow_width, height, 
-      config, overflow_count, unique_id
+      config, overflow_count, unique_id, overflow_corner
     )
     
     if overflow_clicked and config.on_overflow_clicked then
@@ -641,7 +694,7 @@ function M.draw(ctx, dl, x, y, available_width, height, config, state)
     end
   end
 
-  return plus_width + spacing + tabs_total_width
+  return plus_width + (spacing > 0 and spacing or 0) + tabs_total_width
 end
 
 function M.measure(ctx, config, state)
@@ -649,7 +702,7 @@ function M.measure(ctx, config, state)
   config = config or {}
   
   local plus_width = (config.plus_button and config.plus_button.width) or 23
-  local spacing = config.spacing or 6
+  local spacing = config.spacing or 0
   
   local tabs = state.tabs or {}
   
@@ -657,13 +710,16 @@ function M.measure(ctx, config, state)
     return plus_width
   end
   
-  local total = plus_width + spacing
+  local total = plus_width
+  if spacing > 0 then
+    total = total + spacing
+  end
   
   for i, tab in ipairs(tabs) do
     local has_chip = tab.chip_color ~= nil
     local tab_w = calculate_tab_width(ctx, tab.label or "Tab", config, has_chip)
     total = total + tab_w
-    if i < #tabs then
+    if i < #tabs and spacing > 0 then
       total = total + spacing
     end
   end

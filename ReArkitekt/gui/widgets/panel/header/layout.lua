@@ -1,5 +1,5 @@
 -- ReArkitekt/gui/widgets/panel/header/layout.lua
--- Layout engine for header elements
+-- Layout engine for header elements with corner detection
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
@@ -78,28 +78,97 @@ local function layout_elements(ctx, elements, available_width, state)
 end
 
 -- ============================================================================
--- SEPARATOR ROUNDING
+-- CORNER & SEPARATOR DETECTION
 -- ============================================================================
+
+local function is_separator(element_type)
+  return element_type == 'separator'
+end
+
+local function find_first_non_separator(layout)
+  for i = 1, #layout do
+    if not is_separator(layout[i].element.type) then
+      return i
+    end
+  end
+  return nil
+end
+
+local function find_last_non_separator(layout)
+  for i = #layout, 1, -1 do
+    if not is_separator(layout[i].element.type) then
+      return i
+    end
+  end
+  return nil
+end
 
 local function find_separator_neighbors(elements, separator_index)
   local left_neighbor = nil
   local right_neighbor = nil
   
   for i = separator_index - 1, 1, -1 do
-    if elements[i].element.type ~= 'separator' then
+    if not is_separator(elements[i].element.type) then
       left_neighbor = i
       break
     end
   end
   
   for i = separator_index + 1, #elements do
-    if elements[i].element.type ~= 'separator' then
+    if not is_separator(elements[i].element.type) then
       right_neighbor = i
       break
     end
   end
   
   return left_neighbor, right_neighbor
+end
+
+local function calculate_corner_rounding(layout, header_rounding)
+  local rounding_info = {}
+  
+  local first_idx = find_first_non_separator(layout)
+  local last_idx = find_last_non_separator(layout)
+  
+  for i, item in ipairs(layout) do
+    if is_separator(item.element.type) then
+      rounding_info[i] = {
+        round_top_left = false,
+        round_top_right = false,
+      }
+    else
+      local round_left = false
+      local round_right = false
+      
+      if i == first_idx then
+        round_left = true
+      end
+      
+      if i == last_idx then
+        round_right = true
+      end
+      
+      for j = 1, #layout do
+        if is_separator(layout[j].element.type) then
+          local left_neighbor, right_neighbor = find_separator_neighbors(layout, j)
+          if left_neighbor == i then
+            round_right = true
+          end
+          if right_neighbor == i then
+            round_left = true
+          end
+        end
+      end
+      
+      rounding_info[i] = {
+        round_top_left = round_left,
+        round_top_right = round_right,
+        rounding = header_rounding,
+      }
+    end
+  end
+  
+  return rounding_info
 end
 
 -- ============================================================================
@@ -121,10 +190,8 @@ local function get_or_create_element_state(state, element)
       state[element.id] = element_state
     end
     
-    -- Only update tabs if not currently dragging, or if tabs reference changed
     if not element_state.dragging_tab then
       if state.tabs and type(state.tabs) == "table" then
-        -- Check if the tabs array reference changed
         if element_state.tabs ~= state.tabs then
           element_state.tabs = state.tabs
           element_state._tabs_version = (element_state._tabs_version or 0) + 1
@@ -164,32 +231,21 @@ function M.draw(ctx, dl, x, y, width, height, state, config)
   end
   
   local padding = config.padding or {}
-  local padding_left = padding.left or 8
-  local padding_right = padding.right or 8
-  local padding_top = padding.top or 4
-  local padding_bottom = padding.bottom or 4
+  local padding_left = padding.left or 0
+  local padding_right = padding.right or 0
   
   local content_width = width - padding_left - padding_right
-  local content_height = height - padding_top - padding_bottom
+  local content_height = height
   local content_x = x + padding_left
-  local content_y = y + padding_top
+  local content_y = y
   
   local layout = layout_elements(ctx, config.elements, content_width, state)
   
-  local separator_roundings = {}
-  for i, item in ipairs(layout) do
-    if item.element.type == 'separator' then
-      local left_idx, right_idx = find_separator_neighbors(layout, i)
-      if left_idx then
-        separator_roundings[left_idx] = separator_roundings[left_idx] or {}
-        separator_roundings[left_idx].round_right = true
-      end
-      if right_idx then
-        separator_roundings[right_idx] = separator_roundings[right_idx] or {}
-        separator_roundings[right_idx].round_left = true
-      end
-    end
-  end
+  local header_rounding = config.rounding or 8
+  local rounding_info = calculate_corner_rounding(layout, header_rounding)
+  
+  -- Border overlap: adjacent non-separator elements share 1px border
+  local border_overlap = 1
   
   local cursor_x = content_x
   
@@ -198,15 +254,25 @@ function M.draw(ctx, dl, x, y, width, height, state, config)
     local element_width = item.width
     local spacing_before = element.spacing_before or 0
     
+    -- Apply border overlap: subtract 1px from spacing_before if previous element was not a separator
+    if i > 1 then
+      local prev_element = layout[i - 1].element
+      if prev_element.type ~= 'separator' and element.type ~= 'separator' then
+        spacing_before = spacing_before - border_overlap  -- Allow negative (overlap)
+      end
+    end
+    
     cursor_x = cursor_x + spacing_before
     
     local component = COMPONENTS[element.type]
     if component and component.draw then
-      local element_config = element.config or {}
+      local element_config = {}
+      for k, v in pairs(element.config or {}) do
+        element_config[k] = v
+      end
       
-      if separator_roundings[i] then
-        element_config = element_config or {}
-        element_config.corner_rounding = separator_roundings[i]
+      if rounding_info[i] then
+        element_config.corner_rounding = rounding_info[i]
       end
       
       local element_state = get_or_create_element_state(state, element)

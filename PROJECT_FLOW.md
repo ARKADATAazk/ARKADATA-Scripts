@@ -1,5 +1,5 @@
 # PROJECT FLOW: ARKADATA Scripts
-Generated: 2025-10-11 21:25:14
+Generated: 2025-10-12 02:18:23
 Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
 
 ## Project Structure
@@ -20,7 +20,7 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
     │   │   │   ├── constants.lua         # (46 lines)
     │   │   │   ├── init.lua         # (29 lines)
     │   │   │   ├── layout.lua         # (39 lines)
-    │   │   │   ├── panel.lua         # (273 lines)
+    │   │   │   ├── panel.lua         # (267 lines)
     │   │   │   ├── region_tiles.lua         # (190 lines)
     │   │   │   └── transport.lua         # (32 lines)
     │   │   ├── controller.lua         # (362 lines)
@@ -48,7 +48,7 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
     │   │       │   ├── base.lua         # (186 lines)
     │   │       │   └── pool.lua         # (147 lines)
     │   │       ├── active_grid_factory.lua         # (212 lines)
-    │   │       ├── coordinator.lua         # (498 lines)
+    │   │       ├── coordinator.lua         # (502 lines)
     │   │       ├── coordinator_render.lua         # (189 lines)
     │   │       ├── pool_grid_factory.lua         # (185 lines)
     │   │       └── selector.lua         # (97 lines)
@@ -130,19 +130,19 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
     │   │   │   └── renderer.lua         # (233 lines)
     │   │   ├── panel/
     │   │   │   ├── header/
-    │   │   │   │   ├── button.lua         # (95 lines)
+    │   │   │   │   ├── button.lua         # (104 lines)
     │   │   │   │   ├── dropdown_field.lua         # (78 lines)
     │   │   │   │   ├── init.lua         # (35 lines)
-    │   │   │   │   ├── layout.lua         # (196 lines)
-    │   │   │   │   ├── search_field.lua         # (108 lines)
+    │   │   │   │   ├── layout.lua         # (297 lines)
+    │   │   │   │   ├── search_field.lua         # (118 lines)
     │   │   │   │   ├── separator.lua         # (32 lines)
-    │   │   │   │   └── tab_strip.lua         # (722 lines)
+    │   │   │   │   └── tab_strip.lua         # (730 lines)
     │   │   │   ├── modes/
     │   │   │   │   ├── search_sort.lua         # (224 lines)
     │   │   │   │   ├── tabs.lua         # (646 lines)
     │   │   │   │   └── temp_search.lua         # (1 lines)
     │   │   │   ├── background.lua         # (60 lines)
-    │   │   │   ├── config.lua         # (239 lines)
+    │   │   │   ├── config.lua         # (232 lines)
     │   │   │   ├── content.lua         # (43 lines)
     │   │   │   ├── header.lua         # (41 lines)
     │   │   │   ├── init.lua         # (405 lines)
@@ -172,17 +172,17 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
 
 ## Overview
 - **Total Files**: 124
-- **Total Lines**: 23,424
-- **Code Lines**: 18,308
-- **Public Functions**: 347
+- **Total Lines**: 23,543
+- **Code Lines**: 18,372
+- **Public Functions**: 346
 - **Classes**: 81
-- **Modules**: 257
+- **Modules**: 258
 
 ## Folder Structure
 ### ReArkitekt/
   - Files: 124
-  - Lines: 18,308
-  - Exports: 347
+  - Lines: 18,372
+  - Exports: 346
 
 ## Execution Flow Patterns
 
@@ -728,13 +728,13 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
 
 1. `ReArkitekt/Region_Playlist/app/gui.lua` (891 lines)
 2. `ReArkitekt/gui/widgets/tiles_container_old.lua` (752 lines)
-3. `ReArkitekt/gui/widgets/panel/header/tab_strip.lua` (722 lines)
+3. `ReArkitekt/gui/widgets/panel/header/tab_strip.lua` (730 lines)
 4. `ReArkitekt/gui/widgets/panel/modes/tabs.lua` (646 lines)
 5. `ReArkitekt/Region_Playlist/app/state.lua` (596 lines)
 6. `ReArkitekt/app/window.lua` (559 lines)
 7. `ReArkitekt/gui/widgets/grid/core.lua` (549 lines)
 8. `ReArkitekt/core/colors.lua` (514 lines)
-9. `ReArkitekt/Region_Playlist/widgets/region_tiles/coordinator.lua` (498 lines)
+9. `ReArkitekt/Region_Playlist/widgets/region_tiles/coordinator.lua` (502 lines)
 10. `ReArkitekt/app/titlebar.lua` (453 lines)
 
 ## Dependency Analysis

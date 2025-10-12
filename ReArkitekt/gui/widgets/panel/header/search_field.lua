@@ -1,5 +1,5 @@
 -- ReArkitekt/gui/widgets/panel/header/search_field.lua
--- Search input field with fade effects
+-- Search input field with integrated design
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
@@ -9,42 +9,51 @@ local M = {}
 local DEFAULTS = {
   placeholder = "Search...",
   fade_speed = 8.0,
-  bg_color = 0x1A1A1AFF,
-  bg_hover_color = 0x252525FF,
+  bg_color = 0x252525FF,
+  bg_hover_color = 0x2A2A2AFF,
   bg_active_color = 0x2A2A2AFF,
-  border_color = 0x303030FF,
-  border_active_color = 0x42E89677,
+  border_outer_color = 0x000000DD,
+  border_inner_color = 0x404040FF,
+  border_active_color = 0XB0B0B077,
   text_color = 0xCCCCCCFF,
-  rounding = 4,
 }
+
+local function get_corner_flags(corner_rounding)
+  if not corner_rounding then
+    return 0
+  end
+  
+  local flags = 0
+  if corner_rounding.round_top_left then
+    flags = flags | ImGui.DrawFlags_RoundCornersTopLeft
+  end
+  if corner_rounding.round_top_right then
+    flags = flags | ImGui.DrawFlags_RoundCornersTopRight
+  end
+  
+  return flags
+end
 
 function M.draw(ctx, dl, x, y, width, height, config, state)
   config = config or {}
   
-  -- Merge with defaults
   for k, v in pairs(DEFAULTS) do
     if config[k] == nil then config[k] = v end
   end
   
   local element_id = config.id or "search"
-  
-  -- Create unique ID by combining panel ID + element ID
   local unique_id = string.format("%s_%s", tostring(state._panel_id or "unknown"), element_id)
   
-  -- Initialize state
   state.search_text = state.search_text or ""
   state.search_focused = state.search_focused or false
   state.search_alpha = state.search_alpha or 0.3
   
-  -- Hover detection
   local is_hovered = ImGui.IsMouseHoveringRect(ctx, x, y, x + width, y + height)
   
-  -- Fade animation
   local target_alpha = (state.search_focused or is_hovered or #state.search_text > 0) and 1.0 or 0.3
   local alpha_delta = (target_alpha - state.search_alpha) * config.fade_speed * ImGui.GetDeltaTime(ctx)
   state.search_alpha = math.max(0.3, math.min(1.0, state.search_alpha + alpha_delta))
   
-  -- Background color
   local bg_color = config.bg_color
   if state.search_focused then
     bg_color = config.bg_active_color
@@ -52,29 +61,30 @@ function M.draw(ctx, dl, x, y, width, height, config, state)
     bg_color = config.bg_hover_color
   end
   
-  -- Apply alpha
   local alpha_byte = math.floor(state.search_alpha * 255)
   bg_color = (bg_color & 0xFFFFFF00) | alpha_byte
   
-  -- Draw background
-  ImGui.DrawList_AddRectFilled(dl, x, y, x + width, y + height, bg_color, config.rounding)
+  local corner_rounding = config.corner_rounding
+  local rounding = corner_rounding and corner_rounding.rounding or 0
+  local corner_flags = get_corner_flags(corner_rounding)
   
-  -- Draw border
-  local border_color = state.search_focused and config.border_active_color or config.border_color
-  border_color = (border_color & 0xFFFFFF00) | alpha_byte
-  ImGui.DrawList_AddRect(dl, x, y, x + width, y + height, border_color, config.rounding, 0, 1)
+  ImGui.DrawList_AddRectFilled(dl, x, y, x + width, y + height, bg_color, rounding, corner_flags)
   
-  -- Input field
+  local border_inner = state.search_focused and config.border_active_color or config.border_inner_color
+  border_inner = (border_inner & 0xFFFFFF00) | alpha_byte
+  ImGui.DrawList_AddRect(dl, x + 1, y + 1, x + width - 1, y + height - 1, border_inner, rounding, corner_flags, 1)
+  
+  local border_outer = (config.border_outer_color & 0xFFFFFF00) | alpha_byte
+  ImGui.DrawList_AddRect(dl, x, y, x + width, y + height, border_outer, rounding, corner_flags, 1)
+  
   ImGui.SetCursorScreenPos(ctx, x + 6, y + (height - ImGui.GetTextLineHeight(ctx)) * 0.5 - 2)
   ImGui.PushItemWidth(ctx, width - 12)
   
-  -- Transparent frame
   ImGui.PushStyleColor(ctx, ImGui.Col_FrameBg, 0x00000000)
   ImGui.PushStyleColor(ctx, ImGui.Col_FrameBgHovered, 0x00000000)
   ImGui.PushStyleColor(ctx, ImGui.Col_FrameBgActive, 0x00000000)
   ImGui.PushStyleColor(ctx, ImGui.Col_Border, 0x00000000)
   
-  -- Text color with alpha
   local text_color = (config.text_color & 0xFFFFFF00) | alpha_byte
   ImGui.PushStyleColor(ctx, ImGui.Col_Text, text_color)
   
