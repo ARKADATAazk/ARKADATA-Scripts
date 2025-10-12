@@ -57,7 +57,7 @@ M.defaults = {
   },
 
   status_bar = {
-    height = 28,
+    height = 20,
   },
 }
 

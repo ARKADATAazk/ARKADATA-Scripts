@@ -388,7 +388,7 @@ function GUI:draw_transport_section(ctx)
   if engine and engine.quantize then
     local current_mode = engine.quantize:get_quantize_mode()
     
-    local grid_options = self.Config.Transport.QUANTIZE.grid_options
+    local grid_options = self.Config.QUANTIZE.grid_options
     
     local current_idx = 1
     for i, opt in ipairs(grid_options) do

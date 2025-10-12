@@ -1,5 +1,5 @@
 -- ReArkitekt/gui/widgets/package_tiles/renderer.lua
--- Package tile rendering module with 200px height constraint
+-- Package tile rendering module with text truncation support
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
@@ -36,7 +36,7 @@ M.CONFIG = {
   
   badge = { padding_x = 10, padding_y = 6, rounding = 4, margin = 8 },
   checkbox = { min_size = 12, padding_x = 2, padding_y = 1, margin = 8 },
-  footer = { height = 32 },
+  footer = { height = 32, padding_x = 10 },
   
   mosaic = {
     padding = 15, max_size = 50, gap = 6, count = 3,
@@ -44,7 +44,35 @@ M.CONFIG = {
   },
   
   animation = { speed_hover = 12.0, speed_active = 8.0 },
+  
+  truncation = {
+    ellipsis = "...",
+    min_chars = 3,
+  },
 }
+
+local function truncate_text(ctx, text, max_width)
+  if not text or text == "" then return "" end
+  
+  local full_w, _ = ImGui.CalcTextSize(ctx, text)
+  if full_w <= max_width then return text end
+  
+  local ellipsis = M.CONFIG.truncation.ellipsis
+  local ellipsis_w, _ = ImGui.CalcTextSize(ctx, ellipsis)
+  local available = max_width - ellipsis_w
+  
+  if available <= 0 then return ellipsis end
+  
+  for i = #text, M.CONFIG.truncation.min_chars, -1 do
+    local substr = text:sub(1, i)
+    local w, _ = ImGui.CalcTextSize(ctx, substr)
+    if w <= available then
+      return substr .. ellipsis
+    end
+  end
+  
+  return text:sub(1, M.CONFIG.truncation.min_chars) .. ellipsis
+end
 
 M.TileRenderer = {}
 
@@ -222,12 +250,17 @@ function M.TileRenderer.footer(ctx, dl, pkg, P, tile_x, tile_y, tile_w, tile_h)
   local name = P.meta and P.meta.name or P.id
   local is_active = pkg.active[P.id] == true
   local name_color = is_active and M.CONFIG.colors.text.active or M.CONFIG.colors.text.inactive
-  Draw.text(dl, tile_x + 10, footer_y + 6, name_color, name)
   
   local count = 0
   for _ in pairs(P.assets or {}) do count = count + 1 end
   local count_text = string.format('%d assets', count)
-  Draw.text_right(ctx, tile_x + tile_w - 10, footer_y + 6, M.CONFIG.colors.text.secondary, count_text)
+  local count_w, _ = ImGui.CalcTextSize(ctx, count_text)
+  
+  local name_max_width = tile_w - (M.CONFIG.footer.padding_x * 3) - count_w
+  local truncated_name = truncate_text(ctx, name, name_max_width)
+  
+  Draw.text(dl, tile_x + M.CONFIG.footer.padding_x, footer_y + 6, name_color, truncated_name)
+  Draw.text_right(ctx, tile_x + tile_w - M.CONFIG.footer.padding_x, footer_y + 6, M.CONFIG.colors.text.secondary, count_text)
 end
 
 return M

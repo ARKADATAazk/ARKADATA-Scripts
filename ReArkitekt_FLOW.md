@@ -1,10 +1,10 @@
 # FOLDER FLOW: ReArkitekt
-Generated: 2025-10-12 02:18:23
+Generated: 2025-10-12 03:32:16
 Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
 
 ## Overview
-- **Files**: 124
-- **Total Lines**: 23,543
+- **Files**: 119
+- **Total Lines**: 23,400
 - **Public Functions**: 346
 - **Classes**: 81
 
@@ -118,8 +118,12 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
 ### config.lua (232 lines)
   **Modules**: M
 
-### constants.lua (46 lines)
+### config.lua (343 lines)
   **Modules**: M
+  **Exports**:
+    - `M.get_active_container_config(callbacks)`
+    - `M.get_pool_container_config(callbacks)`
+    - `M.get_region_tiles_config(layout_mode)`
 
 ### content.lua (43 lines)
   **Modules**: M
@@ -193,8 +197,8 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.new(opts)`
   **Requires**: Region_Playlist.engine.state, Region_Playlist.engine.transport, Region_Playlist.engine.transitions, Region_Playlist.engine.quantize
 
-### demo.lua (271 lines)
-  **Modules**: result
+### demo.lua (355 lines)
+  **Modules**: result, conflicts, asset_providers
   **Requires**: ReArkitekt.app.shell, ReArkitekt.gui.widgets.package_tiles.grid, ReArkitekt.gui.widgets.package_tiles.micromanage, ReArkitekt.gui.widgets.panel, ReArkitekt.gui.widgets.selection_rectangle
 
 ### demo2.lua (182 lines)
@@ -369,10 +373,6 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.draw(ctx, id, width, height, content_fn, config)`
   **Requires**: ReArkitekt.gui.widgets.panel.header, ReArkitekt.gui.widgets.panel.content, ReArkitekt.gui.widgets.panel.background, ReArkitekt.gui.widgets.panel.tab_animator, ReArkitekt.gui.widgets.controls.scrollbar
 
-### init.lua (29 lines)
-  **Modules**: M
-  **Requires**: Region_Playlist.app.config.constants, Region_Playlist.app.config.panel, Region_Playlist.app.config.layout, Region_Playlist.app.config.transport, Region_Playlist.app.config.region_tiles
-
 ### input.lua (236 lines)
   **Modules**: M, keys_to_adjust, order, order
   **Exports**:
@@ -404,10 +404,6 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   **Exports**:
     - `M.draw(ctx, dl, x, y, width, height, state, config)`
   **Requires**: ReArkitekt.gui.widgets.panel.header.tab_strip, ReArkitekt.gui.widgets.panel.header.search_field, ReArkitekt.gui.widgets.panel.header.dropdown_field, ReArkitekt.gui.widgets.panel.header.button, ReArkitekt.gui.widgets.panel.header.separator
-
-### layout.lua (39 lines)
-  **Modules**: M
-  **Requires**: Region_Playlist.app.config.constants
 
 ### lifecycle.lua (80 lines)
   **Modules**: M, Group
@@ -463,13 +459,6 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.draw_window(ctx, pkg, settings)`
     - `M.reset()`
 
-### panel.lua (267 lines)
-  **Modules**: M
-  **Exports**:
-    - `M.get_active_container_config(callbacks)`
-    - `M.get_pool_container_config(callbacks)`
-  **Requires**: Region_Playlist.app.config.constants
-
 ### playback.lua (102 lines)
   **Modules**: M, Playback
   **Classes**: Playback, M
@@ -510,12 +499,6 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.new(speed, snap_epsilon, magnetic_threshold, magnetic_multiplier)`
   **Requires**: ReArkitekt.core.math
 
-### region_tiles.lua (190 lines)
-  **Modules**: M
-  **Exports**:
-    - `M.get_config(layout_mode)`
-  **Requires**: Region_Playlist.app.config.constants
-
 ### regions.lua (82 lines)
   **Modules**: M, regions
   **Exports**:
@@ -523,7 +506,7 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.get_region_by_rid(proj, target_rid)`
     - `M.go_to_region(proj, target_rid)`
 
-### renderer.lua (233 lines)
+### renderer.lua (266 lines)
   **Modules**: M
   **Requires**: ReArkitekt.gui.draw, ReArkitekt.gui.fx.marching_ants, ReArkitekt.core.colors
 
@@ -817,10 +800,6 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.set_edit_cursor(pos, move_view, seek_play, proj)`
     - `M.set_play_position(pos, move_view, proj)`
 
-### transport.lua (32 lines)
-  **Modules**: M
-  **Requires**: Region_Playlist.app.config.constants
-
 ### transport.lua (238 lines)
   **Modules**: M, Transport
   **Classes**: Transport, M
@@ -927,13 +906,11 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   → ReArkitekt.app.shell
   → ReArkitekt.gui.widgets.package_tiles.grid
   → ReArkitekt.gui.widgets.package_tiles.micromanage
-  → ReArkitekt.gui.widgets.panel
   → ReArkitekt.gui.widgets.selection_rectangle
 
 ### demo2.lua
   → ReArkitekt.app.shell
   → ReArkitekt.gui.widgets.sliders.hue
-  → ReArkitekt.gui.widgets.panel
 
 ### demo3.lua
   → ReArkitekt.app.shell
@@ -1091,25 +1068,6 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
 ### transport_fx.lua
   → ReArkitekt.core.colors
 
-### init.lua
-  → Region_Playlist.app.config.constants
-  → Region_Playlist.app.config.panel
-  → Region_Playlist.app.config.layout
-  → Region_Playlist.app.config.transport
-  → Region_Playlist.app.config.region_tiles
-
-### layout.lua
-  → Region_Playlist.app.config.constants
-
-### panel.lua
-  → Region_Playlist.app.config.constants
-
-### region_tiles.lua
-  → Region_Playlist.app.config.constants
-
-### transport.lua
-  → Region_Playlist.app.config.constants
-
 ### controller.lua
   → Region_Playlist.storage.state
 
@@ -1178,7 +1136,6 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
   → Region_Playlist.widgets.region_tiles.active_grid_factory
   → Region_Playlist.widgets.region_tiles.pool_grid_factory
   → ReArkitekt.gui.widgets.grid.grid_bridge
-  → ReArkitekt.gui.widgets.panel
   → Region_Playlist.app.state
 
 ### coordinator_render.lua

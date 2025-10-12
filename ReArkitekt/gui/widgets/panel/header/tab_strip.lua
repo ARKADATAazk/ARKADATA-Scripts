@@ -288,7 +288,7 @@ local function draw_tab(ctx, dl, tab_data, is_active, tab_index, x, y, width, he
   
   if is_active then
     bg_color = config.bg_active_color or 0x303030FF
-    border_inner = config.border_active_color or 0x42E896FF
+    border_inner = config.border_active_color or 0X7A7A7AFF
     text_color = config.text_active_color or 0xFFFFFFFF
   elseif is_pressed then
     bg_color = config.bg_hover_color or 0x2A2A2AFF

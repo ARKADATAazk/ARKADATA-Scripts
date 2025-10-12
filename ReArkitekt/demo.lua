@@ -42,14 +42,35 @@ local pkg = {
 }
 
 local mock_data = {
-  { id="TCP_Modern_Light", name="Modern Light Theme", type="TCP", assets=15, keys={"Background.png", "Button.png", "Slider.png"} },
-  { id="TCP_Dark_Minimal", name="Dark Minimal", type="TCP", assets=22, keys={"Background.png", "Knob.png", "VU.png"} },
-  { id="MCP_Pro_Blue", name="Pro Blue Mixer", type="MCP", assets=18, keys={"Strip.png", "Fader.png", "Pan.png"} },
-  { id="Transport_Classic", name="Classic Transport", type="Transport", assets=12, keys={"Play.png", "Stop.png", "Record.png"} },
-  { id="TCP_Colorful", name="Colorful TCP", type="TCP", assets=25, keys={"TCP.png", "Label.png", "Meter.png"} },
-  { id="MCP_Compact", name="Compact Mixer", type="MCP", assets=14, keys={"Channel.png", "Solo.png", "Mute.png"} },
-  { id="Global_Icons", name="Icon Pack", type="Global", assets=45, keys={"Save.png", "Load.png", "Export.png"} },
-  { id="TCP_Vintage", name="Vintage Look", type="TCP", assets=19, keys={"Warm.png", "Analog.png", "Tape.png"} },
+  { id="TCP_Modern_Light", name="Modern Light Theme", type="TCP", assets=15, 
+    keys={"tcp_background.png", "tcp_button.png", "tcp_slider.png", "tcp_knob.png", "tcp_meter.png"} },
+  
+  { id="TCP_Dark_Minimal", name="Dark Minimal", type="TCP", assets=22, 
+    keys={"tcp_background.png", "tcp_knob.png", "tcp_vu.png", "tcp_button.png", "tcp_fader.png"} },
+  
+  { id="MCP_Pro_Blue", name="Pro Blue Mixer", type="MCP", assets=18, 
+    keys={"mcp_strip.png", "mcp_fader.png", "mcp_pan.png", "mcp_solo.png", "mcp_mute.png"} },
+  
+  { id="Transport_Classic", name="Classic Transport", type="Transport", assets=12, 
+    keys={"transport_play.png", "transport_stop.png", "transport_record.png", "transport_pause.png"} },
+  
+  { id="TCP_Colorful", name="Colorful TCP", type="TCP", assets=25, 
+    keys={"tcp_background.png", "tcp_label.png", "tcp_meter.png", "tcp_knob.png", "tcp_slider.png"} },
+  
+  { id="MCP_Compact", name="Compact Mixer", type="MCP", assets=14, 
+    keys={"mcp_strip.png", "mcp_solo.png", "mcp_mute.png", "mcp_fader.png", "mcp_volume.png"} },
+  
+  { id="Global_Icons", name="Icon Pack", type="Global", assets=45, 
+    keys={"icon_save.png", "icon_load.png", "icon_export.png", "icon_settings.png"} },
+  
+  { id="TCP_Vintage", name="Vintage Look", type="TCP", assets=19, 
+    keys={"tcp_warm.png", "tcp_analog.png", "tcp_tape.png", "tcp_background.png", "tcp_slider.png"} },
+  
+  { id="MCP_Studio", name="Studio Mixer", type="MCP", assets=21, 
+    keys={"mcp_strip.png", "mcp_fader.png", "mcp_pan.png", "mcp_eq.png", "mcp_insert.png"} },
+  
+  { id="Transport_Modern", name="Modern Transport", type="Transport", assets=16, 
+    keys={"transport_play.png", "transport_stop.png", "transport_record.png", "transport_loop.png"} },
 }
 
 for i, data in ipairs(mock_data) do
@@ -106,7 +127,47 @@ function pkg:toggle(id)
 end
 
 function pkg:conflicts(detailed)
-  return {}
+  local conflicts = {}
+  local asset_providers = {}
+  
+  for _, P in ipairs(self.index) do
+    if self.active[P.id] then
+      for key, _ in pairs(P.assets or {}) do
+        if not asset_providers[key] then
+          asset_providers[key] = {}
+        end
+        table.insert(asset_providers[key], P.id)
+      end
+    end
+  end
+  
+  for key, providers in pairs(asset_providers) do
+    if #providers > 1 then
+      for _, pkg_id in ipairs(providers) do
+        conflicts[pkg_id] = (conflicts[pkg_id] or 0) + 1
+      end
+    end
+  end
+  
+  return conflicts
+end
+
+function pkg:remove(id)
+  for i, P in ipairs(self.index) do
+    if P.id == id then
+      table.remove(self.index, i)
+      break
+    end
+  end
+  
+  for i, order_id in ipairs(self.order) do
+    if order_id == id then
+      table.remove(self.order, i)
+      break
+    end
+  end
+  
+  self.active[id] = nil
 end
 
 function pkg:scan()
@@ -144,6 +205,19 @@ local container = TilesContainer.new({
 })
 
 local function get_app_status()
+  local conflicts = pkg:conflicts(true)
+  local total_conflicts = 0
+  for _, count in pairs(conflicts) do
+    total_conflicts = total_conflicts + count
+  end
+  
+  if total_conflicts > 0 then
+    return {
+      color = 0xFFA500FF,
+      text = string.format("CONFLICTS: %d", total_conflicts),
+    }
+  end
+  
   return {
     color = 0x41E0A3FF,
     text = "READY",
@@ -214,9 +288,17 @@ local function draw_settings(ctx)
   ImGui.BulletText(ctx, "Right-click to toggle package state")
   ImGui.BulletText(ctx, "Double-click to open micro-manage")
   ImGui.BulletText(ctx, "Content padding managed by window system")
+  ImGui.BulletText(ctx, "Conflict detection and priority resolution")
   ImGui.Dummy(ctx, 1, 20)
   ImGui.Text(ctx, string.format("Current packages visible: %d", #pkg:visible()))
   ImGui.Text(ctx, string.format("Current selection count: %d", grid:get_selected_count()))
+  
+  local conflicts = pkg:conflicts(true)
+  local total_conflicts = 0
+  for _, count in pairs(conflicts) do
+    total_conflicts = total_conflicts + count
+  end
+  ImGui.Text(ctx, string.format("Total asset conflicts: %d", total_conflicts))
 end
 
 local function draw_about(ctx)
@@ -239,6 +321,8 @@ local function draw_about(ctx)
   ImGui.TextWrapped(ctx, "Content padding is now centralized in the window system, eliminating duplication across tab functions.")
   ImGui.Dummy(ctx, 1, 20)
   ImGui.TextWrapped(ctx, "Tabs are now proper window chrome, rendered between titlebar and content with no gap.")
+  ImGui.Dummy(ctx, 1, 20)
+  ImGui.TextWrapped(ctx, "Conflicts are auto-resolved by overwrite priority (#1 overwrites #2, etc). Orange badges show conflict counts.")
 end
 
 local function draw(ctx, state)

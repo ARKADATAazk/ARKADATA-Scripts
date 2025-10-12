@@ -4,7 +4,7 @@
 local M = {}
 
 M.DEFAULTS = {
-  bg_color = 0x1C1C1CFF,
+  bg_color = 0x1A1A1AFF,
   border_color = 0x000000DD,
   border_thickness = 1,
   rounding = 8,
@@ -26,16 +26,16 @@ M.DEFAULTS = {
     enabled = true,
     primary = {
       type = 'grid',
-      spacing = 100,
-      color = 0x40404060,
+      spacing = 50,
+      color = 0x14141490,
       dot_size = 2.5,
       line_thickness = 1.5,
     },
     secondary = {
       enabled = true,
       type = 'grid',
-      spacing = 20,
-      color = 0x30303040,
+      spacing = 5,
+      color = 0x14141420,
       dot_size = 1.5,
       line_thickness = 0.5,
     },
@@ -43,9 +43,9 @@ M.DEFAULTS = {
   
   header = {
     enabled = false,
-    height = 30,
-    bg_color = 0x0F0F0FFF,
-    border_color = 0x000000DD,
+    height = 23,
+    bg_color = 0x1F1F1FFF,
+    border_color = 0x00000066,
     rounding = 8,
     
     padding = {
@@ -63,8 +63,8 @@ M.TAB_MODE_DEFAULTS = {
   header = {
     enabled = true,
     height = 20,
-    bg_color = 0x0F0F0FFF, 
-    border_color = 0x000000DD,
+    bg_color = 0x1F1F1FFF, 
+    border_color = 0x00000066,
     rounding = 8,
     
     padding = {
@@ -152,8 +152,8 @@ M.MIXED_EXAMPLE = {
   header = {
     enabled = true,
     height = 30,
-    bg_color = 0x0F0F0FFF,
-    border_color = 0x000000DD,
+    bg_color = 0x1F1F1FFF,
+    border_color = 0x00000066,
     rounding = 8,
     
     padding = {
