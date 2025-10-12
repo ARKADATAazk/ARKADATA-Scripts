@@ -3,10 +3,10 @@
 
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua;' .. package.path
 local ImGui = require 'imgui' '0.9'
-local colors = require 'colors'
+local Colors = require('ReArkitekt.core.colors')
 
 local M = {}
-local hexrgb = colors.hexrgb
+local hexrgb = Colors.hexrgb
 
 local C = {
   white         = hexrgb("#FFFFFF"),
