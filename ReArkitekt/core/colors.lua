@@ -4,6 +4,27 @@
 local M = {}
 
 -- ============================================================================
+-- SECTION 0: Hex String Conversion
+-- ============================================================================
+
+-- Convert hex string to 0xRRGGBBAA format
+-- Accepts #RRGGBB, #RRGGBBAA, RRGGBB, or RRGGBBAA
+function M.hexrgb(hex_string)
+  if hex_string:sub(1, 1) == "#" then
+    hex_string = hex_string:sub(2)
+  end
+  
+  local hex = tonumber(hex_string, 16)
+  if not hex then return 0xFFFFFFFF end
+  
+  if #hex_string == 8 then
+    return hex
+  else
+    return (hex << 8) | 0xFF
+  end
+end
+
+-- ============================================================================
 -- SECTION 1: Basic Color Operations
 -- ============================================================================
 
@@ -73,6 +94,31 @@ end
 -- ============================================================================
 -- SECTION 1.5: Color Space Conversions
 -- ============================================================================
+
+function M.rgb_to_reaper(rgb_color)
+  local rgb_hex
+  
+  if type(rgb_color) == "string" then
+    rgb_hex = tonumber(rgb_color, 16)
+  else
+    rgb_hex = rgb_color
+  end
+  
+  local r, g, b, a
+  
+  if rgb_hex > 0xFFFFFF then
+    r = (rgb_hex >> 24) & 0xFF
+    g = (rgb_hex >> 16) & 0xFF
+    b = (rgb_hex >> 8) & 0xFF
+    a = rgb_hex & 0xFF
+    return (b << 24) | (g << 16) | (r << 8) | a
+  else
+    r = (rgb_hex >> 16) & 0xFF
+    g = (rgb_hex >> 8) & 0xFF
+    b = rgb_hex & 0xFF
+    return (b << 16) | (g << 8) | r | 0xFF000000
+  end
+end
 
 function M.rgb_to_hsl(color)
   local r, g, b, a = M.rgba_to_components(color)
@@ -216,7 +262,6 @@ end
 -- SECTION 3: Derivation Strategies (how to transform colors)
 -- ============================================================================
 
--- Normalize: Scale brightest channel to 255, maintaining color relationships
 function M.derive_normalized(color, pullback)
   pullback = pullback or 0.95
   local r, g, b, a = M.rgba_to_components(color)
@@ -233,12 +278,10 @@ function M.derive_normalized(color, pullback)
   )
 end
 
--- Brighten: Simple brightness multiplication
 function M.derive_brightened(color, factor)
   return M.adjust_brightness(color, factor)
 end
 
--- Saturate + Brighten: Increase color intensity
 function M.derive_intensified(color, sat_boost, bright_boost)
   sat_boost = sat_boost or 0.3
   bright_boost = bright_boost or 1.2
@@ -246,7 +289,6 @@ function M.derive_intensified(color, sat_boost, bright_boost)
   return M.adjust_brightness(saturated, bright_boost)
 end
 
--- Darken + Desaturate: Create muted background
 function M.derive_muted(color, desat_amt, dark_amt)
   desat_amt = desat_amt or 0.5
   dark_amt = dark_amt or 0.45
@@ -258,7 +300,6 @@ end
 -- SECTION 4: Role-Based Derivation (UI purposes)
 -- ============================================================================
 
--- Derive fill color (tile background)
 function M.derive_fill(base_color, opts)
   opts = opts or {}
   local desat = opts.desaturate or 0.5
@@ -270,7 +311,6 @@ function M.derive_fill(base_color, opts)
   return M.with_alpha(color, alpha)
 end
 
--- Derive border color (tile outline)
 function M.derive_border(base_color, opts)
   opts = opts or {}
   local mode = opts.mode or 'normalize'
@@ -298,14 +338,12 @@ function M.derive_border(base_color, opts)
   return base_color
 end
 
--- Derive hover state color
 function M.derive_hover(base_color, opts)
   opts = opts or {}
   local brightness = opts.brightness or 1.15
   return M.adjust_brightness(base_color, brightness)
 end
 
--- Derive selection color (brightest, most prominent)
 function M.derive_selection(base_color, opts)
   opts = opts or {}
   local brightness = opts.brightness or 1.6
@@ -328,7 +366,6 @@ function M.derive_selection(base_color, opts)
   return result
 end
 
--- Derive marching ants color (animated selection border)
 function M.derive_marching_ants(base_color, opts)
   if not base_color or base_color == 0 then
     return 0x42E896FF
@@ -364,7 +401,6 @@ end
 -- SECTION 5: Palette Generation
 -- ============================================================================
 
--- Generate complete palette from base color
 function M.derive_palette(base_color, opts)
   opts = opts or {}
   
@@ -380,7 +416,6 @@ function M.derive_palette(base_color, opts)
   }
 end
 
--- Adaptive palette based on color characteristics
 function M.derive_palette_adaptive(base_color, preset)
   preset = preset or 'auto'
   
