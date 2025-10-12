@@ -1,5 +1,5 @@
 # PROJECT FLOW: ARKADATA Scripts
-Generated: 2025-10-12 03:32:16
+Generated: 2025-10-12 17:36:52
 Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
 
 ## Project Structure
@@ -60,7 +60,7 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
     │   ├── titlebar.lua         # (453 lines)
     │   └── window.lua         # (559 lines)
     ├── core/
-    │   ├── colors.lua         # (514 lines)
+    │   ├── colors.lua         # (549 lines)
     │   ├── json.lua         # (120 lines)
     │   ├── lifecycle.lua         # (80 lines)
     │   ├── math.lua         # (51 lines)
@@ -150,7 +150,7 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
     │   │   └── tiles_container_old.lua         # (752 lines)
     │   ├── draw.lua         # (113 lines)
     │   ├── images.lua         # (284 lines)
-    │   └── style.lua         # (173 lines)
+    │   └── style.lua         # (145 lines)
     ├── input/
     │   └── wheel_guard.lua         # (42 lines)
     ├── reaper/
@@ -166,17 +166,17 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
 
 ## Overview
 - **Total Files**: 119
-- **Total Lines**: 23,400
-- **Code Lines**: 18,267
-- **Public Functions**: 346
+- **Total Lines**: 23,407
+- **Code Lines**: 18,302
+- **Public Functions**: 348
 - **Classes**: 81
 - **Modules**: 255
 
 ## Folder Structure
 ### ReArkitekt/
   - Files: 119
-  - Lines: 18,267
-  - Exports: 346
+  - Lines: 18,302
+  - Exports: 348
 
 ## Execution Flow Patterns
 
@@ -571,6 +571,7 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
 
 **Modules**: `M`
 **Public API**:
+  - `M.hexrgb(hex_string)`
   - `M.rgba_to_components(color)`
   - `M.components_to_rgba(r, g, b, a)`
   - `M.with_alpha(color, alpha)`
@@ -580,7 +581,6 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
   - `M.luminance(color)`
   - `M.lerp_component(a, b, t)`
   - `M.lerp(color_a, color_b, t)`
-  - `M.auto_text_color(bg_color)`
 
 ### `ReArkitekt/core/json.lua`
 > core/json.lua - tiny JSON encode/decode (UTF-8, numbers, strings, booleans, nil, arrays, objects)
@@ -683,7 +683,7 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
 
 ### Stateless Modules (Pure Functions)
 - **60** stateless modules
-- **34** with no dependencies (pure utility modules)
+- **33** with no dependencies (pure utility modules)
 
 ## Integration Essentials
 
@@ -708,13 +708,13 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
 
 ## Module Classification
 
-**Pure Modules** (no dependencies): 55
+**Pure Modules** (no dependencies): 54
   - `ReArkitekt/app/config.lua`
   - `ReArkitekt/app/icon.lua`
   - `ReArkitekt/app/runtime.lua`
   - `ReArkitekt/app/titlebar.lua`
   - `ReArkitekt/app/window.lua`
-  - ... and 50 more
+  - ... and 49 more
 
 **Class Modules** (OOP with metatables): 47
   - `widget.lua`: M
@@ -732,8 +732,8 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
 4. `ReArkitekt/gui/widgets/panel/modes/tabs.lua` (646 lines)
 5. `ReArkitekt/Region_Playlist/app/state.lua` (596 lines)
 6. `ReArkitekt/app/window.lua` (559 lines)
-7. `ReArkitekt/gui/widgets/grid/core.lua` (549 lines)
-8. `ReArkitekt/core/colors.lua` (514 lines)
+7. `ReArkitekt/core/colors.lua` (549 lines)
+8. `ReArkitekt/gui/widgets/grid/core.lua` (549 lines)
 9. `ReArkitekt/Region_Playlist/widgets/region_tiles/coordinator.lua` (502 lines)
 10. `ReArkitekt/app/titlebar.lua` (453 lines)
 
@@ -892,7 +892,7 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
 
 ### Reverse Dependencies (What Imports Each File)
 
-**`ReArkitekt/core/colors.lua`** is imported by 22 files:
+**`ReArkitekt/core/colors.lua`** is imported by 23 files:
   ← `ReArkitekt/ColorPalette/app/gui.lua`
   ← `ReArkitekt/ColorPalette/app/state.lua`
   ← `ReArkitekt/ColorPalette/widgets/color_grid.lua`
@@ -901,7 +901,7 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
   ← `ReArkitekt/Region_Playlist/storage/state.lua`
   ← `ReArkitekt/Region_Playlist/widgets/region_tiles/coordinator.lua`
   ← `ReArkitekt/Region_Playlist/widgets/region_tiles/renderers/active.lua`
-  ← ... and 14 more
+  ← ... and 15 more
 
 **`ReArkitekt/gui/draw.lua`** is imported by 18 files:
   ← `ReArkitekt/ColorPalette/app/gui.lua`
@@ -1009,7 +1009,7 @@ Root: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts
 
 ### Dependency Complexity Ranking
 
-1. `ReArkitekt/core/colors.lua`: 0 imports + 22 importers = 22 total
+1. `ReArkitekt/core/colors.lua`: 0 imports + 23 importers = 23 total
 2. `ReArkitekt/gui/draw.lua`: 0 imports + 18 importers = 18 total
 3. `ReArkitekt/gui/widgets/grid/core.lua`: 13 imports + 3 importers = 16 total
 4. `ReArkitekt/Region_Playlist/widgets/region_tiles/coordinator.lua`: 11 imports + 1 importers = 12 total

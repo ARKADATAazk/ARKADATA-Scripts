@@ -1,11 +1,11 @@
 # FOLDER FLOW: ReArkitekt
-Generated: 2025-10-12 03:32:16
+Generated: 2025-10-12 17:36:52
 Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
 
 ## Overview
 - **Files**: 119
-- **Total Lines**: 23,400
-- **Public Functions**: 346
+- **Total Lines**: 23,407
+- **Public Functions**: 348
 - **Classes**: 81
 
 ## Files
@@ -76,9 +76,10 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.new()`
   **Requires**: ReArkitekt.core.colors, ReArkitekt.gui.draw
 
-### colors.lua (514 lines)
+### colors.lua (549 lines)
   **Modules**: M
   **Exports**:
+    - `M.hexrgb(hex_string)`
     - `M.rgba_to_components(color)`
     - `M.components_to_rgba(r, g, b, a)`
     - `M.with_alpha(color, alpha)`
@@ -88,7 +89,6 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.luminance(color)`
     - `M.lerp_component(a, b, t)`
     - `M.lerp(color_a, color_b, t)`
-    - `M.auto_text_color(bg_color)`
 
 ### config.lua (139 lines)
   **Modules**: M, result
@@ -677,12 +677,13 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
     - `M.new(opts)`
   **Requires**: ReArkitekt.gui.draw, ReArkitekt.core.colors, ReArkitekt.gui.fx.tile_fx, ReArkitekt.gui.fx.tile_fx_config
 
-### style.lua (173 lines)
+### style.lua (145 lines)
   **Modules**: M
   **Exports**:
     - `M.with_alpha(col, a)`
     - `M.PushMyStyle(ctx)`
     - `M.PopMyStyle(ctx)`
+  **Requires**: ReArkitekt.core.colors
 
 ### tab_animator.lua (106 lines)
   **Modules**: M, TabAnimator, spawn_complete, destroy_complete
@@ -947,6 +948,9 @@ Location: D:\Dropbox\REAPER\Scripts\ARKADATA Scripts\ReArkitekt
 
 ### tile_motion.lua
   → ReArkitekt.gui.fx.animation.track
+
+### style.lua
+  → ReArkitekt.core.colors
 
 ### list.lua
   → ReArkitekt.gui.widgets.component.chip
