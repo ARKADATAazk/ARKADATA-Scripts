@@ -1046,9 +1046,11 @@ function FindReabankDataByName(combinedContent, bankName, cloneDepth)
                 -- Check for clone parameter
                 if trimmedLine:find("^//! clone=") and currentArticulationIndex == 0 then
                     -- Extract clone target - handle both quoted and unquoted formats
-                    cloneTarget = trimmedLine:match("^//! clone=\"([^\"]+)\"") or trimmedLine:match("^//! clone=(%S.-)%s*$")
-                    if cloneTarget then
-                        DebugLog("SUCCESS: Found clone parameter pointing to: '" .. cloneTarget .. "'\n")
+                    local clonePath = trimmedLine:match("^//! clone=\"([^\"]+)\"") or trimmedLine:match("^//! clone=(%S.-)%s*$")
+                    if clonePath then
+                        -- Extract bank name from path (e.g., "Spitfire/.../BBC Violins 1 Leader" -> "BBC Violins 1 Leader")
+                        cloneTarget = clonePath:match("([^/]+)$") or clonePath
+                        DebugLog("SUCCESS: Found clone parameter: '" .. clonePath .. "' -> bank name: '" .. cloneTarget .. "'\n")
                     end
                 -- This is metadata for the next articulation
                 elseif trimmedLine:find("^//! id=") and currentArticulationIndex == 0 then
