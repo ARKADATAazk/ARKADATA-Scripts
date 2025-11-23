@@ -3,11 +3,9 @@
 -- @donation https://www.paypal.com/donate/?hosted_button_id=2FP22TUPGFPSJ
 -- @website https://www.arkadata.com
 -- @license GPL v3
--- @version 1.5.0
+-- @version 1.6.0
 -- @changelog
---   ENHANCEMENT: Added note-length-aware cursor detection
---   Now considers entire note duration (start to end) for distance calculation
---   Hovering anywhere on a note (start, middle, end) correctly detects it as closest and pull the correct articulations menu.
+--   FIX: Now support "Clone" entries on Reabank files (use to reference an articulation group without rewriting it)
 -- @about
 --   # ReaticulateAdapter
 --   
