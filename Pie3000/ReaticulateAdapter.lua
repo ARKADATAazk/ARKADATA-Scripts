@@ -987,8 +987,14 @@ function LoopThroughReabanksFiles(MatchingBank)
     return reabankData
 end
 
-function FindReabankDataByName(combinedContent, bankName)
-    DebugLog("DEBUG: Searching for bank name: '" .. tostring(bankName) .. "'\n")
+function FindReabankDataByName(combinedContent, bankName, cloneDepth)
+    cloneDepth = cloneDepth or 0  -- Initialize depth counter for clone recursion
+    if cloneDepth > 10 then
+        DebugLog("ERROR: Clone recursion depth exceeded (possible circular reference) for bank: '" .. tostring(bankName) .. "'\n")
+        return nil, "Clone recursion depth exceeded."
+    end
+
+    DebugLog("DEBUG: Searching for bank name: '" .. tostring(bankName) .. "' (clone depth: " .. cloneDepth .. ")\n")
 
     local reabankData = { id = "", bank = "", articulations = {}, articulationslook = {} }
     if not bankName or bankName == "" then
@@ -1040,7 +1046,7 @@ function FindReabankDataByName(combinedContent, bankName)
                 -- Check for clone parameter
                 if trimmedLine:find("^//! clone=") and currentArticulationIndex == 0 then
                     -- Extract clone target - handle both quoted and unquoted formats
-                    cloneTarget = trimmedLine:match("^//! clone=\"(.+)\"") or trimmedLine:match("^//! clone=(.+)")
+                    cloneTarget = trimmedLine:match("^//! clone=\"([^\"]+)\"") or trimmedLine:match("^//! clone=(%S.-)%s*$")
                     if cloneTarget then
                         DebugLog("SUCCESS: Found clone parameter pointing to: '" .. cloneTarget .. "'\n")
                     end
@@ -1053,7 +1059,7 @@ function FindReabankDataByName(combinedContent, bankName)
                     -- If we found a clone target, resolve it now
                     if cloneTarget then
                         DebugLog("DEBUG: Resolving clone from '" .. bankName .. "' to '" .. cloneTarget .. "'\n")
-                        local clonedData = FindReabankDataByName(combinedContent, cloneTarget)
+                        local clonedData = FindReabankDataByName(combinedContent, cloneTarget, cloneDepth + 1)
                         if clonedData then
                             -- Use the cloned articulations but keep our MSB/LSB and ID
                             reabankData.articulations = clonedData.articulations
@@ -1094,9 +1100,27 @@ function FindReabankDataByName(combinedContent, bankName)
                     pendingMetadata = metadata
                     DebugLog("DEBUG: Stored metadata: " .. trimmedLine .. "\n")
                 end
-            
+
             -- Capture articulation definition
             elseif trimmedLine:find("^%d+ ") then
+                -- If we have a clone target and haven't resolved it yet (no id line was found)
+                if cloneTarget and currentArticulationIndex == 0 and #reabankData.articulations == 0 then
+                    DebugLog("DEBUG: Resolving clone (no id line) from '" .. bankName .. "' to '" .. cloneTarget .. "'\n")
+                    local clonedData = FindReabankDataByName(combinedContent, cloneTarget, cloneDepth + 1)
+                    if clonedData then
+                        -- Use the cloned articulations but keep our MSB/LSB and ID
+                        reabankData.articulations = clonedData.articulations
+                        reabankData.articulationslook = clonedData.articulationslook
+                        DebugLog("SUCCESS: Cloned " .. #clonedData.articulations .. " articulations from '" .. cloneTarget .. "'\n")
+                        -- Return immediately with cloned data
+                        return reabankData
+                    else
+                        DebugLog("ERROR: Could not find clone target bank: '" .. cloneTarget .. "'\n")
+                        -- Continue parsing local articulations as fallback
+                        cloneTarget = nil  -- Clear to prevent re-attempting
+                    end
+                end
+
                 local entry = trimmedLine:match("^(%d+ .*)")
                 if entry then
                     currentArticulationIndex = currentArticulationIndex + 1
