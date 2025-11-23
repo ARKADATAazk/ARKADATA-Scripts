@@ -989,7 +989,7 @@ end
 
 function FindReabankDataByName(combinedContent, bankName)
     DebugLog("DEBUG: Searching for bank name: '" .. tostring(bankName) .. "'\n")
-    
+
     local reabankData = { id = "", bank = "", articulations = {}, articulationslook = {} }
     if not bankName or bankName == "" then
         DebugLog("ERROR: Bank name not provided or empty\n")
@@ -1002,26 +1002,27 @@ function FindReabankDataByName(combinedContent, bankName)
     local currentArticulationIndex = 0
     local pendingMetadata = {}  -- Store metadata for next articulation
     local bankCount = 0
-    
+    local cloneTarget = nil  -- Store clone target if found
+
     for line in combinedContent:gmatch("[^\r\n]+") do
         lineCount = lineCount + 1
         local trimmedLine = line:gsub("^%s*(.-)%s*$", "%1")
-        
+
         -- Check for bank definition
         if trimmedLine:find("^Bank ") then
             bankCount = bankCount + 1
             -- Extract bank info - handle both "Bank * *" and "Bank 12 0" formats
             local msb, lsb, currentBankName = trimmedLine:match("^Bank ([%d%*]+) ([%d%*]+) (.*)")
-            
+
             if currentBankName then
                 DebugLog("DEBUG: Found bank #" .. bankCount .. " at line " .. lineCount .. ": '" .. currentBankName .. "'\n")
-                
+
                 -- If we were already capturing a different bank, stop
-                if found and currentBankName ~= bankName then 
+                if found and currentBankName ~= bankName then
                     DebugLog("DEBUG: Found different bank, stopping capture\n")
                     break
                 end
-                
+
                 if currentBankName == bankName then
                     found = true
                     capturing = true
@@ -1036,11 +1037,35 @@ function FindReabankDataByName(combinedContent, bankName)
         elseif capturing then
             -- Capture metadata lines that come before articulations
             if trimmedLine:find("^//! ") then
+                -- Check for clone parameter
+                if trimmedLine:find("^//! clone=") and currentArticulationIndex == 0 then
+                    -- Extract clone target - handle both quoted and unquoted formats
+                    cloneTarget = trimmedLine:match("^//! clone=\"(.+)\"") or trimmedLine:match("^//! clone=(.+)")
+                    if cloneTarget then
+                        DebugLog("SUCCESS: Found clone parameter pointing to: '" .. cloneTarget .. "'\n")
+                    end
                 -- This is metadata for the next articulation
-                if trimmedLine:find("^//! id=") and currentArticulationIndex == 0 then
+                elseif trimmedLine:find("^//! id=") and currentArticulationIndex == 0 then
                     -- Bank UUID
                     reabankData.id = trimmedLine:match("//! id=([%w-]+)")
                     DebugLog("DEBUG: Found bank UUID: " .. tostring(reabankData.id) .. "\n")
+
+                    -- If we found a clone target, resolve it now
+                    if cloneTarget then
+                        DebugLog("DEBUG: Resolving clone from '" .. bankName .. "' to '" .. cloneTarget .. "'\n")
+                        local clonedData = FindReabankDataByName(combinedContent, cloneTarget)
+                        if clonedData then
+                            -- Use the cloned articulations but keep our MSB/LSB and ID
+                            reabankData.articulations = clonedData.articulations
+                            reabankData.articulationslook = clonedData.articulationslook
+                            DebugLog("SUCCESS: Cloned " .. #clonedData.articulations .. " articulations from '" .. cloneTarget .. "'\n")
+                            -- Return immediately with cloned data
+                            return reabankData
+                        else
+                            DebugLog("ERROR: Could not find clone target bank: '" .. cloneTarget .. "'\n")
+                            -- Continue parsing in case there are fallback articulations
+                        end
+                    end
                 else
                     -- Articulation metadata - parse all attributes
                     local metadata = {}
