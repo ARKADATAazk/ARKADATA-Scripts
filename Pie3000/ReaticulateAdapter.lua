@@ -1028,7 +1028,8 @@ function BuildBankLookupTable(combinedContent)
     local banks_with_clones = {}  -- Track banks that need clone resolution
 
     local current_bank = nil
-    local bank_metadata = {}
+    local pending_bank_metadata = {}  -- Collect metadata BEFORE Bank line
+    local pending_art_metadata = {}   -- Metadata for next articulation
     local lineCount = 0
     local bankCount = 0
 
@@ -1036,71 +1037,69 @@ function BuildBankLookupTable(combinedContent)
         lineCount = lineCount + 1
         local trimmedLine = line:gsub("^%s*(.-)%s*$", "%1")
 
+        -- Capture metadata lines (BEFORE we see Bank line)
+        if trimmedLine:find("^//! ") and not current_bank then
+            -- Collecting metadata before Bank line
+            local group = trimmedLine:match("^//! g=\"([^\"]+)\"")
+            if group then
+                pending_bank_metadata.group = group
+                DebugLog("DEBUG: Pending group: '" .. group .. "'\n")
+            end
+
+            local shortname = trimmedLine:match("^//! n=\"([^\"]+)\"")
+            if shortname then
+                pending_bank_metadata.shortname = shortname
+                DebugLog("DEBUG: Pending shortname (n=): '" .. shortname .. "'\n")
+            end
+
+            local clone = trimmedLine:match("^//! clone=\"([^\"]+)\"")
+            if not clone then
+                clone = trimmedLine:match("^//! clone=(%S+)")
+            end
+            if clone then
+                pending_bank_metadata.clone = clone
+                DebugLog("DEBUG: Pending clone: '" .. clone .. "'\n")
+            end
+
+            local id = trimmedLine:match("^//! id=([%w-]+)")
+            if id then
+                pending_bank_metadata.id = id
+                DebugLog("DEBUG: Pending bank ID: '" .. id .. "'\n")
+            end
+
         -- Check for bank definition
-        if trimmedLine:find("^Bank ") then
+        elseif trimmedLine:find("^Bank ") then
             -- Save previous bank if exists
             if current_bank then
-                RegisterBank(current_bank, bank_metadata, banks_by_path, banks_by_name, banks_with_clones)
+                RegisterBank(current_bank, pending_art_metadata, banks_by_path, banks_by_name, banks_with_clones)
                 bankCount = bankCount + 1
             end
 
-            -- Start new bank
+            -- Start new bank and apply pending metadata
             local msb, lsb, bankName = trimmedLine:match("^Bank ([%d%*]+) ([%d%*]+) (.*)")
             if bankName then
                 current_bank = {
-                    name = bankName,         -- Bank line name (e.g., "BBC - Flutes a3")
-                    shortname = nil,         -- n= parameter (e.g., "BBC Flutes a3")
+                    name = bankName,
+                    shortname = pending_bank_metadata.shortname,
                     bank = msb .. " " .. lsb,
-                    id = "",
+                    id = pending_bank_metadata.id or "",
                     articulations = {},
                     articulationslook = {},
-                    group = nil,
-                    clone = nil
+                    group = pending_bank_metadata.group,
+                    clone = pending_bank_metadata.clone
                 }
-                bank_metadata = {}  -- Reset metadata for new bank
-                DebugLog("DEBUG: Started parsing bank: '" .. bankName .. "'\n")
+                DebugLog("DEBUG: Started parsing bank: '" .. bankName .. "' (shortname: '" .. tostring(pending_bank_metadata.shortname) .. "')\n")
+
+                -- Clear pending bank metadata
+                pending_bank_metadata = {}
+                pending_art_metadata = {}
             end
 
-        -- Capture metadata lines (both bank-level and articulation-level)
+        -- Capture articulation metadata (AFTER Bank line)
         elseif current_bank and trimmedLine:find("^//! ") then
-            -- Bank-level metadata (only captured before first articulation)
-            if #current_bank.articulations == 0 then
-                -- Extract group (g="path")
-                local group = trimmedLine:match("^//! g=\"([^\"]+)\"")
-                if group then
-                    current_bank.group = group
-                    DebugLog("DEBUG: Found group: '" .. group .. "'\n")
-                end
-
-                -- Extract shortname (n="name") - this is what Reaticulate uses
-                local shortname = trimmedLine:match("^//! n=\"([^\"]+)\"")
-                if shortname then
-                    current_bank.shortname = shortname
-                    DebugLog("DEBUG: Found shortname (n=): '" .. shortname .. "'\n")
-                end
-
-                -- Extract clone parameter
-                local clone = trimmedLine:match("^//! clone=\"([^\"]+)\"")
-                if not clone then
-                    clone = trimmedLine:match("^//! clone=(%S+)")
-                end
-                if clone then
-                    current_bank.clone = clone
-                    DebugLog("DEBUG: Found clone: '" .. clone .. "'\n")
-                end
-
-                -- Extract bank ID
-                local id = trimmedLine:match("^//! id=([%w-]+)")
-                if id then
-                    current_bank.id = id
-                    DebugLog("DEBUG: Found bank ID: '" .. id .. "'\n")
-                end
-            end
-
-            -- Articulation metadata (for the NEXT articulation)
             local color = trimmedLine:match("c=([%w-]+)")
             if color then
-                bank_metadata.pending_color = "c=" .. color
+                pending_art_metadata.pending_color = "c=" .. color
             end
 
         -- Capture articulation definition
@@ -1110,16 +1109,16 @@ function BuildBankLookupTable(combinedContent)
                 table.insert(current_bank.articulations, entry)
 
                 -- Add pending metadata or default
-                local metadataStr = bank_metadata.pending_color or "c=long"
+                local metadataStr = pending_art_metadata.pending_color or "c=long"
                 table.insert(current_bank.articulationslook, metadataStr)
-                bank_metadata.pending_color = nil  -- Clear for next articulation
+                pending_art_metadata.pending_color = nil  -- Clear for next articulation
             end
         end
     end
 
     -- Don't forget the last bank
     if current_bank then
-        RegisterBank(current_bank, bank_metadata, banks_by_path, banks_by_name, banks_with_clones)
+        RegisterBank(current_bank, pending_art_metadata, banks_by_path, banks_by_name, banks_with_clones)
         bankCount = bankCount + 1
     end
 
