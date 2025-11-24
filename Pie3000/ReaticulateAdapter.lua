@@ -41,7 +41,7 @@ local activeBank = ""
 local activeChannel = 1
 
 -- Global debug control
-local DEBUG_ENABLED = true  -- TEMPORARILY ENABLED FOR DEBUGGING
+local DEBUG_ENABLED = false  -- Disabled by default, set to true for troubleshooting
 local DEBUG_FILE = reaper.GetResourcePath() .. "/Scripts/debug_reaticulate_adapter.txt"
 
 -- Enhanced debug function that writes to both console and file
@@ -921,25 +921,11 @@ function LoopThroughReabanksFiles(MatchingBank)
         return nil
     end
 
-    -- DEBUG: Log all available bank names
-    DebugLog("DEBUG: Available banks in lookup table:\n")
-    local count = 0
-    for name, _ in pairs(banks_by_name) do
-        count = count + 1
-        DebugLog("  [" .. count .. "] '" .. name .. "'\n")
-        if count > 20 then
-            DebugLog("  ... (truncated, too many banks)\n")
-            break
-        end
-    end
-
     -- Try to find the bank by name
-    DebugLog("DEBUG: Looking up bank by name: '" .. MatchingBank.name .. "'\n")
     local reabankData = banks_by_name[MatchingBank.name]
 
     if not reabankData then
         DebugLog("ERROR: Bank '" .. tostring(MatchingBank.name) .. "' not found in lookup table\n")
-        DebugLog("ERROR: Searched " .. count .. " banks, none matched\n")
         return nil
     end
 
