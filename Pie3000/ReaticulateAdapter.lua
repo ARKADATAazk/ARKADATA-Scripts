@@ -906,85 +906,264 @@ local function getFactoryReabankPath()
     return nil
 end
 
+-- Cache for parsed banks (like Reaticulate's banks_by_path)
+local banks_cache = nil
+local banks_cache_timestamp = 0
+
 function LoopThroughReabanksFiles(MatchingBank)
     DebugLog("DEBUG: Starting LoopThroughReabanksFiles with bank name: " .. tostring(MatchingBank.name) .. "\n")
-    
-    -- First, try to get metadata from the main reabank file
-    local mainReabank = getMainReabankPath()
-    local reabankData = nil
-    
-    if mainReabank then
-        DebugLog("DEBUG: Trying main reabank file first for full metadata\n")
-        local mainContent = readFileContent(mainReabank)
-        if mainContent then
-            -- Try to find the bank with full metadata in main file
-            reabankData = FindReabankDataByName(mainContent, MatchingBank.name)
-            if reabankData then
-                DebugLog("SUCCESS: Found bank with full metadata in main reabank\n")
-                DebugLog("DEBUG: Found " .. #reabankData.articulations .. " articulations and " .. #reabankData.articulationslook .. " color definitions\n")
-            end
-        end
+
+    -- Build or refresh the banks cache
+    local banks_by_path, banks_by_name = GetBanksLookupTable()
+
+    if not banks_by_path or not banks_by_name then
+        DebugLog("ERROR: Failed to build banks lookup table\n")
+        return nil
     end
-    
-    -- If not found in main file, try the factory reabank
+
+    -- Try to find the bank by name
+    local reabankData = banks_by_name[MatchingBank.name]
+
     if not reabankData then
-        DebugLog("DEBUG: Bank not found in main reabank, trying factory reabank\n")
-        local factoryReabank = getFactoryReabankPath()
-        if factoryReabank then
-            local factoryContent = readFileContent(factoryReabank)
-            if factoryContent then
-                reabankData = FindReabankDataByName(factoryContent, MatchingBank.name)
-                if reabankData then
-                    DebugLog("SUCCESS: Found bank with full metadata in factory reabank\n")
-                    DebugLog("DEBUG: Found " .. #reabankData.articulations .. " articulations and " .. #reabankData.articulationslook .. " color definitions\n")
-                end
-            end
-        end
+        DebugLog("ERROR: Bank '" .. tostring(MatchingBank.name) .. "' not found in lookup table\n")
+        return nil
     end
-    
-    -- If not found in main or factory, fall back to temp reabank (no metadata)
-    if not reabankData then
-        DebugLog("DEBUG: Bank not found in main or factory reabanks, trying temp file\n")
+
+    -- If we found the bank with wildcards, get actual MSB/LSB from temp file
+    if reabankData.bank:find("%*") then
+        DebugLog("DEBUG: Bank has wildcards, checking temp file for actual MSB/LSB values\n")
         local currentReabank = getCurrentReabank()
         if currentReabank then
             local tempContent = readFileContent(currentReabank)
             if tempContent then
-                reabankData = FindReabankDataByName(tempContent, MatchingBank.name)
-                if reabankData then
-                    DebugLog("WARNING: Found bank in temp file but without metadata (colors won't work)\n")
-                    DebugLog("DEBUG: Found " .. #reabankData.articulations .. " articulations\n")
-                end
-            end
-        end
-    else
-        -- If we found the bank in main/factory file with wildcards, we need to get actual MSB/LSB from temp file
-        if reabankData.bank:find("%*") then
-            DebugLog("DEBUG: Bank has wildcards, checking temp file for actual MSB/LSB values\n")
-            local currentReabank = getCurrentReabank()
-            if currentReabank then
-                local tempContent = readFileContent(currentReabank)
-                if tempContent then
-                    -- Quick search just for the MSB/LSB values
-                    for line in tempContent:gmatch("[^\r\n]+") do
-                        local msb, lsb, tempBankName = line:match("^Bank (%d+) (%d+) (.*)$")
-                        if tempBankName and tempBankName == MatchingBank.name then
-                            DebugLog("DEBUG: Found actual MSB/LSB in temp file: " .. msb .. "/" .. lsb .. "\n")
-                            reabankData.bank = msb .. " " .. lsb
-                            break
-                        end
+                for line in tempContent:gmatch("[^\r\n]+") do
+                    local msb, lsb, tempBankName = line:match("^Bank (%d+) (%d+) (.*)$")
+                    if tempBankName and tempBankName == MatchingBank.name then
+                        DebugLog("DEBUG: Found actual MSB/LSB in temp file: " .. msb .. "/" .. lsb .. "\n")
+                        reabankData.bank = msb .. " " .. lsb
+                        break
                     end
                 end
             end
         end
     end
-    
-    if not reabankData then
-        DebugLog("ERROR: Bank '" .. tostring(MatchingBank.name) .. "' not found in any reabank file\n")
-        return nil
-    end
-    
+
+    DebugLog("SUCCESS: Found bank with " .. #reabankData.articulations .. " articulations\n")
     activeBank = MatchingBank.name
     return reabankData
+end
+
+-- Get or build the banks lookup table (matches Reaticulate's approach)
+function GetBanksLookupTable()
+    -- Simple cache invalidation (could be improved)
+    local current_time = reaper.time_precise()
+    if banks_cache and (current_time - banks_cache_timestamp) < 5.0 then
+        DebugLog("DEBUG: Using cached banks lookup table\n")
+        return banks_cache.by_path, banks_cache.by_name
+    end
+
+    DebugLog("DEBUG: Building banks lookup table\n")
+
+    -- Combine content from all reabank files
+    local combinedContent = ""
+
+    -- Start with main reabank (user banks with full metadata)
+    local mainReabank = getMainReabankPath()
+    if mainReabank then
+        local mainContent = readFileContent(mainReabank)
+        if mainContent then
+            combinedContent = combinedContent .. mainContent .. "\n"
+            DebugLog("DEBUG: Added main reabank to combined content\n")
+        end
+    end
+
+    -- Add factory reabank (factory banks with full metadata)
+    local factoryReabank = getFactoryReabankPath()
+    if factoryReabank then
+        local factoryContent = readFileContent(factoryReabank)
+        if factoryContent then
+            combinedContent = combinedContent .. factoryContent .. "\n"
+            DebugLog("DEBUG: Added factory reabank to combined content\n")
+        end
+    end
+
+    if combinedContent == "" then
+        DebugLog("ERROR: No reabank content available\n")
+        return nil, nil
+    end
+
+    -- Build the lookup tables
+    local banks_by_path, banks_by_name = BuildBankLookupTable(combinedContent)
+
+    -- Cache the result
+    banks_cache = {
+        by_path = banks_by_path,
+        by_name = banks_by_name
+    }
+    banks_cache_timestamp = current_time
+
+    return banks_by_path, banks_by_name
+end
+
+-- Build bank lookup tables (matches Reaticulate's approach)
+function BuildBankLookupTable(combinedContent)
+    DebugLog("DEBUG: BuildBankLookupTable starting\n")
+
+    local banks_by_path = {}
+    local banks_by_name = {}
+    local banks_with_clones = {}  -- Track banks that need clone resolution
+
+    local current_bank = nil
+    local bank_metadata = {}
+    local lineCount = 0
+    local bankCount = 0
+
+    for line in combinedContent:gmatch("[^\r\n]+") do
+        lineCount = lineCount + 1
+        local trimmedLine = line:gsub("^%s*(.-)%s*$", "%1")
+
+        -- Check for bank definition
+        if trimmedLine:find("^Bank ") then
+            -- Save previous bank if exists
+            if current_bank then
+                RegisterBank(current_bank, bank_metadata, banks_by_path, banks_by_name, banks_with_clones)
+                bankCount = bankCount + 1
+            end
+
+            -- Start new bank
+            local msb, lsb, bankName = trimmedLine:match("^Bank ([%d%*]+) ([%d%*]+) (.*)")
+            if bankName then
+                current_bank = {
+                    name = bankName,
+                    bank = msb .. " " .. lsb,
+                    id = "",
+                    articulations = {},
+                    articulationslook = {},
+                    group = nil,
+                    clone = nil
+                }
+                bank_metadata = {}  -- Reset metadata for new bank
+                DebugLog("DEBUG: Started parsing bank: '" .. bankName .. "'\n")
+            end
+
+        -- Capture metadata lines (both bank-level and articulation-level)
+        elseif current_bank and trimmedLine:find("^//! ") then
+            -- Bank-level metadata (only captured before first articulation)
+            if #current_bank.articulations == 0 then
+                -- Extract group (g="path")
+                local group = trimmedLine:match("^//! g=\"([^\"]+)\"")
+                if group then
+                    current_bank.group = group
+                    DebugLog("DEBUG: Found group: '" .. group .. "'\n")
+                end
+
+                -- Extract clone parameter
+                local clone = trimmedLine:match("^//! clone=\"([^\"]+)\"")
+                if not clone then
+                    clone = trimmedLine:match("^//! clone=(%S+)")
+                end
+                if clone then
+                    current_bank.clone = clone
+                    DebugLog("DEBUG: Found clone: '" .. clone .. "'\n")
+                end
+
+                -- Extract bank ID
+                local id = trimmedLine:match("^//! id=([%w-]+)")
+                if id then
+                    current_bank.id = id
+                    DebugLog("DEBUG: Found bank ID: '" .. id .. "'\n")
+                end
+            end
+
+            -- Articulation metadata (for the NEXT articulation)
+            local color = trimmedLine:match("c=([%w-]+)")
+            if color then
+                bank_metadata.pending_color = "c=" .. color
+            end
+
+        -- Capture articulation definition
+        elseif current_bank and trimmedLine:find("^%d+ ") then
+            local entry = trimmedLine:match("^(%d+ .*)")
+            if entry then
+                table.insert(current_bank.articulations, entry)
+
+                -- Add pending metadata or default
+                local metadataStr = bank_metadata.pending_color or "c=long"
+                table.insert(current_bank.articulationslook, metadataStr)
+                bank_metadata.pending_color = nil  -- Clear for next articulation
+            end
+        end
+    end
+
+    -- Don't forget the last bank
+    if current_bank then
+        RegisterBank(current_bank, bank_metadata, banks_by_path, banks_by_name, banks_with_clones)
+        bankCount = bankCount + 1
+    end
+
+    DebugLog("DEBUG: Parsed " .. bankCount .. " banks, resolving " .. #banks_with_clones .. " clones\n")
+
+    -- Second pass: resolve clones (like Reaticulate does)
+    for _, bank in ipairs(banks_with_clones) do
+        ResolveClone(bank, banks_by_path, banks_by_name)
+    end
+
+    return banks_by_path, banks_by_name
+end
+
+-- Register a bank in the lookup tables
+function RegisterBank(bank, metadata, banks_by_path, banks_by_name, banks_with_clones)
+    -- Build path like Reaticulate: group + "/" + name
+    local path
+    if bank.group then
+        path = bank.group .. "/" .. bank.name
+    else
+        path = bank.name
+    end
+
+    DebugLog("DEBUG: Registering bank: '" .. bank.name .. "' at path: '" .. path .. "'\n")
+
+    banks_by_path[path] = bank
+    banks_by_name[bank.name] = bank
+
+    -- Track banks that need clone resolution
+    if bank.clone then
+        table.insert(banks_with_clones, bank)
+    end
+end
+
+-- Resolve a bank's clone parameter (like Reaticulate does)
+function ResolveClone(bank, banks_by_path, banks_by_name)
+    if not bank.clone then
+        return
+    end
+
+    DebugLog("DEBUG: Resolving clone for '" .. bank.name .. "' -> '" .. bank.clone .. "'\n")
+
+    -- Try lookup by full path first (like Reaticulate)
+    local source = banks_by_path[bank.clone]
+
+    -- If not found, try extracting just the bank name from the path
+    if not source then
+        local bankNameFromPath = bank.clone:match("([^/]+)$")
+        if bankNameFromPath then
+            DebugLog("DEBUG: Path lookup failed, trying by name: '" .. bankNameFromPath .. "'\n")
+            source = banks_by_name[bankNameFromPath]
+        end
+    end
+
+    if source then
+        -- Copy articulations from source
+        bank.articulations = {}
+        bank.articulationslook = {}
+        for i, art in ipairs(source.articulations) do
+            bank.articulations[i] = art
+            bank.articulationslook[i] = source.articulationslook[i] or "c=long"
+        end
+        DebugLog("SUCCESS: Cloned " .. #bank.articulations .. " articulations from '" .. (source.name or "unknown") .. "'\n")
+    else
+        DebugLog("ERROR: Could not find clone source for: '" .. bank.clone .. "'\n")
+    end
 end
 
 function FindReabankDataByName(combinedContent, bankName, cloneDepth)
