@@ -1034,7 +1034,8 @@ function BuildBankLookupTable(combinedContent)
             local msb, lsb, bankName = trimmedLine:match("^Bank ([%d%*]+) ([%d%*]+) (.*)")
             if bankName then
                 current_bank = {
-                    name = bankName,
+                    name = bankName,         -- Bank line name (e.g., "BBC - Flutes a3")
+                    shortname = nil,         -- n= parameter (e.g., "BBC Flutes a3")
                     bank = msb .. " " .. lsb,
                     id = "",
                     articulations = {},
@@ -1055,6 +1056,13 @@ function BuildBankLookupTable(combinedContent)
                 if group then
                     current_bank.group = group
                     DebugLog("DEBUG: Found group: '" .. group .. "'\n")
+                end
+
+                -- Extract shortname (n="name") - this is what Reaticulate uses
+                local shortname = trimmedLine:match("^//! n=\"([^\"]+)\"")
+                if shortname then
+                    current_bank.shortname = shortname
+                    DebugLog("DEBUG: Found shortname (n=): '" .. shortname .. "'\n")
                 end
 
                 -- Extract clone parameter
@@ -1113,18 +1121,28 @@ end
 
 -- Register a bank in the lookup tables
 function RegisterBank(bank, metadata, banks_by_path, banks_by_name, banks_with_clones)
-    -- Build path like Reaticulate: group + "/" + name
+    -- Build path like Reaticulate: group + "/" + (shortname or name)
+    local displayName = bank.shortname or bank.name
     local path
     if bank.group then
-        path = bank.group .. "/" .. bank.name
+        path = bank.group .. "/" .. displayName
     else
-        path = bank.name
+        path = displayName
     end
 
-    DebugLog("DEBUG: Registering bank: '" .. bank.name .. "' at path: '" .. path .. "'\n")
+    DebugLog("DEBUG: Registering bank: '" .. bank.name .. "' (shortname: '" .. tostring(bank.shortname) .. "') at path: '" .. path .. "'\n")
 
+    -- Store by path (with shortname if available)
     banks_by_path[path] = bank
+
+    -- Store by bank line name (e.g., "BBC - Flutes a3")
     banks_by_name[bank.name] = bank
+
+    -- Also store by shortname if different (e.g., "BBC Flutes a3")
+    if bank.shortname and bank.shortname ~= bank.name then
+        banks_by_name[bank.shortname] = bank
+        DebugLog("DEBUG: Also registering by shortname: '" .. bank.shortname .. "'\n")
+    end
 
     -- Track banks that need clone resolution
     if bank.clone then
