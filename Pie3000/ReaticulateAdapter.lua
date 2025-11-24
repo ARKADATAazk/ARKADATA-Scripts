@@ -1037,9 +1037,37 @@ function BuildBankLookupTable(combinedContent)
         lineCount = lineCount + 1
         local trimmedLine = line:gsub("^%s*(.-)%s*$", "%1")
 
-        -- Capture metadata lines (BEFORE we see Bank line)
-        if trimmedLine:find("^//! ") and not current_bank then
-            -- Collecting metadata before Bank line
+        -- Check for bank definition
+        if trimmedLine:find("^Bank ") then
+            -- Save previous bank if exists
+            if current_bank then
+                RegisterBank(current_bank, pending_art_metadata, banks_by_path, banks_by_name, banks_with_clones)
+                bankCount = bankCount + 1
+            end
+
+            -- Start new bank and apply pending metadata
+            local msb, lsb, bankName = trimmedLine:match("^Bank ([%d%*]+) ([%d%*]+) (.*)")
+            if bankName then
+                current_bank = {
+                    name = bankName,
+                    shortname = pending_bank_metadata.shortname,
+                    bank = msb .. " " .. lsb,
+                    id = pending_bank_metadata.id or "",
+                    articulations = {},
+                    articulationslook = {},
+                    group = pending_bank_metadata.group,
+                    clone = pending_bank_metadata.clone
+                }
+                DebugLog("DEBUG: Started parsing bank: '" .. bankName .. "' (shortname: '" .. tostring(pending_bank_metadata.shortname) .. "')\n")
+
+                -- Clear pending bank metadata
+                pending_bank_metadata = {}
+                pending_art_metadata = {}
+            end
+
+        -- Capture metadata lines
+        elseif trimmedLine:find("^//! ") then
+            -- Try to parse bank-level metadata (g=, n=, clone=, id=)
             local group = trimmedLine:match("^//! g=\"([^\"]+)\"")
             if group then
                 pending_bank_metadata.group = group
@@ -1067,39 +1095,12 @@ function BuildBankLookupTable(combinedContent)
                 DebugLog("DEBUG: Pending bank ID: '" .. id .. "'\n")
             end
 
-        -- Check for bank definition
-        elseif trimmedLine:find("^Bank ") then
-            -- Save previous bank if exists
+            -- Also try to parse articulation-level metadata (c=, i=, etc.)
             if current_bank then
-                RegisterBank(current_bank, pending_art_metadata, banks_by_path, banks_by_name, banks_with_clones)
-                bankCount = bankCount + 1
-            end
-
-            -- Start new bank and apply pending metadata
-            local msb, lsb, bankName = trimmedLine:match("^Bank ([%d%*]+) ([%d%*]+) (.*)")
-            if bankName then
-                current_bank = {
-                    name = bankName,
-                    shortname = pending_bank_metadata.shortname,
-                    bank = msb .. " " .. lsb,
-                    id = pending_bank_metadata.id or "",
-                    articulations = {},
-                    articulationslook = {},
-                    group = pending_bank_metadata.group,
-                    clone = pending_bank_metadata.clone
-                }
-                DebugLog("DEBUG: Started parsing bank: '" .. bankName .. "' (shortname: '" .. tostring(pending_bank_metadata.shortname) .. "')\n")
-
-                -- Clear pending bank metadata
-                pending_bank_metadata = {}
-                pending_art_metadata = {}
-            end
-
-        -- Capture articulation metadata (AFTER Bank line)
-        elseif current_bank and trimmedLine:find("^//! ") then
-            local color = trimmedLine:match("c=([%w-]+)")
-            if color then
-                pending_art_metadata.pending_color = "c=" .. color
+                local color = trimmedLine:match("c=([%w-]+)")
+                if color then
+                    pending_art_metadata.pending_color = "c=" .. color
+                end
             end
 
         -- Capture articulation definition
