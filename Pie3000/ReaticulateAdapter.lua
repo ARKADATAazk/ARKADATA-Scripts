@@ -41,7 +41,7 @@ local activeBank = ""
 local activeChannel = 1
 
 -- Global debug control
-local DEBUG_ENABLED = false  -- Disabled by default, set to true for troubleshooting
+local DEBUG_ENABLED = true  -- Re-enabled to diagnose BBC Flutes a3 issue
 local DEBUG_FILE = reaper.GetResourcePath() .. "/Scripts/debug_reaticulate_adapter.txt"
 
 -- Enhanced debug function that writes to both console and file
