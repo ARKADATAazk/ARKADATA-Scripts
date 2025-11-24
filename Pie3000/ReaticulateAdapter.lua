@@ -1062,11 +1062,19 @@ function FindReabankDataByName(combinedContent, bankName, cloneDepth)
                     if cloneTarget then
                         DebugLog("DEBUG: Resolving clone from '" .. bankName .. "' to '" .. cloneTarget .. "'\n")
                         local clonedData = FindReabankDataByName(combinedContent, cloneTarget, cloneDepth + 1)
+
+                        -- If not found, try adding " - " after first word (e.g., "BBC Flute" -> "BBC - Flute")
+                        if not clonedData and cloneTarget:match("^(%w+) ") then
+                            local alternativeName = cloneTarget:gsub("^(%w+) ", "%1 - ")
+                            DebugLog("DEBUG: Trying alternative name with dash: '" .. alternativeName .. "'\n")
+                            clonedData = FindReabankDataByName(combinedContent, alternativeName, cloneDepth + 1)
+                        end
+
                         if clonedData then
                             -- Use the cloned articulations but keep our MSB/LSB and ID
                             reabankData.articulations = clonedData.articulations
                             reabankData.articulationslook = clonedData.articulationslook
-                            DebugLog("SUCCESS: Cloned " .. #clonedData.articulations .. " articulations from '" .. cloneTarget .. "'\n")
+                            DebugLog("SUCCESS: Cloned " .. #clonedData.articulations .. " articulations from clone target\n")
                             -- Return immediately with cloned data
                             return reabankData
                         else
@@ -1109,11 +1117,19 @@ function FindReabankDataByName(combinedContent, bankName, cloneDepth)
                 if cloneTarget and currentArticulationIndex == 0 and #reabankData.articulations == 0 then
                     DebugLog("DEBUG: Resolving clone (no id line) from '" .. bankName .. "' to '" .. cloneTarget .. "'\n")
                     local clonedData = FindReabankDataByName(combinedContent, cloneTarget, cloneDepth + 1)
+
+                    -- If not found, try adding " - " after first word (e.g., "BBC Flute" -> "BBC - Flute")
+                    if not clonedData and cloneTarget:match("^(%w+) ") then
+                        local alternativeName = cloneTarget:gsub("^(%w+) ", "%1 - ")
+                        DebugLog("DEBUG: Trying alternative name with dash: '" .. alternativeName .. "'\n")
+                        clonedData = FindReabankDataByName(combinedContent, alternativeName, cloneDepth + 1)
+                    end
+
                     if clonedData then
                         -- Use the cloned articulations but keep our MSB/LSB and ID
                         reabankData.articulations = clonedData.articulations
                         reabankData.articulationslook = clonedData.articulationslook
-                        DebugLog("SUCCESS: Cloned " .. #clonedData.articulations .. " articulations from '" .. cloneTarget .. "'\n")
+                        DebugLog("SUCCESS: Cloned " .. #clonedData.articulations .. " articulations from clone target\n")
                         -- Return immediately with cloned data
                         return reabankData
                     else
